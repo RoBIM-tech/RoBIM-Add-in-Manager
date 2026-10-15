@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "id": "my-revit-tools",
+      "name": "My Revit Tools",
+      "host": "pyrevit",
+      "path": ".",
+      "folder": "MyTools.extension",
+      "distribution": "git",
+      "description": "pyRevit extension from this repository"
+    }
+  ]
+}

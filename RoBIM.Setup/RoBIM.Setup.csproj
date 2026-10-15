@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>RoBIM-Manager-Setup</AssemblyName><Version>1.0.0-preview.5</Version>
+    <Product>RoBIM Add-in Manager Setup</Product>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Manager.Core\Manager.Core.csproj" />
+    <EmbeddedResource Include="..\artifacts\RoBIM-Manager-Portable.zip" LogicalName="RoBIM.Payload.zip" />
+  </ItemGroup>
+</Project>

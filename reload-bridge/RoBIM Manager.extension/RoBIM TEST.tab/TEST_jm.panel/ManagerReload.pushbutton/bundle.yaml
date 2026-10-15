@@ -1,0 +1,8 @@
+title:
+  ko: 적용 및 Reload
+  en_us: Apply and Reload
+tooltip:
+  ko: 매니저에서 준비한 변경을 적용하고 pyRevit을 다시 불러옵니다. 준비한 변경이 없으면 Reload만 실행합니다.
+  en_us: Apply prepared Manager changes and reload pyRevit.
+engine:
+  clean: true

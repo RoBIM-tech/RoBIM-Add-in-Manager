@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.dotnet-home/
+artifacts/
+*.err
+*.log
+*.dwg
+*.dwl
+*.dwl2
+*.bak
+.vs/
+*.user

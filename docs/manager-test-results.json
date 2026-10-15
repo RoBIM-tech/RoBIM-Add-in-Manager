@@ -1,0 +1,347 @@
+[
+  {
+    "Name": "InstallAndFingerprint",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "UpdateBacksUpAndRestore",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "RemovePreservesRestorableBackup",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "LocalChangesBlockUpdate",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "LocalChangesBlockRemoval",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "UnmanagedFolderNeverOverwritten",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "RunningHostBlocksInstall",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "HostRecheckedAfterPreparation",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "InvalidPackageRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "RevitManagedInstallUpdateRemove",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "TamperedStateTargetRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "TamperedBackupRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ConcurrentOperationsBlocked",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PersistenceFailureRestoresOldFiles",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ZipTraversalRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ZipAbsolutePathRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ZipSymlinkRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ZipDuplicateRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ValidZipExtracted",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "DeleteOutsideParentRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PathTraversalRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "WindowsAmbiguousPathRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "UserProfileHidesTestLayout",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "DeveloperSelectedPanelLayoutAndOriginalFiles",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "UnknownTestPanelRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "EmptyTestPanelRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "NoTestPanelRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "DeveloperInstallationIndependentOfUser",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "BranchArgumentsValidated",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ProfileActivationOnlyOneEnabled",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ProfileActivationFailureRestoresFlags",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ProfileBlockedWhenHostRunning",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "OnlyActivationFlagReadFromIni",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadPrepareDoesNotChangeInstalledFiles",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadFirstScriptInstallAllowed",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadBinaryChangeRequiresRestart",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadUnchangedBinaryAllowedButRemovalRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadTamperedPreparedFilesRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadStaleInstallationPreserved",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadInvalidSessionBlocksBeforeMutation",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadSessionRecheckedAfterCopy",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadOnlyRevitPackagesAndOwnedPaths",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReloadProfilePreparationAndRetry",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GitUrlNormalization",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GitUrlRejectsCredentialsAndForeignHosts",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ExplicitAddinTopicFilter",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PackageManifestSchemaAndPathValidation",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PackageManifestDuplicateIdentityBlocked",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PackageRegistrationAndStableIdentity",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ReservedInstallFoldersCannotBeClaimed",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GenericPyRevitExtensionWithoutLibInstallRestoreRemove",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GenericAutoCadModulePathsValidated",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "InvalidTokenCharactersRejectedWithoutEcho",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GitHubApiCredentialsCannotGoToArbitraryHost",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "NormalInstallClearsOnlyItsStaleReloadRequest",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "SimpleCadFirstInstallNeedsNoLogin",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "SimpleInstallRequiresClosedHostForFirstInstall",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "SimpleRevitUpdatePreparesThenApplies",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "SimpleInstallPreservesModifiedAndExternalCad",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "SimpleCustomRevitRequiresClosure",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "AuthenticatedGitHubIdentity",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "AuthenticatedAddinRepositoryDiscovery",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "GitUrlInspectionAndVerifiedReleaseDownload",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "WindowsCredentialRoundtripAndCleanup",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "InvalidTokenPreservesCurrentConnection",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "PrivateGitHubCadAndRevitDownloadInstall",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ExternalReloadPinnedCommitRejected",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ExternalRevitFastForwardAndBackup",
+    "Passed": true,
+    "Error": ""
+  },
+  {
+    "Name": "ExternalRevitLocalChangesPreserved",
+    "Passed": true,
+    "Error": ""
+  }
+]
