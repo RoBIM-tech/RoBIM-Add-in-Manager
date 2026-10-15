@@ -15,3 +15,5 @@
 설치 파일을 실행하기 전에 기존 매니저를 종료하십시오. 매니저 설치 후 Revit 또는 AutoCAD에서 도구를 선택하고 설치 버튼을 누르면 됩니다. CAD DLL과 새 Revit/일반 확장 설치는 제품 종료가 필요합니다.
 
 설치 엔진·온라인 연동 검증과 Setup 검증 결과는 docs/MANAGER_VALIDATION.md를 참고하십시오. 실제 Revit 모델 내 Reload와 신규 유효 PAT 입력은 사용자 환경 확인 범위입니다.
+
+[간단 사용설명서](https://github.com/gagaggan/RoBIM-Add-in-Manager/blob/main/docs/USER_GUIDE_KO.md) · [저장소 분리 기록](https://github.com/gagaggan/RoBIM-Add-in-Manager/blob/main/docs/REPOSITORY_SPLIT.md)
