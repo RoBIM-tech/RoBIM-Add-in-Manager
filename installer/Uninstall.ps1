@@ -1,6 +1,7 @@
 param([switch]$Quiet)
 $ErrorActionPreference = 'Stop'
 $destination = [IO.Path]::GetFullPath($PSScriptRoot)
+if (Test-Path -LiteralPath (Join-Path $destination '.robim-manager-native.ini')) { throw 'Setup.exe로 설치된 매니저는 Windows 설정의 설치된 앱에서 제거하십시오.' }
 $marker = Join-Path $destination '.robim-manager-install.json'
 if (!(Test-Path -LiteralPath $marker)) { throw 'RoBIM Manager 설치 기록이 없습니다.' }
 $record = Get-Content -LiteralPath $marker -Raw | ConvertFrom-Json

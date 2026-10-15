@@ -42,6 +42,8 @@ public sealed partial class ManagerForm : Form
         installer = new(paths, EnvironmentProbe.EnsureHostClosed);
         sources = new(paths);
         Text = "RoBIM Add-in Manager";
+        using (var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico")!)
+        using (var icon = new Icon(stream)) Icon = (Icon)icon.Clone();
         Font = new Font("맑은 고딕", 10F);
         AutoScaleMode = AutoScaleMode.Dpi;
         Size = new Size(1240, 820);
@@ -260,7 +262,7 @@ public sealed partial class ManagerForm : Form
         ShowSelected();
         RefreshProductList();
         WriteLog("화면 확인용 미리보기입니다. 설치된 도구의 실제 상태를 나타내지 않습니다.");
-        footer.Text = "RoBIM Add-in Manager · Preview 5";
+        footer.Text = "RoBIM Add-in Manager · " + Application.ProductVersion.Split('+')[0];
     }
 
     public void RenderPreview(string destination)

@@ -15,6 +15,7 @@ function Assert-NoLinks([string]$Path) {
 }
 try {
     $Destination = [IO.Path]::GetFullPath($Destination)
+    if (Test-Path -LiteralPath (Join-Path $Destination '.robim-manager-native.ini')) { throw 'Setup.exe로 설치된 매니저는 Setup.exe로 업데이트하십시오.' }
     Assert-NoLinks $Destination
     $marker = Join-Path $Destination '.robim-manager-install.json'
     Assert-NoLinks $marker
@@ -26,7 +27,7 @@ try {
     $expectedExecutable = Join-Path $Destination 'RoBIM.Manager.exe'
     $running = Get-Process -Name 'RoBIM.Manager' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -eq $expectedExecutable } catch { $true } }
     if ($running) { throw 'RoBIM Manager를 종료한 뒤 설치하십시오.' }
-    $files = Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in '.exe','.dll','.json','.zip','.sha256','.ps1','.md' -and $_.Name -ne 'RoBIM-Manager-Setup.exe' }
+    $files = Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in '.exe','.dll','.json','.zip','.sha256','.ps1','.md','.ico' -and $_.Name -ne 'RoBIM-Manager-Setup.exe' }
     $required = @('RoBIM.Manager.exe','Uninstall.ps1','DelHiddenNet-AutoCAD2026.zip','DelHiddenNet-AutoCAD2026.zip.sha256','RoBIM-ReloadBridge.zip','RoBIM-ReloadBridge.zip.sha256')
     foreach ($name in $required) { if ($files.Name -notcontains $name) { throw "설치 파일 누락: $name" } }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
@@ -56,10 +57,11 @@ try {
             $desktopShortcut.Save()
             $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMManager'
             New-Item -Path $key -Force | Out-Null
-            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion='1.0.0-preview.5'; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
+            $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion='1.0.0-preview.6'; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('"' + $powerShell + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
             foreach ($entry in $values.GetEnumerator()) { New-ItemProperty -Path $key -Name $entry.Key -Value $entry.Value -PropertyType String -Force | Out-Null }
         }
-        @{ Product='RoBIM.Manager'; Version='1.0.0-preview.5'; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
+        @{ Product='RoBIM.Manager'; Version='1.0.0-preview.6'; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
         if (!$SkipIntegration) {
             foreach ($legacy in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'RoBIM Manager.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'RoBIM Manager\RoBIM Manager.lnk'))) {
                 Assert-NoLinks $legacy
