@@ -541,6 +541,7 @@ if (args.Contains("--online"))
     }
     catch (Exception ex) { failures++; results.Add(new { Name = "PrivateGitHubCadAndRevitDownloadInstall", Passed = false, Error = ex.ToString() }); Console.WriteLine(ex.Message); }
 }
+NativeRevitTests.Run(Test, Paths, Require, root);
 File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"{results.Count - failures}/{results.Count} passed. Report: {Path.Combine(root, "results.json")}");
 return failures == 0 ? 0 : 1;

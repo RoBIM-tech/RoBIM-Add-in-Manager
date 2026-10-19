@@ -37,7 +37,7 @@ public sealed partial class ManagerForm
         var urlRow = Row(); var register = MakeButton("URL 확인 및 등록"); urlRow.Controls.AddRange([Note("Git URL"), gitUrl, register]); layout.Controls.Add(urlRow);
         var actions = Row(); var installPackage = MakeButton("제품 화면에서 보기", true);
         actions.Controls.Add(installPackage); layout.Controls.Add(actions);
-        catalogInfo.Text = "지원: pyRevit .extension / AutoCAD .bundle. 자동 설치 스크립트나 저장소 빌드는 실행하지 않습니다.";
+        catalogInfo.Text = "지원: pyRevit .extension / AutoCAD·독립 Revit .bundle. 자동 설치 스크립트나 저장소 빌드는 실행하지 않습니다.";
         layout.Controls.Add(catalogInfo); extensionsPage.Controls.Add(layout);
         refresh.Click += async (_, _) => await Run("애드인 저장소 조회", RefreshAccountAndCatalog);
         register.Click += async (_, _) => await Run("Git URL 확인", async () =>
@@ -71,7 +71,7 @@ public sealed partial class ManagerForm
             {
                 var tool = ExtensionCatalog.Tool(repository, package);
                 var status = statuses.GetValueOrDefault(tool.Id) ?? installer.Status(tool);
-                var index = extensionGrid.Rows.Add(package.Name, package.Host == "pyrevit" ? "Revit" : "AutoCAD", repository.Repository, repository.Branch, status.Detail);
+                var index = extensionGrid.Rows.Add(package.Name, package.Host == "autocad" ? "AutoCAD" : package.Host == "revit" ? "Revit · 독립" : "Revit", repository.Repository, repository.Branch, status.Detail);
                 extensionGrid.Rows[index].Tag = new PackageRow(repository, package);
                 availablePackages.Add(new PackageRow(repository, package));
             }

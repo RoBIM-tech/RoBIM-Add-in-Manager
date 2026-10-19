@@ -1,6 +1,6 @@
 namespace RoBIM.Manager.Core;
 
-public enum ToolKind { AutoCAD, PyRevit }
+public enum ToolKind { AutoCAD, PyRevit, NativeRevit }
 
 public sealed record ToolSpec(string Id, string Name, ToolKind Kind, string Repository,
     string Branch, string FolderName, string Description, bool CustomPackage = false);
@@ -27,7 +27,7 @@ public sealed record ManagerPaths(string Data, string CadPlugins, string RevitEx
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RoBIM", "Manager"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "ApplicationPlugins"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "Extensions"));
-    public string Target(ToolSpec tool) => Path.Combine(tool.Kind == ToolKind.AutoCAD ? CadPlugins : RevitExtensions, tool.FolderName);
+    public string Target(ToolSpec tool) => Path.Combine(tool.Kind is ToolKind.AutoCAD or ToolKind.NativeRevit ? CadPlugins : RevitExtensions, tool.FolderName);
 }
 
 public sealed record InstallRecord(string Id, string Version, string Path, DateTimeOffset InstalledAt,

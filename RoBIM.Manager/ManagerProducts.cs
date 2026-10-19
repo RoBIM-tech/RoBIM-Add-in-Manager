@@ -95,11 +95,11 @@ public sealed partial class ManagerForm
         var kind = currentPage == "Cad" ? ToolKind.AutoCAD : ToolKind.PyRevit;
         var selected = SelectedProduct()?.Status.Tool.Id;
         productList.Rows.Clear();
-        foreach (var status in statuses.Values.Where(x => x.Tool.Kind == kind)) Add(status, null);
+        foreach (var status in statuses.Values.Where(x => x.Tool.Kind == kind || kind == ToolKind.PyRevit && x.Tool.Kind == ToolKind.NativeRevit)) Add(status, null);
         foreach (var entry in availablePackages)
         {
             var tool = ExtensionCatalog.Tool(entry.Repository, entry.Package);
-            if (!tool.CustomPackage || tool.Kind != kind) continue;
+            if (!tool.CustomPackage || (tool.Kind != kind && !(kind == ToolKind.PyRevit && tool.Kind == ToolKind.NativeRevit))) continue;
             Add(installer.Status(tool), entry);
         }
         void Add(ToolStatus status, PackageRow? package)

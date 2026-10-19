@@ -168,7 +168,11 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     {
         SafeFiles.NoLinks(source);
         _ = SafeFiles.Hashes(source);
-        if (tool.Kind == ToolKind.AutoCAD)
+        if (tool.Kind == ToolKind.NativeRevit)
+        {
+            NativeRevitPackages.Validate(source);
+        }
+        else if (tool.Kind == ToolKind.AutoCAD)
         {
             var manifest = System.Xml.Linq.XDocument.Load(Path.Combine(source, "PackageContents.xml"));
             if (tool.CustomPackage)

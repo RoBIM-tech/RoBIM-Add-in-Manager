@@ -1,6 +1,6 @@
 # RoBIM Add-in Manager
 
-- 이 저장소는 매니저·설치 프로그램·Reload 연결·사용설명서만 관리한다. CAD 애드인 소스는 gagaggan/RoBIM-CAD, Revit 도구 소스는 gagaggan/RoBIM-pyrevit에서 관리한다.
+- 이 저장소는 매니저·설치 프로그램·Reload 연결·사용설명서만 관리한다. CAD 애드인 소스는 gagaggan/RoBIM-CAD, pyRevit 도구 소스는 gagaggan/RoBIM-pyrevit, 독립 Revit 모듈은 gagaggan/RoBIM-Revit-Addin에서 관리한다.
 - Windows x64 / .NET 10. 빌드: build-manager.ps1. CAD는 별도 Releases의 ZIP/SHA-256을 받아 동봉하며 Autodesk SDK나 CAD 소스를 참조하지 않는다.
 - 첫 화면은 Revit / AutoCAD로 분리하고 기본 작업 버튼은 하나만 제공한다. Git URL·계정/PAT·개발자는 보조 기능이다.
 - 일반 설치·삭제·복원은 해당 호스트 종료를 요구한다. 기존 설치·로컬 변경·백업·해시·경로 검증을 유지한다.
