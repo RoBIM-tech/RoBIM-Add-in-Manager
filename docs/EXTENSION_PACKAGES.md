@@ -51,7 +51,7 @@ GitHub 저장소 Settings/About의 Topics에 다음 중 하나를 추가합니�
 - `distribution`: `git` 또는 `release`. Git은 기본 브랜치의 커밋 사본을 설치하며 빌드·설치 스크립트는 실행하지 않습니다.
 - `asset`: release 방식에서 내려받을 ZIP 파일명. 릴리스에서 해당 파일명과 일치하는 최신 배포를 찾고 GitHub의 SHA-256 값과 다운로드 해시를 비교합니다. 파일 크기는 128 MiB 이하입니다.
 
-기존 pyRevit 저장소는 루트의 `.tab` 폴더 또는 한 개의 `.extension` 폴더 구조도 인식합니다. AutoCAD는 컴파일된 실행 모듈을 포함하는 `.bundle`이 필요하며 `PackageContents.xml`의 모듈 경로와 실제 파일을 검증합니다. 소스 C# 프로젝트만 있는 저장소를 자동 빌드하지 않습니다. 독립 Revit C#은 `host: "revit"`, `.bundle` 폴더, `distribution: "release"`를 사용합니다. PackageContents.xml의 Revit/Win64/버전 범위, .addin 등록과 상대 DLL 경로를 검사합니다. Revit을 종료한 뒤 설치·업데이트·삭제·복원하며 pyRevit은 필요하지 않습니다. 실행 중 native DLL Reload는 지원하지 않습니다.
+기존 pyRevit 저장소는 루트의 `.tab` 폴더 또는 한 개의 `.extension` 폴더 구조도 인식합니다. AutoCAD는 컴파일된 실행 모듈을 포함하는 `.bundle`이 필요하며 `PackageContents.xml`의 모듈 경로와 실제 파일을 검증합니다. 소스 C# 프로젝트만 있는 저장소를 자동 빌드하지 않습니다. 독립 Revit C#은 `host: "revit"`, `.bundle` 폴더, `distribution: "release"`를 사용합니다. PackageContents.xml의 Revit/Win64/버전 범위, .addin 등록과 상대 DLL 경로를 검사합니다. Revit을 종료한 뒤 설치·업데이트·삭제·복원하며 pyRevit은 필요하지 않습니다. 이 일반 .addin 직접 등록 경로는 실행 중 DLL Reload 경로가 아닙니다. 별도의 `robim-module.json` command-only 모듈은 고정 Host의 Native Reload 경로를 사용하며 [현재 개발자 설명서](developer/README.md)를 참고합니다.
 
 예제: [pyRevit 표시 파일](examples/pyrevit-robim-package.json), [AutoCAD Release 표시 파일 예제](examples/cad-release-package.json).
 

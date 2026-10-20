@@ -1,5 +1,8 @@
 # RoBIM Add-in Manager 기술 구조
 
+> 초기 구현·설계 이력을 포함한 기술 참고입니다. 현재 사용자 조작은 [사용설명서](user/README.md), 현재 적용 경로는 [개발자 설명서](developer/README.md)를 우선합니다.
+
+
 ## Preview 7 CAD 연결
 
 기존 Windows Manager의 AutoCAD 화면에서 연결 모듈 최초 설치와 기능 버튼 선택/적용 준비를 구분한다. 연결 모듈 설치·업데이트/제거/복원은 호스트 종료가 필요하다. 이후 호환 기능과 버튼 정의는 별도 `CadReload` 경로로 준비하며 일반 설치 보호를 해제하지 않는다.

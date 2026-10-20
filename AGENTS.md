@@ -16,3 +16,9 @@
 - Read `.codex/skills/robim-manager/SKILL.md` for this repository. The global Codex copy is installed from this source.
 - Shared contracts and compatibility are managed by `gagaggan/RoBIM-Workspace`; do not copy product implementation into that repository.
 - Keep user ribbon choices and command IDs stable. Use the Manager workflow in README.md rather than old direct-install instructions.
+
+## Documentation audiences
+
+- User procedures belong in docs/user/README.md and its feature guides; describe inputs, actions, results and recovery.
+- Implementation, data flow, lifecycle, build/test and repository design belong in docs/developer/README.md and its references.
+- Keep README.md as an entry point to both audiences. Label historical design/validation documents and preserve existing inbound links with pointers.
