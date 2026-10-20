@@ -20,6 +20,6 @@ public static class ReloadBridge
             // First install introduces new scripts only. Replacing a loaded bridge requires closure.
             if (Directory.Exists(paths.Target(Catalog.ReloadBridge))) EnvironmentProbe.EnsureHostClosed(Catalog.Revit);
         });
-        service.Install(Catalog.ReloadBridge, new(Path.Combine(cache, Catalog.ReloadBridge.FolderName), "1.0.0-preview.3"));
+        service.Install(Catalog.ReloadBridge, new(Path.Combine(cache, Catalog.ReloadBridge.FolderName), "1.0.0-preview.22"));
     }
 }

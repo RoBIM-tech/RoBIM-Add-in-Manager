@@ -43,7 +43,7 @@ public sealed class Sources(ManagerPaths paths)
         var digestFile = archive + ".sha256";
         if (!File.Exists(digestFile) || !SafeFiles.Hash(archive).Equals(File.ReadAllText(digestFile).Trim(), StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("동봉 CAD 패키지의 해시가 일치하지 않습니다.");
-        return ExtractCad(archive, "v1.0.0-preview.1 (동봉)");
+        return ExtractCad(archive, "동봉 " + SafeFiles.Hash(archive)[..12]);
     }
 
     private string NewCache()

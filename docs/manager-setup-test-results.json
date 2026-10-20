@@ -1,10 +1,10 @@
 {
   "PortableExtraction": true,
-  "Reinstallation": true,
-  "ReloadBridgePackage": true,
-  "Installation": true,
-  "Uninstall": true,
   "UnknownFilePreserved": true,
+  "ReloadBridgePackage": true,
+  "Reinstallation": true,
+  "UnmanagedDestinationProtected": true,
+  "Uninstall": true,
   "InstalledUiRender": true,
-  "UnmanagedDestinationProtected": true
+  "Installation": true
 }

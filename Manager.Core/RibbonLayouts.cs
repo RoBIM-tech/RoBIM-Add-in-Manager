@@ -1,0 +1,90 @@
+using System.Diagnostics;
+using System.Text.Json;
+
+namespace RoBIM.Manager.Core;
+
+public sealed record RibbonTool(string Id, string Title, string Tab, string Panel, bool Installed, string? Icon = null);
+public sealed record RibbonPlacement(string Id, string Title, string Size = "Large", string? Stack = null, int StackRows = 0, string Kind = "Button");
+public sealed record RibbonPanelLayout(string Name, RibbonPlacement[] Buttons);
+public sealed record RibbonTabLayout(string Name, RibbonPanelLayout[] Panels);
+public sealed record RibbonLayout(int SchemaVersion, string Host, RibbonTabLayout[] Tabs);
+
+public sealed class RibbonLayouts(ManagerPaths paths)
+{
+    public string FilePath(string host) => SafeFiles.Child(paths.Data, "ribbon-layout-" + Host(host).ToLowerInvariant() + ".json");
+    private static string Host(string host) => host is "Revit" or "AutoCAD" ? host : throw new IOException("지원하지 않는 리본 호스트");
+    public static void Validate(RibbonLayout layout)
+    {
+        _ = Host(layout.Host);
+        if (layout.SchemaVersion != 1 || layout.Tabs is null || layout.Tabs.Length > 30) throw new IOException("리본 구성 형식 오류");
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stackIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        static void Name(string value) { if (string.IsNullOrWhiteSpace(value) || value.Length > 80 || value.Any(char.IsControl)) throw new IOException("탭·패널 이름은 1~80자여야 합니다."); }
+        var tabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tab in layout.Tabs)
+        {
+            Name(tab.Name); if (!tabs.Add(tab.Name) || tab.Panels is null || tab.Panels.Length > 50) throw new IOException("탭 이름 중복 또는 패널 수 초과");
+            var panels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var panel in tab.Panels)
+            {
+                Name(panel.Name); if (!panels.Add(panel.Name) || panel.Buttons is null || panel.Buttons.Length > 200) throw new IOException("패널 이름 중복 또는 버튼 수 초과");
+                foreach (var button in panel.Buttons)
+                {
+                    if (button.Kind is not ("Button" or "Separator") || button.Kind == "Separator" && (!button.Id.StartsWith("separator:", StringComparison.Ordinal) || button.Stack is not null || button.StackRows != 0 || button.Size != "Large"))
+                        throw new IOException("구분선은 버튼 묶음 밖에 배치하십시오.");
+                    if (string.IsNullOrWhiteSpace(button.Id) || button.Id.Length > 500 || button.Id.Any(char.IsControl) || !ids.Add(button.Id) ||
+                        string.IsNullOrWhiteSpace(button.Title) || button.Title.Length > 120 || button.Title.Any(char.IsControl) || button.Size is not ("Large" or "Small"))
+                        throw new IOException("버튼 ID 중복·표시 이름·크기 오류");
+                }
+                foreach (var button in panel.Buttons)
+                    if (button.Stack is null ? button.StackRows != 0 : string.IsNullOrWhiteSpace(button.Stack) || button.Stack.Length > 80 || button.Stack.Any(char.IsControl) || button.Size != "Small" || button.StackRows is not (2 or 3))
+                        throw new IOException("버튼 묶음은 2단 또는 3단 작은 버튼으로 구성하십시오.");
+                foreach (var group in panel.Buttons.Where(b => b.Stack is not null).GroupBy(b => b.Stack!, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!stackIds.Add(group.Key) || group.Any(b => b.StackRows != group.First().StackRows) || group.Count() != group.First().StackRows)
+                        throw new IOException("한 묶음에 같은 패널의 버튼을 정확히 2개 또는 3개 넣으십시오.");
+                    var indices = panel.Buttons.Select((b, i) => (b, i)).Where(x => string.Equals(x.b.Stack, group.Key, StringComparison.OrdinalIgnoreCase)).Select(x => x.i).ToArray();
+                    if (indices.Last() - indices.First() + 1 != indices.Length) throw new IOException("버튼 묶음 중간에 다른 버튼이나 구분선을 넣을 수 없습니다.");
+                }
+            }
+        }
+    }
+    public RibbonLayout Read(string host)
+    {
+        var file = FilePath(host); SafeFiles.NoLinks(file);
+        if (!File.Exists(file)) return new(1, host, []);
+        if (new FileInfo(file).Length > 1024 * 1024) throw new IOException("리본 설정 크기 초과");
+        var layout = JsonSerializer.Deserialize<RibbonLayout>(File.ReadAllText(file)) ?? throw new IOException("리본 설정 오류");
+        Validate(layout); if (layout.Host != host) throw new IOException("다른 호스트의 리본 설정"); return layout;
+    }
+    public void Save(RibbonLayout layout)
+    {
+        Validate(layout); var file = FilePath(layout.Host); SafeFiles.NoLinks(file); Directory.CreateDirectory(paths.Data);
+        var temporary = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { File.WriteAllText(temporary, JsonSerializer.Serialize(layout, new JsonSerializerOptions { WriteIndented = true })); File.Move(temporary, file, true); }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+    public static RibbonLayout Defaults(string host, IEnumerable<RibbonTool> tools) => new(1, host,
+        tools.Where(x => x.Installed).GroupBy(x => x.Tab).Select(tab => new RibbonTabLayout(tab.Key,
+            tab.GroupBy(x => x.Panel).Select(panel => new RibbonPanelLayout(panel.Key, panel.Select(x => new RibbonPlacement(x.Id, x.Title)).ToArray())).ToArray())).ToArray());
+    public string RequestRevit(bool reload)
+    {
+        var session = NativeRevitCommands.Session();
+        if (session is null) return "저장됨 · 다음 Revit 시작 시 적용";
+        var ready = SafeFiles.Child(paths.Data, "UiBridgeSessions/" + session.Pid + ".json");
+        if (!File.Exists(ready)) throw new IOException("리본 연결 업데이트가 필요합니다. Revit을 종료한 뒤 연결 설치를 누르고 다시 실행하십시오.");
+        using var document = JsonDocument.Parse(File.ReadAllText(ready));
+        var bridgeVersion = document.RootElement.GetProperty("Version").GetInt32();
+        if (document.RootElement.GetProperty("StartTicks").GetInt64() != session.StartTicks || bridgeVersion is not (1 or 2 or 3))
+            throw new IOException("리본 연결 세션이 일치하지 않습니다. Revit을 다시 실행하십시오.");
+        if (bridgeVersion < 2 && Read("Revit").Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Any(b => b.Stack is not null))
+            throw new IOException("2단·3단 버튼 묶음에는 새 리본 연결이 필요합니다. Revit 종료 후 연결 설치를 업데이트하십시오.");
+        if (bridgeVersion < 3 && Read("Revit").Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Any(b => b.Kind == "Separator"))
+            throw new IOException("구분선에는 새 리본 연결이 필요합니다. Revit 종료 후 연결 설치를 업데이트하십시오.");
+        var file = SafeFiles.Child(paths.Data, "revit-ui-request.json"); SafeFiles.NoLinks(file);
+        var id = Guid.NewGuid().ToString("N");
+        var temporary = file + ".tmp";
+        File.WriteAllText(temporary, JsonSerializer.Serialize(new { Id = id, session.Pid, session.StartTicks, Reload = reload })); File.Move(temporary, file, true);
+        return "Revit 적용 요청 완료 · 결과 확인을 눌러 실제 적용 상태를 확인하세요.";
+    }
+}

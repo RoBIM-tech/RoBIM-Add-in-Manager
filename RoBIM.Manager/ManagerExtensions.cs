@@ -36,8 +36,10 @@ public sealed partial class ManagerForm
         extensionGrid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal; layout.Controls.Add(extensionGrid);
         var urlRow = Row(); var register = MakeButton("URL 확인 및 등록"); urlRow.Controls.AddRange([Note("Git URL"), gitUrl, register]); layout.Controls.Add(urlRow);
         var actions = Row(); var installPackage = MakeButton("제품 화면에서 보기", true);
-        actions.Controls.Add(installPackage); layout.Controls.Add(actions);
-        catalogInfo.Text = "지원: pyRevit .extension / AutoCAD .bundle. 자동 설치 스크립트나 저장소 빌드는 실행하지 않습니다.";
+        var importNative = MakeButton("독립 Revit 패키지 ZIP 가져오기");
+        importNative.Click += async (_, _) => await ImportNativePackage();
+        actions.Controls.AddRange([installPackage, importNative]); layout.Controls.Add(actions);
+        catalogInfo.Text = "지원: pyRevit .extension / AutoCAD·독립 Revit .bundle. 자동 설치 스크립트나 저장소 빌드는 실행하지 않습니다.";
         layout.Controls.Add(catalogInfo); extensionsPage.Controls.Add(layout);
         refresh.Click += async (_, _) => await Run("애드인 저장소 조회", RefreshAccountAndCatalog);
         register.Click += async (_, _) => await Run("Git URL 확인", async () =>
@@ -53,32 +55,38 @@ public sealed partial class ManagerForm
             if (SelectedPackage() is not { } row) return;
             var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
             SwitchPage(tool.Kind == ToolKind.AutoCAD ? "Cad" : "Revit");
-            foreach (DataGridViewRow product in productList.Rows)
-                if ((product.Tag as ProductRow)?.Status.Tool.Id == tool.Id) productList.CurrentCell = product.Cells[0];
+            SelectProduct(tool.Id);
         };
+    }
+    private void ShowCachedExtensionRows()
+    {
+        extensionGrid.Rows.Clear();
+        foreach (var entry in availablePackages)
+        {
+            var tool = ExtensionCatalog.Tool(entry.Repository, entry.Package);
+            var status = productRows.FirstOrDefault(x => x.Status.Tool.Id == tool.Id)?.Status;
+            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : tool.Kind == ToolKind.PyRevit ? "Revit · pyRevit" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
+            extensionGrid.Rows[index].Tag = entry;
+        }
     }
     private async Task RefreshAccountAndCatalog()
     {
         await RefreshAccount();
         try { await RefreshExtensionCatalog(); }
-        catch (Exception ex) { extensionGrid.Rows.Clear(); availablePackages.Clear(); RefreshProductList(); catalogInfo.Text = "목록 조회 실패: " + ex.Message; WriteLog(catalogInfo.Text); }
+        catch (Exception ex) { catalogInfo.Text = "저장된 목록 유지 · 저장소 조회 실패: " + ex.Message; WriteLog(catalogInfo.Text); }
     }
     private async Task RefreshExtensionCatalog()
     {
-        var result = await new ExtensionCatalog(paths).Discover(); extensionGrid.Rows.Clear(); availablePackages.Clear();
+        repositoryLookupCount++;
+        var result = await Task.Run(() => new ExtensionCatalog(paths).Discover());
+        availablePackages.Clear();
         foreach (var repository in result.Repositories)
-            foreach (var package in repository.Packages)
-            {
-                var tool = ExtensionCatalog.Tool(repository, package);
-                var status = statuses.GetValueOrDefault(tool.Id) ?? installer.Status(tool);
-                var index = extensionGrid.Rows.Add(package.Name, package.Host == "pyrevit" ? "Revit" : "AutoCAD", repository.Repository, repository.Branch, status.Detail);
-                extensionGrid.Rows[index].Tag = new PackageRow(repository, package);
-                availablePackages.Add(new PackageRow(repository, package));
-            }
+            foreach (var package in repository.Packages) availablePackages.Add(new PackageRow(repository, package));
+        await RefreshProductListAsync();
+        ShowCachedExtensionRows();
         catalogInfo.Text = $"{result.Repositories.Count}개 애드인 저장소 · {extensionGrid.Rows.Count}개 패키지" +
             (result.Warnings.Length > 0 ? " · 확인 필요 " + result.Warnings.Length + "개 (작업 기록 참고)" : " · 일반 저장소는 표시하지 않습니다.");
         foreach (var warning in result.Warnings) WriteLog(warning);
-        RefreshProductList();
     }
     private PackageRow? SelectedPackage() => extensionGrid.CurrentRow?.Tag as PackageRow;
     private async Task InstallExtension(PackageRow? selected = null)
@@ -88,8 +96,7 @@ public sealed partial class ManagerForm
         if (!tool.CustomPackage)
         {
             SwitchPage(tool.Kind == ToolKind.AutoCAD ? "Cad" : "Revit");
-            foreach (DataGridViewRow product in productList.Rows)
-                if ((product.Tag as ProductRow)?.Status.Tool.Id == tool.Id) productList.CurrentCell = product.Cells[0];
+            SelectProduct(tool.Id);
             foreach (DataGridViewRow existing in grid.Rows) if ((existing.Tag as ToolStatus)?.Tool.Id == tool.Id) grid.CurrentCell = existing.Cells[0];
             await InstallProduct(); return;
         }

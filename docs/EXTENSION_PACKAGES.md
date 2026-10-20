@@ -45,13 +45,13 @@ GitHub 저장소 Settings/About의 Topics에 다음 중 하나를 추가합니�
 ```
 
 - `id`: 저장소 내 고유한 소문자 영문·숫자·하이픈 ID. 설치 후 변경하지 마십시오.
-- `host`: `pyrevit` 또는 `autocad`.
+- `host`: `pyrevit`, `autocad`, 또는 `revit`.
 - `path`: Git 사본 또는 ZIP 내부의 패키지 상대 경로. 루트는 `.`이며 절대 경로·상위 경로는 허용하지 않습니다.
 - `folder`: 단일 설치 폴더명. `.extension` 또는 `.bundle`로 끝나야 합니다. RoBIM 기본 도구의 예약 폴더명을 다른 저장소에서 사용할 수 없습니다.
 - `distribution`: `git` 또는 `release`. Git은 기본 브랜치의 커밋 사본을 설치하며 빌드·설치 스크립트는 실행하지 않습니다.
 - `asset`: release 방식에서 내려받을 ZIP 파일명. 릴리스에서 해당 파일명과 일치하는 최신 배포를 찾고 GitHub의 SHA-256 값과 다운로드 해시를 비교합니다. 파일 크기는 128 MiB 이하입니다.
 
-기존 pyRevit 저장소는 루트의 `.tab` 폴더 또는 한 개의 `.extension` 폴더 구조도 인식합니다. AutoCAD는 컴파일된 실행 모듈을 포함하는 `.bundle`이 필요하며 `PackageContents.xml`의 모듈 경로와 실제 파일을 검증합니다. 소스 C# 프로젝트만 있는 저장소를 자동 빌드하지 않습니다. 독립 Revit C# `.addin` 설치는 이번 형식에 포함하지 않습니다.
+기존 pyRevit 저장소는 루트의 `.tab` 폴더 또는 한 개의 `.extension` 폴더 구조도 인식합니다. AutoCAD는 컴파일된 실행 모듈을 포함하는 `.bundle`이 필요하며 `PackageContents.xml`의 모듈 경로와 실제 파일을 검증합니다. 소스 C# 프로젝트만 있는 저장소를 자동 빌드하지 않습니다. 독립 Revit C#은 `host: "revit"`, `.bundle` 폴더, `distribution: "release"`를 사용합니다. PackageContents.xml의 Revit/Win64/버전 범위, .addin 등록과 상대 DLL 경로를 검사합니다. Revit을 종료한 뒤 설치·업데이트·삭제·복원하며 pyRevit은 필요하지 않습니다. 실행 중 native DLL Reload는 지원하지 않습니다.
 
 예제: [pyRevit 표시 파일](examples/pyrevit-robim-package.json), [AutoCAD Release 표시 파일 예제](examples/cad-release-package.json).
 
@@ -64,3 +64,5 @@ RoBIM 기본 두 도구는 Revit / AutoCAD 화면으로 연결하여 기존 외�
 관리 파일 `github-auth.json`에는 인증 방식과 ID만, `extension-repositories.json`에는 URL·패키지 정의만 저장합니다. 등록 파일과 다운로드 캐시는 `%LOCALAPPDATA%\RoBIM\Manager`에 있습니다.
 
 참고: [GitHub 저장소 REST API](https://docs.github.com/en/rest/repos/repos), [Windows CredWrite](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew).
+
+독립 시트 생성 예제: https://github.com/gagaggan/RoBIM-Revit-Addin (`robim-package.json`).

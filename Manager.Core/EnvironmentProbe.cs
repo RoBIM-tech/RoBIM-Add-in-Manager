@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace RoBIM.Manager.Core;
 
@@ -24,12 +25,72 @@ public static class EnvironmentProbe
 
     public static async Task<IReadOnlyList<string>> RevitRoots()
     {
-        var roots = new List<string> { ManagerPaths.CurrentUser().RevitExtensions };
-        var result = await ProcessRunner.Run("pyrevit", ["extensions", "paths"]);
-        if (result.ExitCode != 0) throw new IOException("pyRevit CLI에 접근할 수 없습니다. pyRevit 설치와 Revit 연결을 확인하십시오.");
-        foreach (var line in result.Output.Split('\n').Select(x => x.Trim()))
-            if (Path.IsPathFullyQualified(line) && Directory.Exists(line)) roots.Add(line);
+        var current = ManagerPaths.CurrentUser();
+        var roots = new List<string> { current.RevitExtensions, PyRevitLocation.Root(current) };
+        roots.AddRange(ConfiguredRevitRoots(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini")));
+        // Installation discovery is read-only and must survive a stale desktop PATH or CLI failure.
+        // Profile changes still go through the installed CLI and report failures explicitly.
+        try
+        {
+            var result = await ProcessRunner.Run(PyRevitExecutable(), ["extensions", "paths"]);
+            if (result.ExitCode == 0)
+                foreach (var line in result.Output.Split('\n').Select(x => x.Trim()))
+                    if (Path.IsPathFullyQualified(line) && Directory.Exists(line)) roots.Add(line);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException) { }
         return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public static string PyRevitExecutable(string? path = null)
+    {
+        var directories = (path ?? Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
+            .Select(x => x.Trim().Trim('"')).Where(x => x.Length > 0)
+            .Concat(new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "pyRevit-Master", "bin"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "pyRevit-Master", "bin"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "pyRevit-Master", "bin") });
+        return directories.Where(Path.IsPathFullyQualified).Select(x => Path.Combine(x, "pyrevit.exe")).FirstOrDefault(File.Exists) ?? "pyrevit.exe";
+    }
+
+    public static string[] ConfiguredRevitRoots(string ini)
+    {
+        if (!File.Exists(ini)) return [];
+        var section = "";
+        foreach (var line in File.ReadLines(ini))
+        {
+            var text = line.Trim();
+            if (text.StartsWith('[') && text.EndsWith(']')) section = text[1..^1];
+            else if (section.Equals("core", StringComparison.OrdinalIgnoreCase) && text.Contains('='))
+            {
+                var pair = text.Split('=', 2);
+                if (!pair[0].Trim().Equals("userextensions", StringComparison.OrdinalIgnoreCase)) continue;
+                try { return (JsonSerializer.Deserialize<string[]>(pair[1].Trim()) ?? []).Where(x => !string.IsNullOrWhiteSpace(x) && Path.IsPathFullyQualified(x) && Directory.Exists(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(); }
+                catch (JsonException) { return []; }
+            }
+        }
+        return [];
+    }
+
+    public static async Task<ToolStatus> RevitStatus(ManagerPaths paths, Func<Task<string?>>? findExternal = null,
+        Func<string, Task<(string Version, bool Modified)>>? gitDetails = null)
+    {
+        var status = new InstallService(paths).Status(Catalog.Revit);
+        try
+        {
+            var external = await (findExternal?.Invoke() ?? ExternalRevit(paths.Target(Catalog.Revit)));
+            if (external is not null && (status.Managed || status.External))
+                return status with { Modified = true, Detail = "중복 RoBIM 설치 감지 — 경로 정리 필요" };
+            if (external is not null)
+                status = new(Catalog.Revit, external, "기존 설치", false, true, false, "기존 설치 연결");
+            if (status.External)
+            {
+                var details = gitDetails is not null ? await gitDetails(status.Path) :
+                    (await ExternalVersion(status.Path), (await ProcessRunner.GitRequired(status.Path, "status", "--porcelain", "--untracked-files=normal")).Length != 0);
+                status = status with { Version = details.Item1, Modified = details.Item2,
+                    Detail = details.Item2 ? "기존 설치 연결 · 로컬 변경 있음" : details.Item1.StartsWith("main@", StringComparison.Ordinal) ? "기존 설치 연결 · 브랜치 유지" : "기존 개발 브랜치 · 코드 보존" };
+            }
+        }
+        catch (Exception ex) { status = status with { Modified = true, Detail = "pyRevit 확인 필요: " + ex.Message }; }
+        return status;
     }
 
     public static async Task<string?> ExternalRevit(string managedPath)

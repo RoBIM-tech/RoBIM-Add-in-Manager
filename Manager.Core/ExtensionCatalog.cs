@@ -43,7 +43,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         {
             if (package is null || string.IsNullOrWhiteSpace(package.Name) || package.Name.Length > 120 ||
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
-            if (package.Host is not ("pyrevit" or "autocad")) throw new InvalidDataException("지원 host: pyrevit, autocad");
+            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
+            if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
             if (package.Folder is null || !Regex.IsMatch(package.Folder, @"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,100}$") ||
                 !package.Folder.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || package.Folder.Contains("..") || !folders.Add(package.Host + "/" + package.Folder))
@@ -96,7 +97,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, [entry])));
             return new(canonical, branch, [entry], "pyRevit .tab / .extension 구조");
         }
-        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD .bundle");
+        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD / 독립 Revit .bundle");
     }
     public ExtensionRepository[] Registered()
     {
@@ -153,10 +154,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     {
         if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Cad.FolderName) return Catalog.Cad;
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
-        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
+        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(repository.Repository.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
-        return new("ext-" + digest, package.Name, package.Host == "autocad" ? ToolKind.AutoCAD : ToolKind.PyRevit,
+        return new("ext-" + digest, package.Name, package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
     }
     public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)

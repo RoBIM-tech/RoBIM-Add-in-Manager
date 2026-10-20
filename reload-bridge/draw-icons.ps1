@@ -1,6 +1,6 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-$output = Join-Path $PSScriptRoot 'RoBIM Manager.extension\RoBIM TEST.tab\TEST_jm.panel\ManagerReload.pushbutton'
+$output = Join-Path $PSScriptRoot 'RoBIM Manager.extension\RoBIM 관리.tab\Manager.panel\ManagerReload.pushbutton'
 foreach ($theme in @('light','dark')) {
     $bitmap = New-Object Drawing.Bitmap 32,32
     $graphics = [Drawing.Graphics]::FromImage($bitmap)

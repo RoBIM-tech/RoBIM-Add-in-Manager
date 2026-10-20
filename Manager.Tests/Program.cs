@@ -2,6 +2,16 @@ using System.IO.Compression;
 using System.Text.Json;
 using RoBIM.Manager.Core;
 
+if (args.Length == 2 && args[0] == "--check-existing-button-workflows")
+{
+    await ExistingButtonWorkflows.Run(Path.GetFullPath(args[1])); return 0;
+}
+
+if (args.Length == 3 && args[0] == "--prepare-cad-smoke")
+{
+    CadSmoke.Prepare(Path.GetFullPath(args[1]), Path.GetFullPath(args[2])); return 0;
+}
+
 var root = Path.GetFullPath(args.FirstOrDefault(x => !x.StartsWith("--")) ?? Path.Combine(Path.GetTempPath(), "RoBIM-tests-" + Guid.NewGuid().ToString("N")));
 Directory.CreateDirectory(root);
 var results = new List<object>();
@@ -36,6 +46,12 @@ void Test(string name, Action action)
 {
     try { action(); results.Add(new { Name = name, Passed = true, Error = "" }); Console.WriteLine("PASS " + name); }
     catch (Exception ex) { failures++; results.Add(new { Name = name, Passed = false, Error = ex.ToString() }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
+}
+if (args.Contains("--location-only"))
+{
+    PyRevitLocationTests.Run(Test, Paths, Require, root);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
 var v1 = Package("v1", "version one");
 var v2 = Package("v2", "version two");
@@ -259,11 +275,98 @@ Test("ProfileBlockedWhenHostRunning", () =>
     var service = new RevitProfiles(Paths("activate-host"), () => throw new IOException("host running"), (_, _) => { called = true; return Task.CompletedTask; }, _ => true);
     Reject(() => service.Apply(true).GetAwaiter().GetResult()); Require(!called, "Profile modified while host running");
 });
+Test("RibbonLayoutRoundTripAndInstallationIndependence", () =>
+{
+    var target = Paths("ribbon-config"); var store = new RibbonLayouts(target);
+    var before = new InstallService(target).ReadState().Count;
+    var layout = new RibbonLayout(1, "Revit", [new("사용자 탭", [new("사용자 패널", [new("robim-revit:button", "표시 이름", "Small")])])]);
+    store.Save(layout); var actual = store.Read("Revit");
+    Require(actual.Tabs[0].Panels[0].Buttons[0].Size == "Small" && actual.Tabs[0].Name == "사용자 탭", "Layout round trip");
+    Require(new InstallService(target).ReadState().Count == before, "Saving layout installed a tool");
+    var defaults = RibbonLayouts.Defaults("Revit", [new("installed", "설치", "RoBIM", "도구", true), new("uninstalled", "미설치", "RoBIM", "도구", false)]);
+    Require(defaults.Tabs[0].Panels[0].Buttons.Length == 1 && RibbonLayouts.Defaults("Revit", []).Tabs.Length == 0, "Uninstalled tools or empty tabs in defaults");
+});
+Test("RibbonLayoutRejectsDuplicatesAndInvalidSizesWithoutLosingSavedLayout", () =>
+{
+    var store = new RibbonLayouts(Paths("ribbon-reject")); var valid = new RibbonLayout(1, "Revit", [new("RoBIM", [new("도구", [new("id", "버튼")])])]); store.Save(valid);
+    Reject(() => store.Save(new(1, "Revit", [new("RoBIM", [new("도구", [new("id", "버튼"), new("id", "중복")])])])));
+    Reject(() => store.Save(new(1, "Revit", [new("RoBIM", [new("도구", [new("id", "버튼", "Huge")])])])));
+    Require(store.Read("Revit").Tabs[0].Panels[0].Buttons.Length == 1, "Invalid write replaced valid layout");
+});
+Test("RibbonTwoAndThreeRowColumnsRoundTrip", () =>
+{
+    var store = new RibbonLayouts(Paths("ribbon-stacked"));
+    var buttons = new[] { new RibbonPlacement("large", "큰 버튼"), new("a", "A", "Small", "two", 2), new("b", "B", "Small", "two", 2), new("c", "C", "Small", "three", 3), new("d", "D", "Small", "three", 3), new("e", "E", "Small", "three", 3) };
+    store.Save(new(1, "Revit", [new("RoBIM", [new("패널", buttons)])]));
+    var actual = store.Read("Revit").Tabs[0].Panels[0].Buttons;
+    Require(actual.Count(b => b.Stack == "two") == 2 && actual.Count(b => b.Stack == "three") == 3 && actual[0].Stack is null, "Stack membership or column order changed");
+});
+Test("RibbonColumnsRejectIncompleteMixedAndOversizedGroups", () =>
+{
+    static RibbonLayout Layout(params RibbonPlacement[] buttons) => new(1, "Revit", [new("RoBIM", [new("패널", buttons)])]);
+    Reject(() => RibbonLayouts.Validate(Layout(new RibbonPlacement("a", "A", "Small", "g", 2))));
+    Reject(() => RibbonLayouts.Validate(Layout(new("a", "A", "Small", "g", 2), new("b", "B", "Small", "g", 3))));
+    Reject(() => RibbonLayouts.Validate(Layout(new("a", "A", "Small", "g", 2), new("b", "B", "Small", "g", 2), new("c", "C", "Small", "g", 2))));
+    Reject(() => RibbonLayouts.Validate(Layout(new("a", "A", "Large", "g", 2), new("b", "B", "Small", "g", 2))));
+    Reject(() => RibbonLayouts.Validate(Layout(new RibbonPlacement("a", "A", "Small", null, 2))));
+});
+Test("RibbonColumnCannotSpanPanels", () =>
+{
+    Reject(() => RibbonLayouts.Validate(new(1, "Revit", [new("RoBIM", [new("P1", [new("a", "A", "Small", "g", 2), new("b", "B", "Small", "g", 2)]), new("P2", [new("c", "C", "Small", "g", 2), new("d", "D", "Small", "g", 2)])])])));
+});
+Test("RibbonSeparatorsRoundTripAndRejectStackSplits", () =>
+{
+    var store = new RibbonLayouts(Paths("ribbon-separators"));
+    var separator = new RibbonPlacement("separator:one", "구분선", Kind: "Separator");
+    RibbonLayout Layout(params RibbonPlacement[] items) => new(1, "Revit", [new("RoBIM", [new("패널", items)])]);
+    store.Save(Layout(new("a", "첫째"), separator, new("b", "둘째")));
+    Require(store.Read("Revit").Tabs[0].Panels[0].Buttons[1].Kind == "Separator", "Separator order or type lost");
+    Reject(() => RibbonLayouts.Validate(Layout(separator with { Stack = "g", Size = "Small", StackRows = 2 })));
+    Reject(() => RibbonLayouts.Validate(Layout(separator with { Kind = "Unknown" })));
+    Reject(() => RibbonLayouts.Validate(Layout(new("a", "A", "Small", "g", 2), separator, new("b", "B", "Small", "g", 2))));
+    Require(store.Read("Revit").Tabs[0].Panels[0].Buttons.Length == 3, "Invalid separator write lost layout");
+});
+Test("UserDataDirectoryPhysicalPathIsVerifiedAndProbeRemoved", () =>
+{
+    var directory = Paths("physical-path-check").Data;
+    Require(WindowsDataPath.EnsureDirectory(directory).Equals(Path.GetFullPath(directory), StringComparison.OrdinalIgnoreCase), "Wrong physical data directory");
+    Require(!Directory.EnumerateFiles(directory).Any(), "Physical path probe was left behind");
+});
+Test("VirtualizedDataPathRejectedAndExtendedPrefixAccepted", () =>
+{
+    var logical = Path.Combine(root, "logical", "file");
+    WindowsDataPath.VerifyFileLocation(logical, @"\\?\" + logical);
+    Reject(() => WindowsDataPath.VerifyFileLocation(logical, Path.Combine(root, "LocalCache", "file")));
+});
 Test("OnlyActivationFlagReadFromIni", () =>
 {
     var ini = Path.Combine(root, "profile-fixture.ini");
     File.WriteAllText(ini, "[other]\npassword=not-a-real-credential\n[RoBIM.extension]\ndisabled=false\n[RoBIM-Developer.extension]\ndisabled=true\n");
     Require(RevitProfiles.ReadEnabled(ini, "RoBIM") && !RevitProfiles.ReadEnabled(ini, "RoBIM-Developer"), "INI flag parse incorrect");
+});
+Test("CopiedProfileIniActivationPreservesOtherSettings", () =>
+{
+    var ini = Path.Combine(root, "copied-profile.ini");
+    var other = "[other]\r\npassword=fixture-only\r\n";
+    File.WriteAllText(ini, other + "[RoBIM.extension]\r\ndisabled=false\r\n[tail]\r\nvalue=keep\r\n");
+    RevitProfiles.WriteEnabled(ini, "RoBIM", false);
+    RevitProfiles.WriteEnabled(ini, "RoBIM-Selected", true);
+    Require(!RevitProfiles.ReadEnabled(ini, "RoBIM") && RevitProfiles.ReadEnabled(ini, "RoBIM-Selected"), "Copied profile activation flags");
+    Require(File.ReadAllText(ini).Contains(other) && File.ReadAllText(ini).Contains("[tail]\r\nvalue=keep"), "Unrelated settings changed");
+    var before = File.ReadAllText(ini);
+    Reject(() => RevitProfiles.WriteEnabled(ini, "other", true));
+    Require(File.ReadAllText(ini) == before, "Unsupported profile modified config");
+});
+Test("CopiedProfileIniPreservesBomAndRejectsAmbiguousFlags", () =>
+{
+    var ini = Path.Combine(root, "copied-profile-bom.ini");
+    File.WriteAllText(ini, "[RoBIM-Selected.extension]\r\ndisabled = true\r\n", new System.Text.UTF8Encoding(true));
+    RevitProfiles.WriteEnabled(ini, "RoBIM-Selected", true);
+    Require(RevitProfiles.ReadEnabled(ini, "RoBIM-Selected") && File.ReadAllBytes(ini)[0] == 0xef, "BOM profile activation failed");
+    File.WriteAllText(ini, "[RoBIM.extension]\ndisabled=true\ndisabled=false\n");
+    var before = File.ReadAllBytes(ini);
+    Reject(() => RevitProfiles.WriteEnabled(ini, "RoBIM", true));
+    Require(before.SequenceEqual(File.ReadAllBytes(ini)), "Ambiguous config was modified");
 });
 
 Test("ReloadPrepareDoesNotChangeInstalledFiles", () =>
@@ -348,6 +451,60 @@ Test("ReloadProfilePreparationAndRetry", () =>
     Require(File.Exists(Path.Combine(paths.Data, "reload-profile.json")), "Failed request lost");
     reload.Apply(() => { }, developer => { called = developer; return Task.CompletedTask; }).GetAwaiter().GetResult();
     Require(called && !File.Exists(Path.Combine(paths.Data, "reload-profile.json")), "Profile apply not consumed");
+});
+
+Test("ReloadUpdatesWithRootAndUnchangedBinaryLocked", () =>
+{
+    var paths = Paths("reload-locked-root"); var service = new InstallService(paths);
+    var source = Package("reload-locked-v1", "before", Catalog.Revit);
+    File.WriteAllText(Path.Combine(source, "lib", "same.dll"), "identical binary");
+    service.Install(Catalog.Revit, new(source, "1"));
+    var next = Package("reload-locked-v2", "after", Catalog.Revit);
+    File.WriteAllText(Path.Combine(next, "lib", "same.dll"), "identical binary");
+    var target = paths.Target(Catalog.Revit); var cwd = Environment.CurrentDirectory;
+    using var locked = new FileStream(Path.Combine(target, "lib", "same.dll"), FileMode.Open, FileAccess.Read, FileShare.Read);
+    try
+    {
+        Environment.CurrentDirectory = target;
+        service.InstallReload(Catalog.Revit, new(next, "2"));
+        Require(service.Status(Catalog.Revit) is { Modified: false, Version: "2" }, "Locked-root update failed");
+        Require(File.ReadAllText(Path.Combine(target, "lib", "test.py")) == "after", "Script update missing");
+    }
+    finally { Environment.CurrentDirectory = cwd; }
+});
+Test("ReloadDeltaRemovesCommandFilesAndPreservesRootStructure", () =>
+{
+    var paths = Paths("reload-delta-remove"); var service = new InstallService(paths);
+    var source = Package("reload-delta-v1", "shared", Catalog.Revit);
+    var command = Path.Combine(source, "RoBIM 기본.tab", "Tools.panel", "Example.pushbutton");
+    Directory.CreateDirectory(command); File.WriteAllText(Path.Combine(command, "script.py"), "pass");
+    service.Install(Catalog.Revit, new(source, "1"));
+    var next = Package("reload-delta-v2", "shared", Catalog.Revit);
+    service.InstallReload(Catalog.Revit, new(next, "2"));
+    Require(!Directory.Exists(Path.Combine(paths.Target(Catalog.Revit), "RoBIM 기본.tab", "Tools.panel", "Example.pushbutton")), "Removed command folder retained");
+    InstallService.ValidatePackage(Catalog.Revit, paths.Target(Catalog.Revit));
+    Require(!service.Status(Catalog.Revit).Modified && service.Backups(Catalog.Revit).Count == 1, "Delta state or backup mismatch");
+});
+Test("ReloadDeltaRejectsBinaryChangeBeforeWriting", () =>
+{
+    var paths = Paths("reload-delta-binary"); var service = new InstallService(paths);
+    var source = Package("reload-binary-v1", "before", Catalog.Revit);
+    File.WriteAllText(Path.Combine(source, "lib", "same.dll"), "old"); service.Install(Catalog.Revit, new(source, "1"));
+    var next = Package("reload-binary-v2", "after", Catalog.Revit);
+    File.WriteAllText(Path.Combine(next, "lib", "same.dll"), "new");
+    Reject(() => service.InstallReload(Catalog.Revit, new(next, "2")));
+    Require(service.Status(Catalog.Revit) is { Modified: false, Version: "1" }, "Rejected binary update mutated files");
+});
+Test("ReloadDeltaRestoresEarlierFilesAfterLockedChange", () =>
+{
+    var paths = Paths("reload-delta-rollback"); var service = new InstallService(paths);
+    var source = Package("reload-rollback-v1", "before", Catalog.Revit);
+    File.WriteAllText(Path.Combine(source, "lib", "z.txt"), "locked before"); service.Install(Catalog.Revit, new(source, "1"));
+    var next = Package("reload-rollback-v2", "after", Catalog.Revit);
+    File.WriteAllText(Path.Combine(next, "lib", "z.txt"), "locked after");
+    using var locked = new FileStream(Path.Combine(paths.Target(Catalog.Revit), "lib", "z.txt"), FileMode.Open, FileAccess.Read, FileShare.Read);
+    Reject(() => service.InstallReload(Catalog.Revit, new(next, "2")));
+    Require(service.Status(Catalog.Revit) is { Modified: false, Version: "1" }, "Partial delta was not restored");
 });
 
 Test("GitUrlNormalization", () =>
@@ -474,6 +631,7 @@ Test("SimpleCustomRevitRequiresClosure", () =>
     Require(InstallFlow.Decide(new(tool, "test", "1", true, false, false, ""), true, true, false).Action == InstallAction.WaitForHost, "Generic extension used RoBIM reload path");
 });
 
+CadReloadTests.Run(root, Test);
 if (args.Contains("--online"))
 {
     try
@@ -541,6 +699,9 @@ if (args.Contains("--online"))
     }
     catch (Exception ex) { failures++; results.Add(new { Name = "PrivateGitHubCadAndRevitDownloadInstall", Passed = false, Error = ex.ToString() }); Console.WriteLine(ex.Message); }
 }
+PyRevitLocationTests.Run(Test, Paths, Require, root);
+NativeRevitTests.Run(Test, Paths, Require, root);
+ButtonTests.Run(Test, Paths, Require, root);
 File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"{results.Count - failures}/{results.Count} passed. Report: {Path.Combine(root, "results.json")}");
 return failures == 0 ? 0 : 1;

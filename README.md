@@ -1,12 +1,16 @@
 # RoBIM Add-in Manager
 
-Revit과 AutoCAD 도구를 설치·업데이트하는 Windows 앱입니다. **제품 선택 → 도구 선택 → 설치 버튼** 순서로 사용합니다.
+Revit과 AutoCAD의 **개별 버튼** 기능을 확인하고 설치·제거·업데이트하는 Windows 앱입니다. 제품별 카드에는 실제 버튼 이름·설명·아이콘·선택/적용 상태를 표시합니다.
+
+작업본 **Preview 10**은 버튼별 카드와 독립 Revit 모듈의 **설치/제거 준비 → Revit Reload**를 제공합니다. 기존 pyRevit 버튼은 원본을 보존하는 선택 프로필로 관리합니다. [저장소 구성과 설치 단위 검토](docs/BUTTON_CATALOG_ARCHITECTURE.md)를 참고하십시오. 설치 파일은 `artifacts/RoBIM-Manager-Setup.exe`로 생성합니다. 아래 Preview 6 링크는 이전 배포이며 이 작업본의 새 GitHub 릴리스 게시를 뜻하지 않습니다.
 
 [Preview 6 설치 파일](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases/tag/manager-v1.0.0-preview.6) · [간단 사용설명서](docs/USER_GUIDE_KO.md)
 
 ## 사용
 
-- **AutoCAD**: 왼쪽 AutoCAD → DELHIDDEN 선택 → 설치하기. 완료 후 AutoCAD에서 `DHNET` 실행.
+- **AutoCAD 최초 설치**: CAD 종료 → AutoCAD → RoBIM CAD 연결 모듈 → 설치하기. 이전 설치는 추가 작업의 CAD 동봉 버전 설치로 교체합니다.
+- **AutoCAD 버튼 구성**: 버튼 선택 / 적용 준비 → 필요한 버튼 체크·이름/패널/순서 조정 → CAD의 RoBIM → 관리 → Reload. CAD 적용 결과를 Manager에서 확인합니다.
+- **AutoCAD 기능 업데이트**: 추가 작업의 최신 기능 다운로드 또는 패키지 ZIP에서 적용 준비. 준비 단계에서는 사용 중인 설치 파일을 변경하지 않습니다.
 - **Revit**: 왼쪽 Revit → 도구 선택 → 설치하기/업데이트하기. Revit 실행 중인 기존 RoBIM은 업데이트 준비 후 Revit 안에서 적용 및 Reload.
 - 처음 한 번 필요한 계정 연결은 버튼이 안내합니다. 새 CAD 설치는 로그인 없이 동봉 버전을 사용할 수 있습니다.
 - 다른 Git URL은 **도구 추가**, 개인 시험 기능은 **개발자 TEST**, 인증·토큰은 **설정 / GitHub**에 있습니다.
@@ -22,6 +26,8 @@ Revit과 AutoCAD 도구를 설치·업데이트하는 Windows 앱입니다. **�
 | [RoBIM-pyrevit](https://github.com/gagaggan/RoBIM-pyrevit) | Revit 도구 소스·개발 브랜치 |
 
 이 저장소는 CAD 소스나 Autodesk SDK를 빌드하지 않습니다. CAD의 검증된 Release ZIP을 받아 매니저에 동봉합니다. 기존 설치 위치·인증·백업은 업그레이드 시 유지합니다.
+
+검토용으로 별도 빌드한 CAD ZIP과 `.sha256`을 동봉하려면 `build-manager.ps1 -CadPackagePath '<ZIP 경로>'`를 사용합니다. CAD 프로젝트/SDK 참조 없이 완성된 파일만 받습니다.
 
 ## 개발
 
