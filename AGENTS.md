@@ -10,3 +10,9 @@
 - 저장소 빌드/설치 스크립트를 실행하지 않는다. 패키지 URL·토픽·매니페스트를 확인한다.
 - tests/run-manager-tests.ps1과 tests/test-manager-installer.ps1은 임시 경로를 사용한다. 사용자 모델을 검증용으로 변경하지 않는다.
 - bin/obj/artifacts/.dotnet-home 및 인증정보를 커밋하지 않는다. 브랜치 접두사는 codex/를 사용한다.
+
+## Manager workspace ownership
+
+- Read `.codex/skills/robim-manager/SKILL.md` for this repository. The global Codex copy is installed from this source.
+- Shared contracts and compatibility are managed by `gagaggan/RoBIM-Workspace`; do not copy product implementation into that repository.
+- Keep user ribbon choices and command IDs stable. Use the Manager workflow in README.md rather than old direct-install instructions.

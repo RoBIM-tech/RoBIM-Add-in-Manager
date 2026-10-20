@@ -1,50 +1,53 @@
 # RoBIM Add-in Manager
 
-Revit과 AutoCAD의 **개별 버튼** 기능을 확인하고 설치·제거·업데이트하는 Windows 앱입니다. 제품별 카드에는 실제 버튼 이름·설명·아이콘·선택/적용 상태를 표시합니다.
+Revit·AutoCAD의 실제 기능 버튼을 카드로 확인하고 설치·제거·업데이트·Reload를 관리하는 Windows 앱입니다. 독립 Revit Add-in과 pyRevit 목록을 별도로 제공하며 설치된 버튼의 리본 배치를 편집합니다.
 
-작업본 **Preview 10**은 버튼별 카드와 독립 Revit 모듈의 **설치/제거 준비 → Revit Reload**를 제공합니다. 기존 pyRevit 버튼은 원본을 보존하는 선택 프로필로 관리합니다. [저장소 구성과 설치 단위 검토](docs/BUTTON_CATALOG_ARCHITECTURE.md)를 참고하십시오. 설치 파일은 `artifacts/RoBIM-Manager-Setup.exe`로 생성합니다. 아래 Preview 6 링크는 이전 배포이며 이 작업본의 새 GitHub 릴리스 게시를 뜻하지 않습니다.
+## 사용자 흐름
 
-[Preview 6 설치 파일](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases/tag/manager-v1.0.0-preview.6) · [간단 사용설명서](docs/USER_GUIDE_KO.md)
+1. [Releases](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases)의 Setup 또는 검증한 작업본의 `artifacts/RoBIM-Manager-Setup.exe`로 설치합니다. Windows 시작 메뉴의 **RoBIM Add-in Manager**를 실행합니다.
+2. **Revit 독립 Add-in / Revit · pyRevit / AutoCAD**에서 사용할 버튼을 선택합니다. 전체 목록은 설치 가능한 도구이며 실제 리본에는 설치·적용한 명령만 표시합니다.
+3. 호스트가 실행 중이면 지원 범위의 변경을 준비하고 해당 Reload로 반영합니다. 최초 연결·고정 로더 교체 등 종료가 필요한 경우 화면 안내를 따릅니다.
+4. **리본 편집**에서 탭·패널·표시 이름·위치를 편집합니다. 큰 버튼은 한 칸, 작은 버튼은 한 칸의 2/3단 묶음입니다. 구분선과 드래그 앞/뒤 삽입·탭 호버 이동을 지원하며 저장과 실제 적용을 구분합니다.
+5. **설치 위치**에서 pyRevit 확장의 상위 폴더를 선택할 수 있습니다. Revit 종료 후 관리 설치를 백업·검증해 이전하고 검색 경로에 등록합니다.
+6. 제거·복원은 소유권과 파일 해시를 확인하며 사용자 변경과 공용 의존성을 보존합니다. 외부 설치는 검증 없이 덮어쓰거나 지우지 않습니다.
 
-## 사용
+Revit 안의 연결은 **RoBIM 관리 → 독립 Add-in → Reload** 및 **RoBIM 관리 → Manager → pyRevit Reload**, CAD는 **RoBIM → 관리 → Reload**입니다. 준비됨은 실제 적용 완료와 다릅니다.
 
-- **AutoCAD 최초 설치**: CAD 종료 → AutoCAD → RoBIM CAD 연결 모듈 → 설치하기. 이전 설치는 추가 작업의 CAD 동봉 버전 설치로 교체합니다.
-- **AutoCAD 버튼 구성**: 버튼 선택 / 적용 준비 → 필요한 버튼 체크·이름/패널/순서 조정 → CAD의 RoBIM → 관리 → Reload. CAD 적용 결과를 Manager에서 확인합니다.
-- **AutoCAD 기능 업데이트**: 추가 작업의 최신 기능 다운로드 또는 패키지 ZIP에서 적용 준비. 준비 단계에서는 사용 중인 설치 파일을 변경하지 않습니다.
-- **Revit**: 왼쪽 Revit → 도구 선택 → 설치하기/업데이트하기. Revit 실행 중인 기존 RoBIM은 업데이트 준비 후 Revit 안에서 적용 및 Reload.
-- 처음 한 번 필요한 계정 연결은 버튼이 안내합니다. 새 CAD 설치는 로그인 없이 동봉 버전을 사용할 수 있습니다.
-- 다른 Git URL은 **도구 추가**, 개인 시험 기능은 **개발자 TEST**, 인증·토큰은 **설정 / GitHub**에 있습니다.
+현재 소스의 검증 이력은 [릴리스 노트](docs/MANAGER_RELEASE_NOTES.md), 사용자 조작은 [사용설명서](docs/USER_GUIDE_KO.md)를 확인합니다. 로컬 작업본 검증 버전과 GitHub Release 배포 버전은 다를 수 있습니다.
 
-설치 전 제품을 종료해야 하는 경우 버튼 옆 안내가 표시됩니다. 제품을 닫고 돌아오면 버튼이 자동으로 활성화됩니다.
+## 저장소 소유권
 
-## 저장소 구분
-
-| 저장소 | 내용 |
+| 저장소 | 담당 |
 | --- | --- |
-| 이 저장소 | 매니저 UI, 설치 엔진, Setup, Reload 연결, 사용설명서와 매니저 배포 파일 |
-| [RoBIM-CAD](https://github.com/gagaggan/RoBIM-CAD) | DELHIDDEN 등 CAD 도구 소스·빌드·CAD 배포 파일 |
-| [RoBIM-pyrevit](https://github.com/gagaggan/RoBIM-pyrevit) | Revit 도구 소스·개발 브랜치 |
+| 이 저장소 | Manager.Core, WinForms UI, Setup, Manager 소유 pyRevit 연결 |
+| [RoBIM-pyrevit](https://github.com/gagaggan/RoBIM-pyrevit) | Python 버튼·lib·기본 배치 |
+| [RoBIM-Revit-Addin](https://github.com/gagaggan/RoBIM-Revit-Addin) | Native Host·독립 기능·Reload 계약 |
+| [RoBIM-CAD](https://github.com/gagaggan/RoBIM-CAD) | CAD Loader·기능·버튼 계약 |
+| [RoBIM-Workspace](https://github.com/gagaggan/RoBIM-Workspace) | 통합 규칙·호환성·스킬 동기화 |
 
-이 저장소는 CAD 소스나 Autodesk SDK를 빌드하지 않습니다. CAD의 검증된 Release ZIP을 받아 매니저에 동봉합니다. 기존 설치 위치·인증·백업은 업그레이드 시 유지합니다.
+NativeProtocol.cs와 CadConfiguration.cs는 SDK 없는 컴파일을 위한 계약 사본입니다. 기능 소스 복사본과 구분하며 통합 저장소에서 공급 원본과 비교합니다. `.codex/skills/robim-manager`가 전용 스킬 원본입니다.
 
-검토용으로 별도 빌드한 CAD ZIP과 `.sha256`을 동봉하려면 `build-manager.ps1 -CadPackagePath '<ZIP 경로>'`를 사용합니다. CAD 프로젝트/SDK 참조 없이 완성된 파일만 받습니다.
+## 개발·배포
 
-## 개발
-
-Windows x64 / .NET SDK 10 / Git for Windows. 비공개 CAD 릴리스 최초 다운로드에는 Git Credential Manager 로그인과 GitHub CLI가 필요합니다.
+Windows x64 / .NET SDK 10 / Git. CAD·Host의 완성된 Release ZIP과 SHA-256을 입력으로 사용하며 다른 저장소를 빌드하거나 원격 설치 스크립트를 실행하지 않습니다.
 
 ```powershell
-.\build-manager.ps1
-.\tests\run-manager-tests.ps1
-.\tests\run-manager-tests.ps1 -Online
-.\tests\test-manager-installer.ps1
-.\tests\test-native-installer.ps1
+./build-manager.ps1 -CadPackagePath '<CAD ZIP>' -RevitHostPackagePath '<Host ZIP>'
+./tests/run-manager-tests.ps1
+./tests/test-manager-installer.ps1
+./tests/test-native-installer.ps1
 ```
 
-출력은 `artifacts/RoBIM-Manager-Setup.exe`와 `artifacts/RoBIM-Manager-Portable.zip`입니다. 이미 검증된 CAD ZIP/SHA-256이 캐시에 있으면 네트워크 없이 재사용합니다.
+출력은 `artifacts/RoBIM-Manager-Setup.exe`와 Portable ZIP입니다. 설치 엔진·경로·로컬 수정 보호, UI·성능·계약 검사를 실제 호스트 명령 실행과 구분합니다. Setup은 Inno Setup으로 생성하며 런타임·의존성 라이선스를 동봉합니다.
 
-Setup은 Inno Setup 6.4.3으로 생성합니다. 최초 빌드는 공식 배포 파일의 고정 SHA-256과 서명을 확인하고 작업 폴더에 컴파일러를 준비합니다. 이 버전의 라이선스는 상업적 사용을 허용합니다. Windows 사용자별 설치·업데이트·전용 제거 프로그램과 앱 목록 등록은 Inno Setup이 관리합니다. PowerShell은 설치 경로·기존 설치 소유권·매니저 실행 여부를 사전 검사하는 용도로만 사용합니다. Portable ZIP의 스크립트는 별도 호환 경로이며 Setup 설치본에는 실행할 수 없습니다.
+실제 데이터 경로 검증은 `WindowsDataPath`를 사용합니다. Codex 앱 전용 LocalCache에만 파일이 존재하는 상태를 일반 사용자 설치 성공으로 취급하지 않습니다. 일반 Windows 실행의 경로·Revit 저널·적용 세션으로 확인한 기록은 [Preview 24 검증](docs/PREVIEW24_VALIDATION.md)에 있습니다.
 
-인증정보는 Git에 올리지 않습니다. PAT는 Windows 자격 증명 관리자에 보관합니다. 기존 파일 변경·외부 설치 덮어쓰기·실행 중 DLL 교체를 차단합니다. 실제 Revit 리본 Reload/모델 내 동작은 사용자 환경에서 확인해야 합니다.
+[설치 패키지 규격](docs/EXTENSION_PACKAGES.md) · [기술 구조](docs/MANAGER.md) · [버튼 구성](docs/BUTTON_CATALOG_ARCHITECTURE.md)
 
-[기술 구조](docs/MANAGER.md) · [패키지 규격](docs/EXTENSION_PACKAGES.md) · [검증 기록](docs/MANAGER_VALIDATION.md)
+Reload 연결의 .NET 8/IronPython 참조 검사는 설치된 pyRevit DLL을 읽어 사용합니다. 테스트 DLL은 배포 패키지에 동봉하지 않습니다.
+
+```powershell
+dotnet run --project tests/ReloadBridgeImports -- '<Reload script.py>' '<Manager EXE>'
+```
+
+기본 경로는 Program Files의 pyRevit-Master와 Revit 2026입니다. 다른 위치는 MSBuild의 `PyRevitRoot`, `CodeDomAssembly` 속성으로 지정합니다. 검사 결과와 실제 Revit Reload 확인은 [Reload 수정 검증](docs/RELOAD_IMPORT_FIX.md)을 참조합니다.

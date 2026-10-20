@@ -1,0 +1,6 @@
+interface:
+  display_name: "RoBIM-Add-in-Manager 개발"
+  short_description: "RoBIM manager 저장소의 개발 범위와 Manager 연동 검증을 안내합니다."
+  default_prompt: "$robim-manager을 사용해 요청한 변경의 구현 범위와 검증을 확인해 주세요."
+policy:
+  allow_implicit_invocation: true
