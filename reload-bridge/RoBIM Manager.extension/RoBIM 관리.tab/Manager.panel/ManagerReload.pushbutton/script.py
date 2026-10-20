@@ -5,6 +5,8 @@ import json
 import os
 import clr
 clr.AddReference("System.Diagnostics.Process")
+# .NET 8 splits FileVersionInfo into a separate assembly (Revit 2025+).
+clr.AddReference("System.Diagnostics.FileVersionInfo")
 
 from System import Environment
 from System.Diagnostics import Process, ProcessStartInfo, FileVersionInfo
