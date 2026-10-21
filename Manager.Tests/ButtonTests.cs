@@ -327,6 +327,17 @@ internal static class ButtonTests
             service.Toggle(service.Cached("example")!.Path,"run",true);
             require(service.Desired()!.Modules.Single().Manifest.Version == "2.0.0-test.1", "Explicit TEST choice was rejected");
         });
+        test("NativeRemovalPreservesChosenGenerationDespiteNewTestCatalog", () =>
+        {
+            var source = NativeSource("native-remove-generation/Example.bundle"); var service = new NativeRevitCommands(paths("native-remove-generation"), () => null);
+            var module = NativeProtocol.Module(source); module = module with { Version = "1.0.0", Commands = [module.Commands[0],module.Commands[0] with { Id = "other" }] };
+            NativeProtocol.Save(Path.Combine(source,NativeProtocol.ManifestName),module);
+            var first = service.Cache(new(source,"1.0.0")); service.Toggle(first.Path,"run",true); service.Toggle(first.Path,"other",true);
+            NativeProtocol.Save(Path.Combine(source,NativeProtocol.ManifestName),module with { Version = "2.0.0-test.1" });
+            var next = service.Cache(new(source,"2.0.0-test.1")); service.Toggle(next.Path,"run",false);
+            var kept = service.Desired()!.Modules.Single();
+            require(kept.Manifest.Version == "1.0.0" && kept.Selected.SequenceEqual(["other"]), "Removal changed another button's chosen generation");
+        });
         test("NativeModifiedCatalogCacheRejected", () =>
         {
             var source = NativeSource("native-cache/Example.bundle"); var target = paths("native-cache"); var service = new NativeRevitCommands(target, () => null); var package = service.Import(Archive(source));
