@@ -201,7 +201,9 @@ def _panel(uiapp, tab_name, panel_name):
         uiapp.CreateRibbonPanel(tab_name, panel_name)
         panel = next(p for p in tab.Panels if p.Source.Title == panel_name)
     tab.IsVisible = True
+    tab.IsEnabled = True
     panel.IsVisible = True
+    panel.IsEnabled = True
     return tab, panel
 
 
@@ -282,8 +284,12 @@ def apply_layout(uiapp):
             item.Orientation = Orientation.Horizontal if stack or size == "Small" else Orientation.Vertical
         item.ShowText = True
         api.ItemText = title
+        # pyRevit cleanup can disable untouched Native controls on a shared tab.
+        # Restore only resolved, installed buttons. Revit command availability still applies.
+        before_enabled = bool(api.Enabled)
+        api.Enabled = True
         item.IsVisible = True
-        applied.append({"Id": key, "Tab": tab_name, "Panel": panel_name, "Title": title, "Size": size, "Stack": stack, "StackRows": rows})
+        applied.append({"Id": key, "Tab": tab_name, "Panel": panel_name, "Title": title, "Size": size, "Stack": stack, "StackRows": rows, "EnabledBeforeRestore": before_enabled, "Enabled": bool(api.Enabled), "UiEnabled": bool(item.IsEnabled), "PanelEnabled": bool(destinations[(tab_name, panel_name)][1].IsEnabled)})
     # Remove obsolete Manager-owned columns after all active buttons have moved.
     functional = [binding[1] for binding in bindings.values()]
     for ribbon_tab in AW.ComponentManager.Ribbon.Tabs:
@@ -470,7 +476,7 @@ def stop():
 
 
 def start(uiapp):
-    global _handler, _application, _reload_event, _session_pid, _session_ticks
+    global _handler, _application, _reload_event, _session_pid, _session_ticks, _fingerprint, _warmup
     from System import EventHandler
     from Autodesk.Revit.UI.Events import IdlingEventArgs
     previous = AppDomain.CurrentDomain.GetData("RoBIM.Ribbon.Handler")
@@ -489,6 +495,9 @@ def start(uiapp):
     if state.get("Pid") == _session_pid and state.get("StartTicks") == _session_ticks:
         for name in state.get("OwnedTabs", []):
             _owned_tabs.add(name)
+    # Run after pyRevit UI cleanup, including repeated starts in a reused engine.
+    _fingerprint = None
+    _warmup = 0
     _application = uiapp
     previous_event = AppDomain.CurrentDomain.GetData("RoBIM.Ribbon.ReloadEvent")
     if previous_event is not None:

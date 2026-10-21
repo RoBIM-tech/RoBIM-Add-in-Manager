@@ -103,3 +103,9 @@ Manager는 설치 중 외부 저장소의 빌드 스크립트를 실행하지 �
 신규 명령은 중앙 목록과 해당 저장소의 robim-package/기능 매니페스트에 함께 추가합니다. `python scripts/validate_registration.py --source <기능 clone> --host revit --repository owner/repo`로 확인합니다. 배포 전 등록 PR이 반영되어야 합니다. Git 저장소 생성만으로 모든 사용자 Manager에 즉시 나타나는 것은 아닙니다.
 
 Revit `robim-release.json`, CAD robim-cad.json module의 channel·validation·libraries를 Common 정책으로 읽습니다. TEST는 별도 메뉴로 분리하며 일반 목록의 설치 성공을 실사용 승격으로 표현하지 않습니다. TEST 파일을 가져오는 것만으로 기존 실사용 선택 채널을 바꾸지 않습니다. GitHub 일반 다운로드는 prerelease를 건너뛰며 명시적 test 패키지에서만 TEST 릴리스를 선택합니다.
+
+## pyRevit Reload와 독립 관리 버튼의 공존
+
+pyRevit의 UI cleanup은 같은 pyRevit 탭에 있던 미갱신 Native 버튼/패널에도 Enabled=false를 설정할 수 있습니다. Manager 연결에서 Visible만 복원하면 버튼이 보이면서 회색으로 남습니다. Preview 26은 실제 설치/활성 선택에서 해석한 버튼에 한해 API Enabled=true를 복원하고, 소유 탭/목적지 패널도 활성화합니다. Revit 명령의 availability나 모델 편집 상태를 우회하지 않으며 다른 제품·미설치 버튼은 복원하지 않습니다. start마다 fingerprint/warmup을 초기화해 pyRevit UI cleanup이 끝난 뒤 Idling에서 다시 적용합니다.
+
+revit-ui-state.json의 EnabledBeforeRestore, Enabled, UiEnabled, PanelEnabled는 복원 전후 상태를 기록합니다. tests/test-ribbon-activation.py는 실제 apply_layout 코드를 가짜 리본에 적용하여 두 관리 버튼과 부모 복원, 다른 제품/제거 버튼 보존, 미설치 탭 미생성, 반복 적용을 검사합니다. run-manager-tests.ps1에서 함께 실행합니다. pyRevit core와 Native Host DLL은 이 수정에 포함되지 않습니다.
