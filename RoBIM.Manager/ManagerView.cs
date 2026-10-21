@@ -35,7 +35,7 @@ public sealed partial class ManagerForm
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
         var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 540, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit 독립 Add-in"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "개발자 TEST"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit 독립 Add-in"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Test", "TEST 도구"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
@@ -242,8 +242,8 @@ public sealed partial class ManagerForm
         productsPage.Visible = IsProductPage;
         profileLabel.Visible = id is "Revit" or "PyRevit" or "Cad" or "Developer";
         _ = RefreshProfileLabel();
-        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit 독립 Add-in" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "개발자 TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
-        pageSubtitle.Text = id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "처음 한 번 계정을 연결하면 설치할 수 있습니다.";
+        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit 독립 Add-in" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
+        pageSubtitle.Text = id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "처음 한 번 계정을 연결하면 설치할 수 있습니다.";
         foreach (var control in navigation)
         {
             var selected = (string?)control.Tag == id;

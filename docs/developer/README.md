@@ -86,3 +86,20 @@ Manager는 고정 Loader·설치 해시·선택 액션과 상대 경로를 검�
 NativeProtocol/CadConfiguration 사본은 통합 저장소에서 공급 원본과 비교합니다. Release ZIP에 Autodesk SDK·사용자 모델·개발 캐시를 넣지 않습니다. 로컬 Setup 검증과 GitHub Release 게시는 구분합니다.
 
 [문서 목록](../README.md) · [일반 사용자 설명서](../user/README.md)
+
+## 공용 패키지와 신규 도구 등록
+
+현재 Common 의존성은 `RoBIM.Common [0.1.0-test.2]`입니다. 초기 TEST 패키지는 Libraries clone에서 로컬 공급원으로 만듭니다.
+
+```powershell
+./restore-libraries.ps1 -LibrariesPath <RoBIM-Libraries clone>
+python scripts/validate_registration.py
+./tests/run-manager-tests.ps1
+./build-manager.ps1
+```
+
+Manager는 설치 중 외부 저장소의 빌드 스크립트를 실행하지 않습니다. 위 복원은 개발자가 명시적으로 실행하는 빌드 준비입니다. 중앙 `catalog/modules.json`은 앱에 리소스로 포함되어 시작·화면 전환 시 네트워크 조회를 추가하지 않습니다. 사용자 URL 등록은 별도 목록으로 보존합니다.
+
+신규 명령은 중앙 목록과 해당 저장소의 robim-package/기능 매니페스트에 함께 추가합니다. `python scripts/validate_registration.py --source <기능 clone> --host revit --repository owner/repo`로 확인합니다. 배포 전 등록 PR이 반영되어야 합니다. Git 저장소 생성만으로 모든 사용자 Manager에 즉시 나타나는 것은 아닙니다.
+
+Revit `robim-release.json`, CAD robim-cad.json module의 channel·validation·libraries를 Common 정책으로 읽습니다. TEST는 별도 메뉴로 분리하며 일반 목록의 설치 성공을 실사용 승격으로 표현하지 않습니다. TEST 파일을 가져오는 것만으로 기존 실사용 선택 채널을 바꾸지 않습니다. GitHub 일반 다운로드는 prerelease를 건너뛰며 명시적 test 패키지에서만 TEST 릴리스를 선택합니다.

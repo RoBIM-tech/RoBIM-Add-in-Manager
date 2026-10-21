@@ -53,6 +53,7 @@ if (args.Contains("--location-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
+ReleaseTests.Run(Test, Require, root);
 var v1 = Package("v1", "version one");
 var v2 = Package("v2", "version two");
 var tool = Catalog.Cad;
@@ -541,7 +542,7 @@ Test("PackageRegistrationAndStableIdentity", () =>
     var paths = Paths("extension-registry"); var catalog = new ExtensionCatalog(paths);
     var repo = new ExtensionRepository("owner/tools", "main", [customEntry], "manifest");
     catalog.Register(repo); catalog.Register(repo);
-    Require(catalog.Registered().Length == 1, "Duplicate registered repository");
+    Require(catalog.Registered().Count(x => x.Repository == "owner/tools") == 1 && catalog.Registered().Select(x => x.Repository).Distinct(StringComparer.OrdinalIgnoreCase).Count() == catalog.Registered().Length, "Duplicate registered repository");
     var first = ExtensionCatalog.Tool(repo, customEntry);
     var next = ExtensionCatalog.Tool(repo with { Repository = "OWNER/TOOLS", Branch = "develop" }, customEntry);
     Require(first.Id == next.Id && first.CustomPackage && first.FolderName == "Sample.extension", "Install identity changed with branch/case");

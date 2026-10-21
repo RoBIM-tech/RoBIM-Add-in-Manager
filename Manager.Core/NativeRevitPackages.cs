@@ -12,6 +12,11 @@ public static class NativeRevitPackages
     }
     public static void Validate(string source)
     {
+        if (File.Exists(Path.Combine(source, RoBIM.Revit.Reload.NativeProtocol.ManifestName)))
+        {
+            ModuleReleases.ValidateNative(source);
+            return; // command-only modules are loaded by the fixed Host, never directly registered.
+        }
         var package=Read(SafeFiles.Child(source,"PackageContents.xml"));
         if(package.Root?.Name.LocalName!="ApplicationPackage") throw new InvalidDataException("Revit bundle 매니페스트 오류");
         var components=package.Root.Elements().Where(e=>e.Name.LocalName=="Components").ToArray();

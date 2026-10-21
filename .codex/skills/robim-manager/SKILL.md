@@ -23,3 +23,11 @@ description: RoBIM Add-in Manager의 버튼 카드·선택 설치·설치 위치
 - Manager는 검증된 Release ZIP/SHA-256을 받으며 다른 저장소의 빌드/설치 스크립트를 실행하지 않는다. 계정 정보는 Windows 자격 증명 관리자를 사용하고 INI·로그·Git에 토큰을 기록하지 않는다.
 - tests/run-manager-tests.ps1, tests/test-manager-installer.ps1 및 변경한 화면의 --verify-card-ui를 사용한다. 테스트는 임시 경로에 설치한다. 개발·설치 캐시와 실제 사용자 데이터 경로를 혼동하지 않는다.
 - build-manager.ps1은 검증된 CAD/Host 패키지와 런타임 라이선스를 동봉한다. 작업본 검증 버전과 GitHub Release 게시 버전을 구분하고 최종 실행 파일 해시를 확인한다.
+
+## 신규 제작·공용 코드·배포 구분
+
+- 신규 Revit 기능은 독립 Native Add-in으로 만든다. pyRevit 신규 버튼은 추가하지 않고 기존 기능·Manager 연결을 유지보수한다.
+- 공용 .NET 원본은 RoBIM-Libraries에서 역할별 패키지로 관리하고 소비 버전을 정확히 고정한다. 기능 내부 DLL 사본과 Host 경계 공유 타입을 구분한다.
+- 제작자와 관계없이 새 명령은 Manager catalog/modules.json에 등록한다. 기능 PR과 등록 PR을 연결하고 scripts/validate_registration.py로 배포 전 검사한다. 저장소 생성만으로 다른 PC에 자동 등록된다고 설명하지 않는다.
+- 새 배포는 TEST이며 Manager TEST 도구에 표시한다. 실사용 승격은 새 정식 버전과 실제 호스트 검증자·빌드·HTTPS 기록이 필요하다. 버전명·브랜치·설치 성공만으로 승격하지 않는다.
+- 신규 제작 시 통합 저장소 docs/developer/NEW_BUTTON.md와 scripts/new_revit_module.py를 읽는다. 생성 도구는 Manager clone을 필수로 받아 등록 초안을 함께 만든다.

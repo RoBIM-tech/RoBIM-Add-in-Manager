@@ -112,6 +112,7 @@ internal static class Program
             if (args.Contains("--cad")) preview.PreviewPage("Cad");
             if (args.Contains("--pyrevit")) preview.PreviewPage("PyRevit");
             if (args.Contains("--all")) preview.PreviewPage("All");
+            if (args.Contains("--test")) preview.PreviewPage("Test");
             if (args.Contains("--mine")) preview.PreviewPage("Mine");
             if (args.Contains("--ribbon")) preview.PreviewPage("Ribbon");
             if (args.Contains("--locations")) preview.PreviewPage("Locations");

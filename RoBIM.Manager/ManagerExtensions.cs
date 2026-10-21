@@ -93,6 +93,11 @@ public sealed partial class ManagerForm
     {
         var row = selected ?? SelectedPackage(); if (row is null) return;
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
+        if (tool.Kind == ToolKind.NativeRevit)
+        {
+            await LoadButtonCatalog(new ProductRow(installer.Status(tool), row));
+            return;
+        }
         if (!tool.CustomPackage)
         {
             SwitchPage(tool.Kind == ToolKind.AutoCAD ? "Cad" : "Revit");
@@ -114,6 +119,11 @@ public sealed partial class ManagerForm
     {
         var row = selected ?? SelectedPackage(); if (row is null) return;
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
+        if (tool.Kind == ToolKind.NativeRevit)
+        {
+            await LoadButtonCatalog(new ProductRow(installer.Status(tool), row));
+            return;
+        }
         if (!tool.CustomPackage) { MessageBox.Show(this, "RoBIM 기본 도구는 사용자 도구 화면에서 관리하십시오.", Text); return; }
         if (!Confirm(row.Package.Name + (restoreBackup ? "의 이전 버전을 복원합니까?" : "을 제거합니까?") + "\n" + paths.Target(tool))) return;
         await Run(restoreBackup ? "확장 복원" : "확장 제거", async () =>

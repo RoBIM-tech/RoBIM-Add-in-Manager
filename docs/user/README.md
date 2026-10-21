@@ -82,3 +82,13 @@ Manager의 해당 Reload 작업을 사용할 수도 있습니다. 진행 중인 
 기능 자체의 조작은 [pyRevit](https://github.com/gagaggan/RoBIM-pyrevit/blob/codex/jm/manager-workspace-cleanup/docs/user/README.md), [시트 생성](https://github.com/gagaggan/RoBIM-Revit-Addin/blob/codex/manager-workspace-cleanup/docs/user/README.md), [CAD](https://github.com/gagaggan/RoBIM-CAD/blob/codex/manager-workspace-cleanup/docs/user/README.md) 설명서를 사용합니다.
 
 [문서 목록](../README.md) · [개발자 설명서](../developer/README.md)
+
+## TEST 도구와 실사용 구분
+
+왼쪽 **TEST 도구**는 검증 중인 독립 기능의 별도 도구모음입니다. 일반 Revit·AutoCAD·전체 목록에서는 TEST를 제외합니다. 내 도구에는 관리·제거를 위해 설치/준비한 TEST도 표시합니다. 카드에는 배포 구분과 버전이 표시되고 ··· → 기능 설명에서 검증 선언과 선택 버전을 볼 수 있습니다.
+
+- TEST: 개발·검증 중인 버전입니다. TEST 목록에서 명시적으로 선택하여 설치합니다.
+- 실사용: 검증자·호스트 빌드·검증 기록을 포함한 배포 선언이 있는 버전입니다.
+- 미확인: 구형 패키지 등에 구분 정보가 없습니다. 설치가 되어 있어도 자동으로 실사용이 되지 않습니다.
+
+설치됨·준비됨·Reload 필요는 배포 구분과 별도입니다. TEST 설치도 최초 고정 Host가 없다면 호스트 종료가 필요하고, CAD 변경은 AutoCAD 안의 Reload로 적용합니다. 기존 ‘개발자 TEST’는 기존 pyRevit 유지보수 화면이며 신규 독립 TEST 도구와 구분합니다.

@@ -70,7 +70,7 @@ public sealed class Sources(ManagerPaths paths)
         string? version = null;
         foreach (var release in data.RootElement.EnumerateArray())
         {
-            if (release.GetProperty("draft").GetBoolean()) continue;
+            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) continue;
             foreach (var asset in release.GetProperty("assets").EnumerateArray())
                 if (asset.GetProperty("name").GetString() == "DelHiddenNet-AutoCAD2026.zip")
                 { chosenAsset = asset; version = release.GetProperty("tag_name").GetString(); break; }

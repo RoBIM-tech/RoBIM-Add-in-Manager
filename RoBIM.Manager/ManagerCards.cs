@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad";
+    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Test";
     private readonly TextBox productSearch = new() { PlaceholderText = "도구 이름 또는 기능 검색", Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
     private readonly ComboBox productSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };
@@ -37,7 +37,7 @@ public sealed partial class ManagerForm
             await Run("Revit Reload 적용 요청", async () =>
             {
                 if (page != "PyRevit") new NativeRevitCommands(paths).RequestReload();
-                if (page != "Revit")
+                if (page is not ("Revit" or "Test"))
                 {
                     if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
                     else
@@ -70,11 +70,12 @@ public sealed partial class ManagerForm
         IEnumerable<ButtonCard> rows = CommandInventory();
         rows = rows.Where(x => currentPage switch
         {
-            "Revit" => x.Kind == ButtonKind.Native,
+            "Test" => x.CollectionChannel == "test",
+            "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
             "PyRevit" => x.Kind == ButtonKind.PyRevit,
-            "Cad" => x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
+            "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
             "Mine" => x.Selected || x.Pending,
-            _ => true
+            _ => x.CollectionChannel != "test"
         });
         var search = productSearch.Text.Trim();
         if (search.Length > 0) rows = rows.Where(x => string.Join(" ", x.Title, x.Description, x.Group, Platform(x.Owner.Status.Tool.Kind), KindLabel(x.Owner.Status.Tool.Kind)).Contains(search, StringComparison.CurrentCultureIgnoreCase));
@@ -150,7 +151,7 @@ public sealed partial class ManagerForm
         header.Controls.Add(icon, 0, 0);
         var text = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
         text.ColumnStyles.Add(new(SizeType.Percent, 100)); text.RowStyles.Add(new(SizeType.Absolute, 12 * scale)); text.RowStyles.Add(new(SizeType.Percent, 100));
-        var category = new Label { Text = Platform(status.Tool.Kind) + "  ·  " + KindLabel(status.Tool.Kind) + "  ·  " + feature.Group, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(49, 92, 164), Font = new Font(Font.FontFamily, 7.5f), Margin = Padding.Empty };
+        var category = new Label { Text = feature.ReleaseLabel + "  ·  " + Platform(status.Tool.Kind) + "  ·  " + KindLabel(status.Tool.Kind) + "  ·  " + feature.Group, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(49, 92, 164), Font = new Font(Font.FontFamily, 7.5f), Margin = Padding.Empty };
         var title = new Label { Text = feature.Title, Dock = DockStyle.Fill, AutoEllipsis = true, Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold), Margin = Padding.Empty };
         text.Controls.Add(category, 0, 0); text.Controls.Add(title, 0, 1); header.Controls.Add(text, 1, 0); layout.Controls.Add(header, 0, 0);
         var description = new Label { Text = feature.Description, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(102, 112, 131), Font = new Font(Font.FontFamily, 8.5f), Margin = Padding.Empty };
@@ -218,7 +219,7 @@ public sealed partial class ManagerForm
     private void RefreshCardActions()
     {
         nativeReload.Visible = IsProductPage && currentPage != "Cad";
-        nativeReload.Text = currentPage == "Revit" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
+        nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
         var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;
         foreach (var binding in cardBindings.Values)

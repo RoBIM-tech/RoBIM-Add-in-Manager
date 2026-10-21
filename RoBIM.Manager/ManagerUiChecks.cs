@@ -44,6 +44,8 @@ public sealed partial class ManagerForm
         Require(nativeReload.Visible && nativeReload.Text == "pyRevit Reload", "pyRevit Reload label");
         Require(cardBindings.Values.Count(x => x.Row.Kind == ButtonKind.PyRevit) == 3, "Multiple buttons share one pyRevit package");
         void Navigate(string id) { ((Button)navigation.Single(x => (string?)x.Tag == id)).PerformClick(); Application.DoEvents(); }
+        Navigate("Test"); Require(cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST has separate collection");
+        Require(cardBindings.Values.Single().Row.ReleaseLabel.StartsWith("TEST"), "TEST badge includes version");
         Navigate("All"); Require(cardBindings.Count == 6, "All lists buttons from both hosts");
         Require(productCards.ClientSize.Height > 200, "Full content height without profile note");
         Navigate("Mine"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Selected), "My tools is per-button selection");

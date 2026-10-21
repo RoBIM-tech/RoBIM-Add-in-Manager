@@ -282,7 +282,12 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
                     if (relative.StartsWith("./")) relative = relative[2..];
                     if (relative.Length == 0 || !File.Exists(SafeFiles.Child(source, relative))) throw new InvalidDataException("AutoCAD 실행 파일 누락 또는 경로 오류");
                 }
-                if (CadReload.Compatible(source)) _ = RoBIM.Cad.Configuration.CadFiles.Catalog(CadReload.WindowsDirectory(source));
+                if (CadReload.Compatible(source))
+                {
+                    var root = CadReload.WindowsDirectory(source);
+                    foreach (var module in RoBIM.Cad.Configuration.CadFiles.Catalog(root).Modules)
+                        _ = ModuleReleases.Cad(root, module.Id, module.Version);
+                }
             }
             else if (manifest.Root?.Name.LocalName != "ApplicationPackage" ||
                 !File.Exists(Path.Combine(source, "Contents", "Windows", "DelHiddenNet.dll")))

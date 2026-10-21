@@ -10,7 +10,10 @@ public sealed partial class ManagerForm
 {
     private enum ButtonKind { Cad, PyRevit, Native, Discover }
     private sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
-        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "");
+        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "")
+    {
+        public string CollectionChannel => (Selected || Pending) && SelectedChannel.Length > 0 ? SelectedChannel : Channel;
+    }
     private readonly Dictionary<string, RevitButton[]> revitButtonCache = new(StringComparer.OrdinalIgnoreCase);
     private SourcePackage? cadButtonPackage;
     private SourcePackage? revitButtonPackage;
@@ -47,7 +50,8 @@ public sealed partial class ManagerForm
                             foreach (var command in module.Actions.OrderBy(x => x.Order))
                             {
                                 var key = CadFiles.Key(module, command); var state = CadButtonState(owner, key);
-                                cards.Add(new("cad:" + key, command.Title, command.Description, command.Panel + " / " + module.Name, command.Icon is null ? null : CadFiles.Child(source.Root, command.Icon), owner, ButtonKind.Cad, state.Selected, state.Pending, state.Message, source.Bundle, key));
+                                var release = ModuleReleases.Cad(source.Root, module.Id, module.Version);
+                                cards.Add(new("cad:" + key, command.Title, command.Description, command.Panel + " / " + module.Name, command.Icon is null ? null : CadFiles.Child(source.Root, command.Icon), owner, ButtonKind.Cad, state.Selected, state.Pending, state.Message, source.Bundle, key, module.Id, release.Channel, release.Label, release.Detail));
                             }
                 }
                 else if (owner.Status.Tool.Kind == ToolKind.PyRevit)
@@ -71,17 +75,20 @@ public sealed partial class ManagerForm
                     if (source is not null)
                     {
                         var module = NativeProtocol.Module(source.Path);
+                        var release = ModuleReleases.Native(source.Path, module.Id, module.Version);
+                        var chosen = manager.Desired()?.Modules.FirstOrDefault(x => x.Manifest.Id == module.Id);
+                        var selectedRelease = chosen is null ? "선택된 버전 없음" : "설치/준비 선택: " + ModuleReleases.Native(chosen.Directory, chosen.Manifest.Id, chosen.Manifest.Version).Label;
                         foreach (var command in module.Commands)
                         {
                             var state = manager.State(module.Id, command.Id);
                             if (new NativeLegacyPackages(paths).Present(owner.Status.Tool)) state = (true, false, "기존 직접 설치 · Reload 방식 전환 필요");
-                            cards.Add(new("native:" + module.Id + ":" + command.Id, command.Title, command.Description, command.Tab + " / " + command.Panel, command.Icon is null ? null : NativeProtocol.Child(source.Path, command.Icon), owner, ButtonKind.Native, state.Selected, state.Pending, state.Message, source.Path, command.Id, module.Id));
+                            cards.Add(new("native:" + module.Id + ":" + command.Id, command.Title, command.Description, command.Tab + " / " + command.Panel, command.Icon is null ? null : NativeProtocol.Child(source.Path, command.Icon), owner, ButtonKind.Native, state.Selected, state.Pending, state.Message, source.Path, command.Id, module.Id, release.Channel, chosen is not null && (state.Selected || state.Pending) ? ModuleReleases.Native(chosen.Directory, chosen.Manifest.Id, chosen.Manifest.Version).Label + " (선택)" : release.Label, "목록 버전: " + release.Label + "\n" + selectedRelease + "\n" + release.Detail, chosen is null ? "" : ModuleReleases.Native(chosen.Directory, chosen.Manifest.Id, chosen.Manifest.Version).Channel));
                         }
                     }
                 }
             }
             catch (Exception ex) { WriteLog(owner.Status.Tool.Name + " 버튼 목록: " + ex.Message); }
-            if (cards.Count == 0) cards.Add(new("discover:" + owner.Status.Tool.Id, owner.Status.Tool.Name, owner.Status.Tool.Description, "버튼 정보 확인 필요", null, owner, ButtonKind.Discover, false, false, "기능 목록을 불러오십시오.", null, ""));
+            if (cards.Count == 0) cards.Add(new("discover:" + owner.Status.Tool.Id, owner.Status.Tool.Name, owner.Status.Tool.Description, "버튼 정보 확인 필요", null, owner, ButtonKind.Discover, false, false, "기능 목록을 불러오십시오.", null, "", Channel: owner.Package?.Package.Channel == "test" ? "test" : "unknown", ReleaseLabel: owner.Package?.Package.Channel == "test" ? "TEST · 목록 확인 필요" : "미확인 · 목록 확인 필요"));
             foreach (var card in cards) yield return card;
         }
     }
@@ -129,7 +136,7 @@ public sealed partial class ManagerForm
         var update = card.Kind == ButtonKind.Native && currentSelected && new NativeRevitCommands(paths).HasUpdate(card.ModuleId);
         var legacyNative = card.Kind == ButtonKind.Native && new NativeLegacyPackages(paths).Present(card.Owner.Status.Tool);
         var enable = installChoice ?? (legacyNative || update || !currentSelected);
-        if (!Confirm(card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 Revit Reload로 적용합니다. 공용 로더는 유지합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 Revit 안의 적용 및 Reload로 반영합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
+        if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 Revit Reload로 적용합니다. 공용 로더는 유지합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 Revit 안의 적용 및 Reload로 반영합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
         await Run("버튼 " + (enable ? "설치" : "제거") + " 준비", async () =>
         {
             if (card.Kind == ButtonKind.Cad)
@@ -184,7 +191,7 @@ public sealed partial class ManagerForm
     private ContextMenuStrip BuildButtonMenu(ButtonCard card)
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("기능 설명 / 설치 위치", null, (_, _) => MessageBox.Show(this, card.Description + "\n\n분류: " + card.Group + "\n상태: " + card.Message + "\n원본: " + (card.Source ?? "목록 확인 필요"), card.Title));
+        menu.Items.Add("기능 설명 / 설치 위치", null, (_, _) => MessageBox.Show(this, card.Description + "\n\n분류: " + card.Group + "\n상태: " + card.Message + "\n배포 구분: " + card.ReleaseLabel + "\n" + card.ReleaseDetail + "\n원본: " + (card.Source ?? "목록 확인 필요"), card.Title));
         var legacy = !preview && appearanceSnapshot.GetValueOrDefault(card.Id)?.Legacy == true;
         menu.Items.Add(legacy ? "기존 설치를 Reload 방식으로 전환" : card.Selected ? "이 버튼 제거" : "이 버튼 설치", null, async (_, _) => await ToggleButton(card, legacy || !card.Selected));
         if (card.Kind == ButtonKind.Native && card.Selected) menu.Items.Add("기능 업데이트 준비", null, async (_, _) => await ToggleButton(card, true));
@@ -207,7 +214,8 @@ public sealed partial class ManagerForm
         var revit = productRows.First(x => x.Status.Tool.Id == Catalog.Revit.Id);
         var cad = productRows.First(x => x.Status.Tool.Id == Catalog.Cad.Id);
         var native = productRows.First(x => x.Status.Tool.Kind == ToolKind.NativeRevit);
-        yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets");
+        yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets", "unknown", "미확인 · 예시 버전");
+        yield return new("native:sample-test:sample", "신규 기능 TEST", "독립 Add-in 검증용 예시입니다.", "RoBIM TEST / 독립 도구", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "sample", "sample-test", "test", "TEST · 0.1.0-test.2", "화면 확인용 예시");
         yield return new("revit:auto-join", "AutoJoin", "선택 요소·현재 뷰·프로젝트에서 카테고리별 조인과 절단 순서를 정리합니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "auto-join");
         yield return new("revit:beam-to-slab", "보 슬래브 높이 맞춤", "보와 겹치는 슬래브를 찾아 이동량을 검토하고, 선택한 보의 높이를 맞춥니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "beam-to-slab");
         yield return new("revit:cad-dimensions", "CAD 치수 도면화", "CAD 선과 기준을 검토하여 Revit 도면 치수를 작성합니다.", "RoBIM 도면 / 치수", null, revit, ButtonKind.PyRevit, false, false, "설치 안 됨", null, "cad-dimensions");

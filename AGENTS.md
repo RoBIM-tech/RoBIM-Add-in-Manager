@@ -22,3 +22,11 @@
 - User procedures belong in docs/user/README.md and its feature guides; describe inputs, actions, results and recovery.
 - Implementation, data flow, lifecycle, build/test and repository design belong in docs/developer/README.md and its references.
 - Keep README.md as an entry point to both audiences. Label historical design/validation documents and preserve existing inbound links with pointers.
+
+## 신규 기능 정책
+
+- 신규 Revit 버튼은 pyRevit에 추가하지 않고 독립 Native Add-in으로 제작합니다. 기존 pyRevit 버튼과 Manager 연결은 유지보수합니다.
+- 공용 코드는 [RoBIM-Libraries](https://github.com/gagaggan/RoBIM-Libraries)의 역할별 패키지로 관리하고 정확한 버전을 고정합니다. 실행 중 모든 DLL을 공용 폴더 하나에 덮어쓰지 않습니다.
+- 누가 제작하든 신규 명령은 Manager `catalog/modules.json`에 등록합니다. 기능 PR과 Manager 등록 PR을 연결하고 배포 전에 등록 검사를 통과해야 합니다.
+- 새 버전은 TEST로 시작합니다. 실사용 승격은 실제 호스트 빌드·검증자·검증 기록을 명시한 별도 배포입니다. 설치 성공·main 병합·빌드 성공은 실사용 검증을 대신하지 않습니다.
+- [신규 버튼 제작 설명서](https://github.com/gagaggan/RoBIM-Workspace/blob/codex/user-developer-guides/docs/developer/NEW_BUTTON.md)에서 clone부터 생성·패키징·등록·검증까지 진행합니다.

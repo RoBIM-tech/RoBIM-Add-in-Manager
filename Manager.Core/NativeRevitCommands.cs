@@ -86,6 +86,9 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
             if (!HasUpdate(entry.Manifest.Id)) continue;
             var package = Cached(entry.Manifest.Id)!; Cache(package);
             var module = NativeProtocol.Module(package.Path);
+            // Importing a catalog is not consent to change a selected release channel.
+            if (ModuleReleases.Native(package.Path, module.Id, module.Version).Channel !=
+                ModuleReleases.Native(entry.Directory, entry.Manifest.Id, entry.Manifest.Version).Channel) continue;
             if (entry.Selected.Any(id => !module.Commands.Any(c => c.Id == id))) throw new IOException("새 패키지에서 제거된 버튼이 있습니다. 기존 선택을 검토한 뒤 다시 준비하십시오.");
             prepared = NativeProtocol.Prepare(Data, package.Path, module.Id, entry.Selected, currentSession?.Pid ?? 0, currentSession?.StartTicks ?? 0, prepared ?? desired, false);
         }
@@ -125,6 +128,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var cache = SafeFiles.Child(Data, "Catalog/" + Guid.NewGuid().ToString("N")); SafeFiles.Extract(archive, cache);
         var roots = Directory.GetDirectories(cache); if (roots.Length != 1) throw new IOException("Revit 패키지 루트 오류");
         var manifest = NativeProtocol.Module(roots[0]);
+        ModuleReleases.ValidateNative(roots[0]);
         var package = new SourcePackage(roots[0], manifest.Version);
         NativeProtocol.Save(NativeProtocol.Child(Data, "catalog-" + manifest.Id + ".json"), new NativeCatalogPackage(package.Path, package.Version, NativeProtocol.Hashes(package.Path)));
         PrepareCachedUpdates(); return package;
@@ -141,6 +145,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     public SourcePackage Cache(SourcePackage source)
     {
         var module = NativeProtocol.Module(source.Path);
+        ModuleReleases.ValidateNative(source.Path);
         var current = Cached(module.Id);
         if (current is not null && Path.GetFullPath(current.Path).Equals(Path.GetFullPath(source.Path), StringComparison.OrdinalIgnoreCase))
         {

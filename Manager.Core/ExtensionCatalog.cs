@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace RoBIM.Manager.Core;
 
 public sealed record ExtensionPackage(string Id, string Name, string Host, string Path, string Folder,
-    string Distribution = "git", string? Asset = null, string Description = "");
+    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown");
 public sealed record ExtensionManifest(int SchemaVersion, ExtensionPackage[] Packages);
 public sealed record ExtensionRepository(string Repository, string Branch, ExtensionPackage[] Packages, string Recognition);
 public sealed record CatalogResult(IReadOnlyList<ExtensionRepository> Repositories, string[] Warnings);
@@ -43,6 +43,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         {
             if (package is null || string.IsNullOrWhiteSpace(package.Name) || package.Name.Length > 120 ||
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
+            if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
             if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
@@ -101,7 +102,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     public ExtensionRepository[] Registered()
     {
-        if (!File.Exists(FilePath)) return [];
+        var defaults = BundledCatalog.Read().Repositories;
+        if (!File.Exists(FilePath)) return defaults;
         var repos = JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [];
         foreach (var repo in repos)
         {
@@ -109,7 +111,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             RevitPackages.ValidateBranch(repo.Branch);
             ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, repo.Packages)));
         }
-        return repos;
+        return defaults.Where(x => !repos.Any(r => r.Repository.Equals(x.Repository, StringComparison.OrdinalIgnoreCase))).Concat(repos).ToArray();
     }
     public void Register(ExtensionRepository repository)
     {
@@ -182,7 +184,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             JsonElement? asset = null; version = "";
             foreach (var release in json.RootElement.EnumerateArray())
             {
-                if (release.GetProperty("draft").GetBoolean()) continue;
+                if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test")) continue;
                 foreach (var candidate in release.GetProperty("assets").EnumerateArray())
                     if (candidate.GetProperty("name").GetString() == package.Asset) { asset = candidate; version = release.GetProperty("tag_name").GetString()!; break; }
                 if (asset is not null) break;

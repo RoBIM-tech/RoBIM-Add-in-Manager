@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "repositories": [
+    {
+      "repository": "gagaggan/RoBIM-Revit-Addin",
+      "branch": "main",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "robim-revit-sheets",
+          "name": "RoBIM 시트 생성",
+          "host": "revit",
+          "path": "RoBIM.Revit.Sheets.bundle",
+          "folder": "RoBIM.Revit.Sheets.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-Sheets-Revit2026.zip",
+          "description": "Revit 2026.5+ / .NET 10 독립 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
+          "channel": "test"
+        }
+      ]
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "branch": "main",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "delhidden",
+          "name": "RoBIM CAD 도구",
+          "host": "autocad",
+          "path": "DelHiddenNet.bundle",
+          "folder": "DelHiddenNet.bundle",
+          "distribution": "release",
+          "asset": "DelHiddenNet-AutoCAD2026.zip",
+          "description": "CAD 기능별 선택 설치"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "repository": "gagaggan/RoBIM-Revit-Addin",
+      "packageId": "robim-revit-sheets",
+      "moduleId": "sheets",
+      "commandId": "create-sheets",
+      "host": "revit"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "delhidden",
+      "commandId": "cleanup",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "delhidden",
+      "commandId": "preview",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "ezsplit",
+      "commandId": "split",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "exbx",
+      "commandId": "explode",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "xclip",
+      "commandId": "cut",
+      "host": "autocad"
+    }
+  ]
+}

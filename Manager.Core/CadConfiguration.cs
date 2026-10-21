@@ -19,6 +19,8 @@ public sealed record CadAction
 }
 public sealed record CadModule
 {
+    [System.Text.Json.Serialization.JsonExtensionData]
+    public Dictionary<string, JsonElement>? Metadata { get; init; }
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
     public string Assembly { get; init; } = "";

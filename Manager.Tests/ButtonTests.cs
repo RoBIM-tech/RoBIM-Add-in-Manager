@@ -314,6 +314,19 @@ internal static class ButtonTests
             NativeProtocol.Save(receipt, new NativeReceipt(second.Id, "applied", "done", 123, 456, DateTimeOffset.UtcNow)); require(!service.State("example", "run").Pending, "Matching receipt not recognized");
             service.Toggle(service.Cached("example")!.Path, "run", false); require(!service.State("example", "run").Selected, "Button removal selection");
         });
+        test("NativeImportCannotSilentlySwitchStableToTest", () =>
+        {
+            var source = NativeSource("native-channel/Example.bundle"); var target = paths("native-channel"); var service = new NativeRevitCommands(target, () => null);
+            var module = NativeProtocol.Module(source); NativeProtocol.Save(Path.Combine(source,NativeProtocol.ManifestName),module with { Version = "1.0.0" });
+            NativeProtocol.Save(Path.Combine(source,RoBIM.Common.ReleaseMetadata.FileName),new RoBIM.Common.ReleaseManifest(1,[new("example","1.0.0","stable",new("reviewer","fixture host","https://example.org/verification"))]));
+            var first = service.Import(Archive(source)); service.Toggle(first.Path,"run",true); var before = service.Desired()!;
+            NativeProtocol.Save(Path.Combine(source,NativeProtocol.ManifestName),module with { Version = "2.0.0-test.1" });
+            NativeProtocol.Save(Path.Combine(source,RoBIM.Common.ReleaseMetadata.FileName),new RoBIM.Common.ReleaseManifest(1,[new("example","2.0.0-test.1","test")]));
+            service.Import(Archive(source));
+            require(service.Desired()!.Id == before.Id && service.Desired()!.Modules.Single().Manifest.Version == "1.0.0", "Import changed chosen release channel");
+            service.Toggle(service.Cached("example")!.Path,"run",true);
+            require(service.Desired()!.Modules.Single().Manifest.Version == "2.0.0-test.1", "Explicit TEST choice was rejected");
+        });
         test("NativeModifiedCatalogCacheRejected", () =>
         {
             var source = NativeSource("native-cache/Example.bundle"); var target = paths("native-cache"); var service = new NativeRevitCommands(target, () => null); var package = service.Import(Archive(source));
