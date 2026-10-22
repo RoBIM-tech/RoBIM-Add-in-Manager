@@ -14,7 +14,7 @@ public sealed partial class ManagerForm
     private readonly Label productCount = new() { AutoSize = true, ForeColor = Color.FromArgb(106, 117, 136), Padding = new(0, 8, 0, 0) };
     private readonly Dictionary<string, CardBinding> cardBindings = [];
     private readonly Dictionary<string, (Control Control, CardBinding Binding)> cachedCards = [];
-    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card, Label Category);
+    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card);
 
     private void BuildProductsPage()
     {
@@ -112,7 +112,7 @@ public sealed partial class ManagerForm
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
         if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
-        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  파랑: 설치 · 회색: 미설치 · 주황: 업데이트 · 보라: TEST" + (preview ? "  ·  화면 확인용 예시 상태" : "");
+        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치 · 연보라: 새 TEST 있음" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
@@ -171,7 +171,7 @@ public sealed partial class ManagerForm
         card.Disposed += (_, _) => { menu.Dispose(); tips.Dispose(); instruction.Dispose(); };
         header.Controls.Add(primary, 2, 0); header.Controls.Add(more, 3, 0); layout.Controls.Add(stateLabel, 0, 2);
         tips.SetToolTip(category, category.Text); tips.SetToolTip(title, feature.Title); tips.SetToolTip(description, feature.Description);
-        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more, card, category);
+        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more, card);
         return card;
     }
 
@@ -233,27 +233,22 @@ public sealed partial class ManagerForm
             binding.More.Enabled = ready;
             var updateState = appearance.Update;
             var selected = SelectedInView(feature);
-            var testState = feature.CollectionChannel == "test" || feature.Selected && feature.SelectedChannel == "test";
-            var palette = CardPalette(selected, updateState, testState);
-            binding.Card.BackColor = palette.Background;
-            binding.Card.BorderColor = palette.Border;
-            binding.Card.AccentColor = palette.Accent;
-            binding.State.ForeColor = palette.Ink;
-            binding.Category.ForeColor = testState ? Color.FromArgb(104, 55, 166) : Color.FromArgb(49, 92, 164);
-            binding.Action.BackColor = selected && !updateState ? Color.White : palette.Accent;
-            binding.Action.ForeColor = selected && !updateState ? palette.Ink : Color.White;
-            binding.Action.FlatAppearance.BorderColor = palette.Border;
-            binding.Action.FlatAppearance.MouseOverBackColor = selected && !updateState ? palette.Background : ControlPaint.Dark(palette.Accent);
-            binding.Action.FlatAppearance.MouseDownBackColor = binding.Action.FlatAppearance.MouseOverBackColor;
+            var testAvailable = selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
+            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : testAvailable ? Color.FromArgb(246, 243, 250) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
+            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : testAvailable ? Color.FromArgb(190, 179, 207) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
+            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
             binding.State.Text = (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
             if (binding.State is LinkLabel link)
             {
-                link.LinkColor = Color.FromArgb(104, 55, 166);
-                link.ActiveLinkColor = link.VisitedLinkColor = Color.FromArgb(78, 36, 132);
                 link.Links.Clear();
                 var at = link.Text.LastIndexOf("TEST 보기", StringComparison.Ordinal);
-                if (at >= 0) link.Links.Add(at, "TEST 보기".Length);
+                if (at >= 0)
+                {
+                    link.LinkColor = link.VisitedLinkColor = Color.FromArgb(102, 81, 131);
+                    link.ActiveLinkColor = Color.FromArgb(79, 59, 108);
+                    link.Links.Add(at, "TEST 보기".Length);
+                }
             }
             binding.Instruction.Text = appearance.Instruction;
             var detail = appearance.Message + "\n" + appearance.Instruction;
@@ -261,15 +256,6 @@ public sealed partial class ManagerForm
             if (binding.Tips.GetToolTip(binding.Action) != appearance.Instruction) binding.Tips.SetToolTip(binding.Action, appearance.Instruction);
         }
     }
-    private sealed record CardColors(Color Background, Color Border, Color Ink, Color Accent);
-    private static CardColors CardPalette(bool selected, bool update, bool test) => update
-        ? new(Color.FromArgb(255, 237, 210), Color.FromArgb(216, 145, 58), Color.FromArgb(135, 66, 10), Color.FromArgb(169, 85, 10))
-        : test
-            ? new(selected ? Color.FromArgb(232, 220, 251) : Color.FromArgb(246, 239, 255), Color.FromArgb(180, 149, 221), Color.FromArgb(99, 52, 157), Color.FromArgb(113, 65, 177))
-            : selected
-                ? new(Color.FromArgb(225, 239, 255), Color.FromArgb(128, 172, 218), Color.FromArgb(34, 83, 137), Color.FromArgb(44, 105, 170))
-                : new(Color.FromArgb(244, 245, 247), Color.FromArgb(205, 211, 219), Color.FromArgb(89, 101, 120), Color.FromArgb(94, 112, 138));
-
     private bool sizingProductCards;
     private static int CardColumnCount(int availableWidth, int dpi) => Math.Clamp((availableWidth + 8 * dpi / 96) / (400 * dpi / 96 + 8 * dpi / 96), 1, 3);
     private void SizeProductCards()
@@ -297,8 +283,6 @@ public sealed partial class ManagerForm
     {
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public Color BorderColor { get; set; } = Color.FromArgb(224, 229, 237);
-        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-        public Color AccentColor { get; set; } = Color.FromArgb(94, 112, 138);
         public ToolCardPanel() { DoubleBuffered = true; }
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -306,9 +290,6 @@ public sealed partial class ManagerForm
             using var path = new GraphicsPath(); var radius = 9f * DeviceDpi / 96f; var rect = new RectangleF(.5f, .5f, Width - 1.5f, Height - 1.5f);
             path.AddRoundedRectangle(rect, new SizeF(radius, radius));
             using var pen = new Pen(BorderColor); e.Graphics.DrawPath(pen, path);
-            var scale = DeviceDpi / 96f;
-            using var accent = new Pen(AccentColor, 4 * scale) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            e.Graphics.DrawLine(accent, 3.5f * scale, 10 * scale, 3.5f * scale, Height - 10 * scale);
         }
     }
 
