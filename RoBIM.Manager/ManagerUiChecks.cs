@@ -6,14 +6,19 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    internal void InspectInstalledCards(string destination, string? snapshot = null, string page = "All")
+    internal void InspectInstalledCards(string destination, string? snapshot = null, string page = "All", bool refreshOffers = false)
     {
         ShowInTaskbar = false; Opacity = 0; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000);
         Shown += async (_, _) =>
         {
             try
             {
-                await StartLocalDisplay(); SwitchPage(page); RefreshCardActions();
+                var protectedFiles = new[] { "installed.json", "ribbon-layout-revit.json", "NativeRevit/active.json", "NativeRevit/pending.json" };
+                string[] SelectionProof() => protectedFiles.Select(f => Path.Combine(paths.Data,f)).Select(f => File.Exists(f) ? SafeFiles.Hash(f) : "ABSENT").ToArray();
+                var before = SelectionProof();
+                await StartLocalDisplay();
+                if (refreshOffers) await RefreshWithUpdates();
+                SwitchPage(page); RefreshCardActions();
                 if (snapshot is not null)
                 {
                     using var bitmap = new Bitmap(Width, Height); DrawToBitmap(bitmap, new Rectangle(Point.Empty, Size));
@@ -24,7 +29,10 @@ public sealed partial class ManagerForm
                     Products = productRows.Select(x => new { x.Status.Tool.Id, x.Status.Path, x.Status.Managed, x.Status.External, x.Status.Modified, x.Status.Detail }),
                     Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, Source = x.Row.Source,
                         Enabled = x.Action.Enabled, Action = x.Action.Text, State = x.State.Text, Instruction = x.Instruction.Text }),
-                    Log = log.Text
+                    Log = log.Text,
+                    UpdateOffers = updateOffers, TestOffers = testOffers, TestErrors = testOfferErrors,
+                    TestCards = ProductCommands("Test").Where(c => c.CollectionChannel == "test").Select(c => new { c.Id, c.TestView, c.ReleaseLabel, c.SelectedChannel, c.SelectedVersion, Action = PrimaryText(c,AppearanceFor(c)) }),
+                    SelectionUnchanged = before.SequenceEqual(SelectionProof())
                 }, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch (Exception error) { File.WriteAllText(destination, JsonSerializer.Serialize(new { Error = error.ToString() })); }
@@ -264,6 +272,7 @@ public sealed partial class ManagerForm
         productSearch.Clear(); Navigate("Revit");
         var notice=(LinkLabel)cardBindings[sample.Id].State;
         Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
+        using (var stableBitmap=new Bitmap(Width,Height)) { DrawToBitmap(stableBitmap,new Rectangle(Point.Empty,Size)); stableBitmap.Save(destination+".stable.png"); }
         typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
         Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
         using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
