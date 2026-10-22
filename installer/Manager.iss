@@ -1,4 +1,4 @@
-#ifndef RepoRoot
+﻿#ifndef RepoRoot
   #define RepoRoot SourcePath + ".."
 #endif
 [Setup]
@@ -30,7 +30,7 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.0.0.26
+VersionInfoVersion=1.0.0.27
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
