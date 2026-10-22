@@ -210,6 +210,8 @@ public sealed partial class ManagerForm
             Require(direct.Kind == ButtonKind.Native && direct.Source is null && direct.CommandId.Length > 0 && direct.ModuleId.Length > 0, "Registered button available before package download " + direct.Id);
             Require(!direct.Title.StartsWith("RoBIM", StringComparison.OrdinalIgnoreCase), "Display name omits product prefix " + direct.Id);
             using var menu = BuildButtonMenu(direct);
+            Require(menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "저장소 TEST 버전 설치…") &&
+                menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "저장소 정식 버전 설치…"), "Native release channels are directly selectable before download " + direct.Id);
             Require(!menu.Items.Cast<ToolStripItem>().Any(x => (x.Text ?? "").Contains("기능 목록") || x.Text == "공용 패키지 관리"), "No native discovery or separate package menu " + direct.Id);
             using var card = CreateCommandCard(direct); snapshotVerified = true; refreshingSnapshot = false; busy = false;
             RefreshCardActions();

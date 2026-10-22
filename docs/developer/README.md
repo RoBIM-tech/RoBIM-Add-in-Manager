@@ -114,6 +114,8 @@ Manager는 설치 중 외부 저장소의 빌드 스크립트를 실행하지 �
 
 Revit `robim-release.json`, CAD robim-cad.json module의 channel·validation·libraries를 Common 정책으로 읽습니다. TEST는 별도 메뉴로 분리하며 일반 목록의 설치 성공을 실사용 승격으로 표현하지 않습니다. TEST 파일을 가져오는 것만으로 기존 실사용 선택 채널을 바꾸지 않습니다. GitHub 일반 다운로드는 prerelease를 건너뛰며 명시적 test 패키지에서만 TEST 릴리스를 선택합니다.
 
+Preview 32의 Native 카드 메뉴는 등록된 동일 패키지에서 TEST/정식을 명시적으로 선택할 수 있습니다. ExtensionCatalog.Download의 releaseChannel 인수는 기본 브랜치 descriptor 일치 검사를 먼저 통과한 뒤 다운로드할 채널만 변경합니다. SingleNativeButton.Resolve에는 선택한 채널을 전달하여 실제 ZIP 메타데이터와 대조합니다. 등록 기본값·ID·경로·asset은 변경하지 않으며, 새로고침의 정식→TEST 자동 업데이트 차단 정책도 유지합니다. 온라인 회귀 `dotnet run --project Manager.Tests -c Release -- --check-native-release-channels <임시 경로>`는 시트 저장소에서 정식→TEST→정식을 실제 다운로드하고 임시 선택 상태와 등록 기본값 보존을 검사합니다.
+
 ## pyRevit Reload와 독립 관리 버튼의 공존
 
 pyRevit의 UI cleanup은 같은 pyRevit 탭에 있던 미갱신 Native 버튼/패널에도 Enabled=false를 설정할 수 있습니다. Manager 연결에서 Visible만 복원하면 버튼이 보이면서 회색으로 남습니다. Preview 26은 실제 설치/활성 선택에서 해석한 버튼에 한해 API Enabled=true를 복원하고, 소유 탭/목적지 패널도 활성화합니다. Revit 명령의 availability나 모델 편집 상태를 우회하지 않으며 다른 제품·미설치 버튼은 복원하지 않습니다. start마다 fingerprint/warmup을 초기화해 pyRevit UI cleanup이 끝난 뒤 Idling에서 다시 적용합니다.

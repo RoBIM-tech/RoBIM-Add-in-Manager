@@ -167,15 +167,21 @@ public sealed partial class ManagerForm
         await Run("독립 Revit 기능 확인", async () => { await Task.Run(() => new NativeRevitCommands(paths).Import(picker.FileName)); });
         SwitchPage("Revit");
     }
-    private async Task ToggleButton(ButtonCard card, bool? installChoice = null)
+    private async Task ToggleButton(ButtonCard card, bool? installChoice = null, string? releaseChannel = null)
     {
         if (busy || preview) return;
         if (card.Kind == ButtonKind.Discover) { await LoadButtonCatalog(card.Owner); return; }
+        if (releaseChannel is not null)
+        {
+            if (card.Kind != ButtonKind.Native || card.Owner.Package is null || installChoice != true) return;
+            card = card with { Channel = releaseChannel };
+        }
         var currentSelected = card.Kind == ButtonKind.Native ? new NativeRevitCommands(paths).State(card.ModuleId, card.CommandId).Selected : card.Kind == ButtonKind.Cad ? CadButtonState(card.Owner, card.CommandId).Selected : RevitInventory(card.Owner).Selected.Contains(card.CommandId);
-        var update = currentSelected && (RemoteUpdate(card) || card.Kind == ButtonKind.Native && (new NativeRevitCommands(paths).HasUpdate(card.ModuleId) || card.HasChannelUpdate));
+        var update = currentSelected && (releaseChannel is not null || RemoteUpdate(card) || card.Kind == ButtonKind.Native && (new NativeRevitCommands(paths).HasUpdate(card.ModuleId) || card.HasChannelUpdate));
         var legacyNative = card.Kind == ButtonKind.Native && new NativeLegacyPackages(paths).Present(card.Owner.Status.Tool);
         var enable = installChoice ?? (legacyNative || update || !currentSelected);
-        if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? update ? " 버튼을 업데이트합니까?" : " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 실행 중인 Revit에 자동 적용을 요청합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 자동 적용을 요청합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
+        var channelMessage = releaseChannel is null ? "" : "저장소의 최신 " + (releaseChannel == "test" ? "TEST" : "정식") + " 버전을 다운로드합니다. 현재 선택된 이 도구의 코드 버전이 바뀝니다.\n\n";
+        if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? update ? " 버튼을 업데이트합니까?" : " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + channelMessage + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 실행 중인 Revit에 자동 적용을 요청합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 자동 적용을 요청합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
         await Run("버튼 " + (enable ? update ? "업데이트" : "설치" : "제거") + " 준비", async () =>
         {
             if (card.Kind == ButtonKind.Cad)
@@ -233,8 +239,11 @@ public sealed partial class ManagerForm
                 if (enable && card.Owner.Package is { } registered)
                 {
                     var current = await RefreshNativeRegistration(registered);
-                    source = await SingleNativeButton.Resolve(paths, current.Repository, current.Package,
-                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package), refresh: true);
+                    var requestedPackage = releaseChannel is null ? current.Package : ExtensionCatalog.ReleaseChannel(current.Package, releaseChannel);
+                    source = await SingleNativeButton.Resolve(paths, current.Repository, requestedPackage,
+                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package, releaseChannel), refresh: true);
+                    var downloaded = NativeProtocol.Module(source.Path);
+                    WriteLog(card.Title + " 다운로드 검증 완료 · " + ModuleReleases.Native(source.Path, downloaded.Id, downloaded.Version).Label);
                     commandId = NativeProtocol.Module(source.Path).Commands.Single().Id;
                 }
                 else
@@ -276,6 +285,11 @@ public sealed partial class ManagerForm
         if (card.Kind == ButtonKind.Native && card.Selected) menu.Items.Add("기능 업데이트 준비", null, async (_, _) => await ToggleButton(card, true));
         if (card.Kind == ButtonKind.Native && card.Owner.Package is not null) menu.Items.Add("업데이트 확인", null, async (_, _) => await LoadButtonCatalog(card.Owner));
         else if (card.Kind != ButtonKind.Native) menu.Items.Add("기능 목록 업데이트", null, async (_, _) => await LoadButtonCatalog(card.Owner));
+        if (card.Kind == ButtonKind.Native && card.Owner.Package is not null)
+        {
+            menu.Items.Add("저장소 TEST 버전 설치…", null, async (_, _) => await ToggleButton(card, true, "test"));
+            menu.Items.Add("저장소 정식 버전 설치…", null, async (_, _) => await ToggleButton(card, true, "stable"));
+        }
         if (card.Kind == ButtonKind.Native) menu.Items.Add("새 버전 ZIP 가져오기", null, async (_, _) => await ImportNativePackage());
         if (card.Kind == ButtonKind.Cad) menu.Items.Add("CAD 버튼 이름·패널·순서 구성", null, async (_, _) => { if (busy || preview) return; SelectProduct(card.Owner.Status.Tool.Id); await ConfigureCadButtons(false); await RefreshProductListAsync(); });
         menu.Items.Add(new ToolStripSeparator());

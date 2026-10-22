@@ -185,10 +185,18 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
         return package;
     }
-    public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)
+    public static ExtensionPackage ReleaseChannel(ExtensionPackage package, string channel)
+    {
+        if (package.Host != "revit" || package.Distribution != "release" || channel is not ("test" or "stable"))
+            throw new IOException("독립 Revit 도구의 TEST 또는 정식 배포를 선택하십시오.");
+        return package with { Channel = channel };
+    }
+    public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package, string? releaseChannel = null)
     {
         var refreshed = await Inspect("https://github.com/" + repository.Repository);
         if (!refreshed.Packages.Contains(package)) throw new IOException("저장소 표시 정보가 변경되었습니다. 목록을 새로 조회하십시오.");
+        // An explicit user choice changes only release selection, never the registered default or package identity.
+        if (releaseChannel is not null) package = ReleaseChannel(package, releaseChannel);
         var cache = SafeFiles.Child(paths.Data, "Extensions/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(cache);
         string root, version;

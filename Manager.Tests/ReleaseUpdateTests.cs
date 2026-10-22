@@ -28,10 +28,23 @@ static class ReleaseUpdateTests
                 new { draft = false, prerelease = false, tag_name = "v1.0.0", assets = new[] { Asset("other.zip", 3), Asset("tool.zip", 1) } } }));
             var package = new ExtensionPackage("tool", "tool", "revit", ".", "Tool.bundle", "release", "tool.zip", Channel: "stable");
             var stable = ReleaseUpdates.Select(document.RootElement, package);
-            var preview = ReleaseUpdates.Select(document.RootElement, package with { Channel = "test" });
+            var requested = ExtensionCatalog.ReleaseChannel(package, "test");
+            var preview = ReleaseUpdates.Select(document.RootElement, requested);
             require(stable.AssetId == 1 && stable.Version == "v1.0.0" && preview.AssetId == 2, "Incorrect release chosen");
+            require(package.Channel == "stable" && requested with { Channel = "stable" } == package, "Explicit TEST choice changed the registered package identity/default");
+            require(ReleaseUpdates.Select(document.RootElement, ExtensionCatalog.ReleaseChannel(requested, "stable")).AssetId == 1, "Return to stable did not select stable release");
             var legacy = ReleaseUpdates.Select(document.RootElement, package with { Channel = "unknown" });
             require(legacy.AssetId == 2 && legacy.Channel == "test", "Legacy prerelease ZIP was ignored or mislabeled stable");
+        });
+        test("ExplicitReleaseChannelRejectsUnsupportedSourcesAndChannels", () =>
+        {
+            var native = new ExtensionPackage("tool", "tool", "revit", ".", "Tool.bundle", "release", "tool.zip", Channel: "stable");
+            foreach (var (package, channel) in new[] { (native, "unknown"), (native with { Host = "autocad" }, "test"), (native with { Distribution = "git" }, "test") })
+            {
+                var rejected = false;
+                try { ExtensionCatalog.ReleaseChannel(package, channel); } catch (IOException) { rejected = true; }
+                require(rejected, "Unsupported channel override accepted");
+            }
         });
         test("CadUpdateVersionFollowsActualSelectedDllAcrossRestart", () =>
         {

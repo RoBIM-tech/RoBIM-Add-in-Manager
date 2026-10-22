@@ -6,6 +6,10 @@ if (args.Length == 2 && args[0] == "--check-native-downloads")
 {
     await SingleNativeButtonTests.Downloads(Path.GetFullPath(args[1])); return 0;
 }
+if (args.Length == 2 && args[0] == "--check-native-release-channels")
+{
+    await SingleNativeButtonTests.ReleaseChannels(Path.GetFullPath(args[1])); return 0;
+}
 
 if (args.Length == 2 && args[0] == "--check-existing-button-workflows")
 {

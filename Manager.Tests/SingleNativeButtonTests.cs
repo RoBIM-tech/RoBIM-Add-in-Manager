@@ -112,6 +112,34 @@ internal static class SingleNativeButtonTests
         });
     }
 
+    public static async Task ReleaseChannels(string root)
+    {
+        Directory.CreateDirectory(root);
+        var paths = new ManagerPaths(Path.Combine(root, "data"), Path.Combine(root, "cad"), Path.Combine(root, "revit"));
+        var catalog = new ExtensionCatalog(paths);
+        var repository = await catalog.Inspect("https://github.com/gagaggan/RoBIM-Revit-Sheets");
+        var package = repository.Packages.Single();
+        catalog.Register(repository);
+        var registered = File.ReadAllBytes(Path.Combine(paths.Data, "extension-repositories.json"));
+        var results = new List<object>();
+        foreach (var channel in new[] { "stable", "test", "stable" })
+        {
+            var requested = ExtensionCatalog.ReleaseChannel(package, channel);
+            var source = await SingleNativeButton.Resolve(paths, repository, requested,
+                () => catalog.Download(repository, package, channel), refresh: true);
+            var module = SingleNativeButton.Validate(repository, requested, source);
+            var release = ModuleReleases.Native(source.Path, module.Id, module.Version);
+            if (release.Channel != channel) throw new IOException("Downloaded release channel mismatch");
+            var manager = new NativeRevitCommands(paths, () => null);
+            manager.Toggle(source.Path, module.Commands.Single().Id, true);
+            if (manager.Desired()!.Modules.Single().Manifest.Version != module.Version) throw new IOException("Explicit version was not selected");
+            if (!registered.SequenceEqual(File.ReadAllBytes(Path.Combine(paths.Data, "extension-repositories.json"))))
+                throw new IOException("Explicit channel choice changed registered defaults");
+            results.Add(new { Channel = channel, module.Version, module.Id, Passed = true });
+            Console.WriteLine("PASS repository download and isolated selection: " + channel + " / " + module.Version);
+        }
+        File.WriteAllText(Path.Combine(root, "release-channel-results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+    }
     public static async Task Downloads(string root)
     {
         Directory.CreateDirectory(root);
