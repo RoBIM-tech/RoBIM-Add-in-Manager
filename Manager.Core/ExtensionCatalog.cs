@@ -201,23 +201,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         }
         else
         {
-            using var releases = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases?per_page=100");
-            if (!releases.IsSuccessStatusCode) throw new IOException("배포 릴리스 조회 실패");
-            using var json = JsonDocument.Parse(await releases.Content.ReadAsStringAsync());
-            JsonElement? asset = null; version = "";
-            foreach (var release in json.RootElement.EnumerateArray())
-            {
-                if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test")) continue;
-                foreach (var candidate in release.GetProperty("assets").EnumerateArray())
-                    if (candidate.GetProperty("name").GetString() == package.Asset) { asset = candidate; version = release.GetProperty("tag_name").GetString()!; break; }
-                if (asset is not null) break;
-            }
-            if (asset is null) throw new IOException("표시 정보의 ZIP 배포 파일을 찾지 못했습니다.");
-            var selected = asset.Value;
-            var digest = selected.TryGetProperty("digest", out var d) ? d.GetString() : null;
-            if (selected.GetProperty("size").GetInt64() > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
-                throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
-            using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + selected.GetProperty("id").GetInt64(), "application/octet-stream");
+            var offer = await ReleaseUpdates.Check(refreshed, package);
+            version = offer.Version;
+            var digest = offer.Digest;
+            using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + offer.AssetId, "application/octet-stream");
             if (!download.IsSuccessStatusCode) throw new IOException("배포 다운로드 실패");
             var zip = System.IO.Path.Combine(cache, "package.zip");
             using (var input = await download.Content.ReadAsStreamAsync())

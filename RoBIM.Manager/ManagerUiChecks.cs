@@ -222,6 +222,21 @@ public sealed partial class ManagerForm
         Require(promoted.Channel == "stable" && promoted.CollectionChannel == "stable" && promoted.SelectedChannel == "test",
             "Stable offer appears in normal tools without relabeling installed TEST");
         Require(promoted.HasChannelUpdate, "Stable promotion selects update rather than removing installed TEST");
+        using var statusCard = CreateCommandCard(promoted with { SelectedVersion = "0.1.0-test.2" });
+        var statusBinding = cardBindings[promoted.Id];
+        appearanceSnapshot[promoted.Id] = new(true, true, false, "업데이트 가능 · 0.1.0-test.2 → 0.2.0", "업데이트 후 Reload");
+        RefreshCardActions(); var updateColor = statusCard.BackColor;
+        Require(statusBinding.Action.Text == "업데이트" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        appearanceSnapshot[promoted.Id] = new(true, false, false, "설치됨", ""); RefreshCardActions();
+        Require(statusCard.BackColor != updateColor && statusBinding.State.Text.StartsWith("설치 ·"), "Installed card uses separate color and text");
+        using var missingCard = CreateCommandCard(promoted with { Id = "missing", Selected = false }); RefreshCardActions();
+        Require(missingCard.BackColor != statusCard.BackColor && missingCard.BackColor != updateColor && cardBindings["missing"].State.Text.StartsWith("미설치 ·"), "Uninstalled card uses distinct neutral color and text");
+        updateOffers[promoted.Owner.Status.Tool.Id] = new("0.3.0", "stable");
+        Require(RemoteUpdate(promoted with { SelectedVersion = "0.2.0", SelectedChannel = "stable" }), "Refresh offer marks newer same-channel version");
+        Require(!RemoteUpdate(promoted with { SelectedVersion = "0.3.0", SelectedChannel = "stable" }) && !RemoteUpdate(promoted with { Selected = false, SelectedVersion = "0.2.0" }), "Applied update and uninstalled tool do not remain outdated");
+        updateErrors[promoted.Owner.Status.Tool.Id] = "offline";
+        var failedAppearance = BuildAppearances([promoted with { SelectedVersion = "0.2.0" }])[promoted.Id];
+        Require(failedAppearance.Update && failedAppearance.Message.Contains("최신 확인 실패"), "Refresh failure retains last verified update offer");
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

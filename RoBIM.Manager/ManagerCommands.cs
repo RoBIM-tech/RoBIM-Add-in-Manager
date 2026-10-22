@@ -10,9 +10,9 @@ public sealed partial class ManagerForm
 {
     private enum ButtonKind { Cad, PyRevit, Native, Discover }
     private sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
-        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "")
+        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "")
     {
-        public bool HasChannelUpdate => Selected && Channel is "test" or "stable" && SelectedChannel is "test" or "stable" && Channel != SelectedChannel;
+        public bool HasChannelUpdate => Selected && Channel is "test" or "stable" && SelectedChannel is "test" or "stable" && Channel != SelectedChannel && !(SelectedChannel == "stable" && Channel == "test");
         public string CollectionChannel => Channel is "test" or "stable" ? Channel : (Selected || Pending) && SelectedChannel.Length > 0 ? SelectedChannel : Channel;
     }
     private readonly Dictionary<string, RevitButton[]> revitButtonCache = new(StringComparer.OrdinalIgnoreCase);
@@ -52,13 +52,14 @@ public sealed partial class ManagerForm
                             {
                                 var key = CadFiles.Key(module, command); var state = CadButtonState(owner, key);
                                 var release = ModuleReleases.Cad(source.Root, module.Id, module.Version);
-                                cards.Add(new("cad:" + key, command.Title, command.Description, command.Panel + " / " + module.Name, command.Icon is null ? null : CadFiles.Child(source.Root, command.Icon), owner, ButtonKind.Cad, state.Selected, state.Pending, state.Message, source.Bundle, key, module.Id, release.Channel, release.Label, release.Detail));
+                                cards.Add(new("cad:" + key, command.Title, command.Description, command.Panel + " / " + module.Name, command.Icon is null ? null : CadFiles.Child(source.Root, command.Icon), owner, ButtonKind.Cad, state.Selected, state.Pending, state.Message, source.Bundle, key, module.Id, release.Channel, release.Label, release.Detail, SelectedVersion: CadSelectedVersion(owner, module.Id)));
                             }
                 }
                 else if (owner.Status.Tool.Kind == ToolKind.PyRevit)
                 {
                     var inventory = RevitInventory(owner);
                     var pending = inventory.Pending;
+                    var selectedVersion = new RevitReload(paths).PendingSelection()?.Version ?? statuses.GetValueOrDefault(Catalog.RevitSelected.Id)?.Version ?? owner.Status.Version;
                     var iconCache = inventory.Root is null ? null : RevitButtons.ReadSelection(inventory.Root)?.Cache?.Root;
                     string? Icon(string? relative)
                     {
@@ -66,7 +67,7 @@ public sealed partial class ManagerForm
                         var active = SafeFiles.Child(inventory.Root!, relative);
                         return File.Exists(active) ? active : iconCache is not null ? SafeFiles.Child(iconCache, relative) : RevitButtons.ResourcePath(inventory.Root!, relative);
                     }
-                    foreach (var command in inventory.Buttons) cards.Add(new(owner.Status.Tool.Id + ":" + command.Id, command.Title, command.Description, command.Group, Icon(command.Icon), owner, ButtonKind.PyRevit, inventory.Selected.Contains(command.Id), pending, inventory.Selected.Contains(command.Id) ? (pending ? "설치 준비 · pyRevit Reload 대기" : "설치됨") : (pending ? "제거 준비 · pyRevit Reload 대기" : "설치 안 됨"), inventory.Root, command.Id));
+                    foreach (var command in inventory.Buttons) cards.Add(new(owner.Status.Tool.Id + ":" + command.Id, command.Title, command.Description, command.Group, Icon(command.Icon), owner, ButtonKind.PyRevit, inventory.Selected.Contains(command.Id), pending, inventory.Selected.Contains(command.Id) ? (pending ? "설치 준비 · pyRevit Reload 대기" : "설치됨") : (pending ? "제거 준비 · pyRevit Reload 대기" : "설치 안 됨"), inventory.Root, command.Id, SelectedVersion: selectedVersion));
                 }
                 else
                 {
@@ -89,7 +90,7 @@ public sealed partial class ManagerForm
                             if (new NativeLegacyPackages(paths).Present(owner.Status.Tool)) state = (true, false, "기존 직접 설치 · Reload 방식 전환 필요");
                             cards.Add(new("native:" + module.Id + ":" + command.Id, command.Title, command.Description, command.Tab + " / " + command.Panel, command.Icon is null ? null : NativeProtocol.Child(source.Path, command.Icon), owner, ButtonKind.Native, state.Selected, state.Pending, state.Message, source.Path, command.Id, module.Id, availableChannel, selectedRelease is not null && (state.Selected || state.Pending)
                                 ? availableChannel != selectedRelease.Channel ? availableLabel + " · 설치: " + selectedRelease.Label : selectedRelease.Label + " (선택)" : availableLabel,
-                                "배포: " + availableLabel + "\n캐시: " + release.Label + "\n설치/준비: " + (selectedRelease?.Label ?? "없음") + "\n" + release.Detail, selectedRelease?.Channel ?? ""));
+                                "배포: " + availableLabel + "\n캐시: " + release.Label + "\n설치/준비: " + (selectedRelease?.Label ?? "없음") + "\n" + release.Detail, selectedRelease?.Channel ?? "", chosen?.Manifest.Version ?? ""));
                         }
                     }
                 }
@@ -112,6 +113,12 @@ public sealed partial class ManagerForm
             ToolNames.Display(owner.Status.Tool.Name), owner.Status.Tool.Description, "독립 Add-in", null, owner, ButtonKind.Native,
             state.Selected, state.Pending, state.Message, null, command?.CommandId ?? "", command?.ModuleId ?? "",
             registered.Package.Channel, registered.Package.Channel == "test" ? "TEST · 설치 시 버전 확인" : "설치 시 버전 확인");
+    }
+    private string CadSelectedVersion(ProductRow owner, string moduleId)
+    {
+        var installed = new CadReload(paths).Source(owner.Status.Path, preferInstalled: true);
+        var module = installed?.Catalog.Modules.SingleOrDefault(m => m.Id == moduleId);
+        return installed is not null && module is not null ? new CadReleaseVersions(paths).Selected(installed, module, owner.Status.Version) : owner.Status.Version;
     }
     private (bool Selected, bool Pending, string Message) CadButtonState(ProductRow owner, string key)
     {
@@ -165,15 +172,17 @@ public sealed partial class ManagerForm
         if (busy || preview) return;
         if (card.Kind == ButtonKind.Discover) { await LoadButtonCatalog(card.Owner); return; }
         var currentSelected = card.Kind == ButtonKind.Native ? new NativeRevitCommands(paths).State(card.ModuleId, card.CommandId).Selected : card.Kind == ButtonKind.Cad ? CadButtonState(card.Owner, card.CommandId).Selected : RevitInventory(card.Owner).Selected.Contains(card.CommandId);
-        var update = card.Kind == ButtonKind.Native && currentSelected && (new NativeRevitCommands(paths).HasUpdate(card.ModuleId) || card.HasChannelUpdate);
+        var update = currentSelected && (RemoteUpdate(card) || card.Kind == ButtonKind.Native && (new NativeRevitCommands(paths).HasUpdate(card.ModuleId) || card.HasChannelUpdate));
         var legacyNative = card.Kind == ButtonKind.Native && new NativeLegacyPackages(paths).Present(card.Owner.Status.Tool);
         var enable = installChoice ?? (legacyNative || update || !currentSelected);
-        if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 Revit Reload로 적용합니다. 공용 로더는 유지합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 Revit 안의 적용 및 Reload로 반영합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
-        await Run("버튼 " + (enable ? "설치" : "제거") + " 준비", async () =>
+        if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? update ? " 버튼을 업데이트합니까?" : " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 실행 중인 Revit에 자동 적용을 요청합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 자동 적용을 요청합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
+        await Run("버튼 " + (enable ? update ? "업데이트" : "설치" : "제거") + " 준비", async () =>
         {
             if (card.Kind == ButtonKind.Cad)
             {
-                var source = new CadReload(paths).SourceForAction(card.Owner.Status.Path, card.CommandId, cadButtonPackage) ?? throw new IOException("CAD 기능 목록을 먼저 확인하십시오.");
+                if (enable && update) cadButtonPackage = await sources.DownloadCad();
+                var bridgeSource = new CadReload(paths);
+                var source = (enable && update ? bridgeSource.Source(card.Owner.Status.Path, cadButtonPackage) : bridgeSource.SourceForAction(card.Owner.Status.Path, card.CommandId, cadButtonPackage)) ?? throw new IOException("CAD 기능 목록을 먼저 확인하십시오.");
                 var status = installer.Status(card.Owner.Status.Tool);
                 var needsConnection = source.NeedsConnection(status);
                 if (needsConnection)
@@ -185,23 +194,33 @@ public sealed partial class ManagerForm
                 var bridge = new CadReload(paths);
                 var sessions = CadReload.Sessions(); if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하거나 버튼 구성 화면에서 대상 세션을 선택하십시오.");
                 await Task.Run(() => bridge.Toggle(card.Owner.Status.Tool, source, card.CommandId, enable, sessions.SingleOrDefault()));
+                if (enable && update && cadButtonPackage is not null) new CadReleaseVersions(paths).Record(source, cadButtonPackage.Version);
                 WriteLog("CAD 버튼 변경 준비 완료 — AutoCAD에서 Reload하십시오.");
             }
             else if (card.Kind == ButtonKind.PyRevit)
             {
-                var inventory = RevitInventory(card.Owner); var root = inventory.Root ?? throw new IOException("Revit 버튼 원본을 확인하십시오.");
+                var inventory = RevitInventory(card.Owner);
+                var sourceVersion = new RevitReload(paths).PendingSelection()?.Version ?? installer.Status(Catalog.RevitSelected).Version;
+                if (string.IsNullOrWhiteSpace(sourceVersion)) sourceVersion = card.Owner.Status.Version;
+                var root = inventory.Root ?? throw new IOException("Revit 버튼 원본을 확인하십시오.");
+                if (enable && update)
+                {
+                    var remote = updateOffers.GetValueOrDefault(card.Owner.Status.Tool.Id);
+                    revitButtonPackage = await sources.DownloadRevit(remote?.Branch);
+                    root = revitButtonPackage.Path; sourceVersion = revitButtonPackage.Version;
+                }
                 if (ReloadBridge.RevitRunning())
                 {
                     _ = await EnvironmentProbe.RevitRoots();
                     if (!Directory.Exists(paths.Target(Catalog.ReloadBridge)))
                         ReloadBridge.Install(paths, Path.Combine(AppContext.BaseDirectory, "RoBIM-ReloadBridge.zip"));
-                    new RevitReload(paths).PrepareSelection(new(root, card.Owner.Status.Version), card.CommandId, enable, inventory.Selected);
+                    new RevitReload(paths).PrepareSelection(new(root, sourceVersion), card.CommandId, enable, inventory.Selected);
                     WriteLog("버튼 선택 준비 완료 — Revit 안의 적용 및 Reload로 pyRevit 리본에 반영하십시오.");
-                    ShowReloadReady();
+                    WriteLog(RequestAutomaticRevitApply(native: false, pyRevit: true));
                 }
                 else
                 {
-                    await new RevitButtonInstaller(paths).Set(new(root, card.Owner.Status.Version), card.CommandId, enable, inventory.Selected, () => new RevitProfiles(paths).ApplySelection());
+                    await new RevitButtonInstaller(paths).Set(new(root, sourceVersion), card.CommandId, enable, inventory.Selected, () => new RevitProfiles(paths).ApplySelection());
                     WriteLog("Revit 버튼 선택 설치 완료 — 다음 Revit 시작 시 반영합니다.");
                 }
                 revitButtonCache.Clear();
@@ -215,7 +234,7 @@ public sealed partial class ManagerForm
                 {
                     var current = await RefreshNativeRegistration(registered);
                     source = await SingleNativeButton.Resolve(paths, current.Repository, current.Package,
-                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package));
+                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package), refresh: true);
                     commandId = NativeProtocol.Module(source.Path).Commands.Single().Id;
                 }
                 else
@@ -243,7 +262,7 @@ public sealed partial class ManagerForm
                         () => manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, commandId, true));
                 }
                 else manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, commandId, false);
-                WriteLog("독립 Revit 버튼 변경 준비 완료 — Revit Reload로 적용하십시오.");
+                WriteLog(RequestAutomaticRevitApply(native: true, pyRevit: false));
             }
             await RefreshStatuses();
         });

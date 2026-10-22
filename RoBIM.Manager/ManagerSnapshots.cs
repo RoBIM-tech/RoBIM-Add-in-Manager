@@ -18,7 +18,7 @@ public sealed partial class ManagerForm
     private int repositoryLookupCount;
     private sealed record CardAppearance(bool Enabled, bool Update, bool Legacy, string Message, string Instruction);
     private sealed record DisplaySnapshot(int SchemaVersion, ProductRow[] Products, ButtonCard[] Commands,
-        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt);
+        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt, Dictionary<string, ReleaseOffer>? Offers = null);
     private string DisplayCachePath => SafeFiles.Child(paths.Data, "manager-display-cache.json");
 
     private string registeredCatalogStamp = "";
@@ -51,7 +51,7 @@ public sealed partial class ManagerForm
                     var file = DisplayCachePath;
                     if (!File.Exists(file) || new FileInfo(file).Length > 4 * 1024 * 1024) return null;
                     var value = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(file));
-                    return value is { SchemaVersion: 4, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
+                    return value is { SchemaVersion: 5, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
                         && value.Appearance is not null ? value : null;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
@@ -62,7 +62,7 @@ public sealed partial class ManagerForm
                 try
                 {
                     productRows.AddRange(cached.Products); commandSnapshot = cached.Commands;
-                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available);
+                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? [];
                     RenderProductCards();
                     firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds; usedDisplayCache = true;
                 }
@@ -76,7 +76,7 @@ public sealed partial class ManagerForm
             await LoadRegisteredPackages(force: true);
             await RefreshStatuses();
             if (!usedDisplayCache) firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds;
-            if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 저장소 조회는 도구 등록에서 실행할 수 있습니다."; }
+            if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 새로 고침에서 최신 업데이트도 확인합니다."; }
         }
         catch (Exception ex) { if (!IsDisposed) { WriteLog("로컬 목록 확인 실패: " + ex.Message); footer.Text = "설치 상태 확인 실패 · 새로 고침으로 다시 확인하세요."; } }
         finally { refreshingSnapshot = false; if (!IsDisposed) RefreshCardActions(); }
@@ -126,7 +126,7 @@ public sealed partial class ManagerForm
             var owners = BuildProductRows(statusRows, packages);
             var commands = ReadCommandInventory(owners).ToArray();
             var appearance = BuildAppearances(commands);
-            return new DisplaySnapshot(4, owners, commands, appearance, packages, DateTimeOffset.UtcNow);
+            return new DisplaySnapshot(5, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers));
         });
         if (IsDisposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;
@@ -190,7 +190,7 @@ public sealed partial class ManagerForm
         foreach (var feature in commands)
         {
             var enabled = true; var update = false; var legacy = false; var message = feature.Message;
-            var instruction = feature.Kind == ButtonKind.Native ? "독립 Add-in Reload로 추가·변경·제거 적용" : feature.Kind == ButtonKind.Cad ? "AutoCAD → RoBIM → 관리 → Reload" : "pyRevit Reload로 선택 변경 적용";
+            var instruction = feature.Kind == ButtonKind.Native ? "Manager 변경 후 자동 적용 · Revit 처리 대기 시 Reload로 재시도" : feature.Kind == ButtonKind.Cad ? "AutoCAD → RoBIM → 관리 → Reload" : "Manager 변경 후 자동 적용 · pyRevit 연결 필요";
             try
             {
                 if (feature.Kind == ButtonKind.Native)
@@ -213,6 +213,18 @@ public sealed partial class ManagerForm
                 }
             }
             catch (Exception ex) { enabled = false; message = "설치 상태 확인 필요"; instruction = ex.Message; }
+            if (feature.Selected && !legacy && RemoteUpdate(feature))
+            {
+                update = true;
+                var offer = updateOffers[feature.Owner.Status.Tool.Id];
+                message = "업데이트 가능 · " + feature.SelectedVersion + " → " + offer.Version;
+                instruction = (feature.Kind == ButtonKind.Cad ? "업데이트를 눌러 새 버전을 준비한 뒤 AutoCAD에서 Reload하십시오. " : "업데이트를 누르면 새 버전을 준비하고 Revit에 자동 적용을 요청합니다. ") + instruction;
+            }
+            if (updateErrors.ContainsKey(feature.Owner.Status.Tool.Id))
+            {
+                message += " · 최신 확인 실패";
+                instruction += "\n마지막 확인 결과를 유지합니다. " + updateErrors[feature.Owner.Status.Tool.Id];
+            }
             result[feature.Id] = new(enabled, update, legacy, message, instruction);
         }
         return result;

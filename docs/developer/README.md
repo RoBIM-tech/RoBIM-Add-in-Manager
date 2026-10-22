@@ -60,7 +60,7 @@ Release 다운로드를 준비할 때 `runtime/<package.Folder>`를 사용해 bu
 
 `NativeRevitCommands`는 가져온 기능 패키지의 모듈·버전·해시와 원하는 선택을 관리합니다. 여러 모듈을 업데이트할 때 모든 입력을 확인한 뒤 요청을 게시합니다. 고정 Host ZIP은 별도입니다.
 
-Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행 복사본·격리 로드 컨텍스트·dispatch를 교체합니다. Manager는 요청 ID와 PID/시작 시각이 맞는 응답으로 실제 적용을 확인합니다. 상세 실행 주체는 [Native 개발 문서](https://github.com/gagaggan/RoBIM-Revit-Addin/blob/codex/manager-workspace-cleanup/docs/developer/README.md)입니다.
+Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행 복사본·격리 로드 컨텍스트·dispatch를 교체합니다. Manager는 요청 ID와 PID/시작 시각이 맞는 응답으로 실제 적용을 확인합니다. 상세 실행 주체는 [Native 개발 문서](https://github.com/gagaggan/RoBIM-Revit-Addin/blob/main/docs/developer/README.md)입니다.
 
 일반 .addin 직접 등록 패키지와 `robim-module.json`의 command-only 모듈은 경로가 다릅니다. 파일이 DLL이라는 이유만으로 모든 패키지가 실행 중 Reload 가능하다고 설명하지 않습니다. 이미 로드된 Host 변경과 초기 전환은 해당 종료 정책을 따릅니다.
 
@@ -68,7 +68,7 @@ Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행
 
 Manager는 고정 Loader·설치 해시·선택 액션과 상대 경로를 검사하고 CAD 데이터 영역에 스냅샷과 요청을 준비합니다. `ROBIMRELOAD`가 요청·세션·Loader 호환성·파일 해시를 확인해 활성 구성과 응답을 기록합니다. 준비 파일 생성만으로 적용 완료를 표시하지 않습니다.
 
-현재 공급 방식은 CAD bundle ZIP입니다. 카탈로그에 모듈별 버전이 있어도 임의 저장소의 feature ZIP들을 자동 조합하는 일반 해결기가 구현됐다는 뜻은 아닙니다. 상세는 [CAD 개발 문서](https://github.com/gagaggan/RoBIM-CAD/blob/codex/manager-workspace-cleanup/docs/developer/README.md)와 [저장소 분리 검토](https://github.com/gagaggan/RoBIM-Workspace/blob/codex/user-developer-guides/docs/developer/BUTTON_REPOSITORY_REVIEW.md)를 확인합니다.
+현재 공급 방식은 CAD bundle ZIP입니다. 카탈로그에 모듈별 버전이 있어도 임의 저장소의 feature ZIP들을 자동 조합하는 일반 해결기가 구현됐다는 뜻은 아닙니다. 상세는 [CAD 개발 문서](https://github.com/gagaggan/RoBIM-CAD/blob/main/docs/developer/README.md)와 [저장소 분리 검토](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)를 확인합니다.
 
 ## 리본 배치
 
@@ -132,3 +132,11 @@ catalog/modules.json의 repositoryMoves는 구 Native 저장소에 등록된 중
 ## TEST에서 정식 배포로 승격할 때
 
 도구의 배포 구분과 PC에 설치된 버전은 별도입니다. 정식 배포 정보로 갱신하면 일반 Revit 목록에 표시하되, 이전 TEST가 설치되어 있으면 그 버전과 정식 업데이트 안내를 함께 표시합니다. 카드의 업데이트 확인은 저장소의 최신 표시 정보를 다시 확인하고 채널에 맞는 검증된 패키지를 받습니다. TEST 캐시를 정식으로 재표시하거나 설치된 채널을 자동 교체하지 않습니다. 업데이트를 선택하고 Reload한 뒤 정식 버전 적용을 확인합니다. 제거는 원격 조회와 채널 일치에 종속시키지 않습니다.
+
+## 새로고침과 업데이트 표시
+
+카드의 새로 고침은 로컬 설치 상태와 원격 기본 브랜치의 배포 정보·채널별 최신 버전을 확인합니다. 주황은 업데이트 가능, 연녹색은 설치/선택됨, 회색은 미설치이며 상태 문구도 함께 표시합니다. 업데이트가 있으면 버튼이 업데이트로 바뀌고 설치 버전 → 제공 버전을 표시합니다. 업데이트 먼저 정렬도 제공합니다. 업데이트를 누르면 검증된 패키지를 준비하고 실행 중인 Revit에 자동 적용을 요청합니다. CAD는 AutoCAD Reload를 사용합니다. 새로고침 자체는 패키지 다운로드·설치·모델 변경을 하지 않습니다.
+
+시작·탭 전환·로컬 타이머는 네트워크를 조회하지 않습니다. 저장소 조회 실패 시 기존 설치와 마지막 확인 결과를 유지하고 최신 확인 실패를 표시합니다. 비교할 수 없는 외부/동봉 버전은 임의로 업데이트라고 판정하지 않습니다. Native는 실제 선택 모듈 버전, 기존 pyRevit은 선택 스냅샷의 브랜치·commit, CAD는 기록된 배포 버전을 비교합니다. 정식 설치에 TEST를 자동 제공하거나 새 버전을 자동 설치하지 않습니다.
+
+Manager의 Revit 설치·업데이트·제거 및 리본 편집의 Revit 적용은 별도 Reload 클릭 없이 자동 적용을 요청합니다. Native Host는 세션 ID를 확인해 Idling에서 처리하고, 기존 pyRevit은 연결 확장의 ExternalEvent에서 적용·Reload합니다. 실행 중인 명령·모달 창이 끝나면 처리하며, 최초 Host 설치나 고정 로더/pyRevit 바이너리 교체는 기존 재시작 조건을 유지합니다. 요청 전송과 실제 applied 응답을 구분하고 다른 버튼의 캐시 업데이트는 자동으로 끌어오지 않습니다. 수동 Reload는 재시도용입니다.

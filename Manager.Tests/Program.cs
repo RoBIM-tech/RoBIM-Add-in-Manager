@@ -65,6 +65,7 @@ if (args.Contains("--native-single-only"))
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
 ReleaseTests.Run(Test, Require, root);
+ReleaseUpdateTests.Run(Test, Require, root);
 SingleNativeButtonTests.Run(Test, Paths, Require, root);
 var v1 = Package("v1", "version one");
 var v2 = Package("v2", "version two");

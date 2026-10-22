@@ -18,6 +18,17 @@ internal static class SingleNativeButtonTests
             return new(dir,"0.1.0-test.2");
         }
         void Reject(Action action) { bool rejected=false; try {action();} catch(IOException) {rejected=true;} require(rejected,"Invalid package accepted"); }
+        test("AutomaticApplyRequestsOnlyExplicitPreparedSelection", () => {
+            var target = paths("auto-apply-explicit"); var manager = new NativeRevitCommands(target, () => new(123,456));
+            var source = manager.Cache(Fixture("auto-apply-first")); manager.Toggle(source.Path, "copy", true);
+            var newer = Fixture("auto-apply-newer"); File.AppendAllText(Path.Combine(newer.Path,"Feature.dll"), "unselected catalog update"); manager.Cache(newer);
+            manager.RequestReload(includeCachedUpdates: false);
+            var request = manager.Desired()!;
+            require(request.ApplyRequested && request.TargetPid == 123 && request.TargetStartTicks == 456, "Session-bound automatic request missing");
+            require(File.ReadAllText(Path.Combine(request.Modules.Single().Directory, "Feature.dll")) == "fixture-only-no-model-execution", "Automatic apply included unrelated cached update");
+            manager.Toggle(source.Path, "copy", false); manager.RequestReload(includeCachedUpdates: false);
+            require(manager.Desired()!.ApplyRequested && manager.Desired()!.Modules.Length == 0, "Removal did not request automatic application");
+        });
         test("SingleNativeNamesAreDisplayOnly",()=> {
             require(ToolNames.Display("RoBIM 파라미터 복사") == "파라미터 복사" && ToolNames.Display("RoBIMatic") == "RoBIMatic", "Prefix handling changed tool names incorrectly");
             require(ExtensionCatalog.Tool(repo,package).Name == "파라미터 복사" && package.Name.StartsWith("RoBIM "), "Display cleanup mutated source descriptor");

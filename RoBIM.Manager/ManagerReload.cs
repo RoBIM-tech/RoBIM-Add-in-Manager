@@ -37,7 +37,7 @@ public sealed partial class ManagerForm
                 await Task.Run(() => reload.Prepare(row.Tool, package));
             }
             WriteLog("Revit 업데이트 준비 완료. Revit 안에서 적용 및 Reload를 실행하십시오.");
-            ShowReloadReady();
+            WriteLog(RequestAutomaticRevitApply(native: false, pyRevit: true));
         });
     }
 }

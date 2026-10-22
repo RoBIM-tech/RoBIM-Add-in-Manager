@@ -14,7 +14,7 @@ public sealed partial class ManagerForm
     private readonly Label productCount = new() { AutoSize = true, ForeColor = Color.FromArgb(106, 117, 136), Padding = new(0, 8, 0, 0) };
     private readonly Dictionary<string, CardBinding> cardBindings = [];
     private readonly Dictionary<string, (Control Control, CardBinding Binding)> cachedCards = [];
-    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More);
+    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card);
 
     private void BuildProductsPage()
     {
@@ -27,7 +27,7 @@ public sealed partial class ManagerForm
         searchRow.ColumnStyles.Add(new(SizeType.Percent, 100)); searchRow.ColumnStyles.Add(new(SizeType.Absolute, 150));
         searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize));
         productSearch.Margin = new(0, 4, 10, 0); productSort.Margin = new(0, 4, 10, 0);
-        productSort.Items.AddRange(["기본 순서", "이름순", "설치된 도구 먼저"]); productSort.SelectedIndex = 0;
+        productSort.Items.AddRange(["기본 순서", "이름순", "설치된 도구 먼저", "업데이트 먼저"]); productSort.SelectedIndex = 0;
         var refresh = MakeButton("새로 고침"); var add = MakeButton("＋ 도구 등록"); add.Margin = Padding.Empty;
         searchRow.Controls.Add(productSearch, 0, 0); searchRow.Controls.Add(productSort, 1, 0);
         searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(nativeReload, 3, 0); searchRow.Controls.Add(add, 4, 0);
@@ -59,7 +59,7 @@ public sealed partial class ManagerForm
         FormClosed += (_, _) => { foreach (var item in cachedCards.Values) item.Control.Dispose(); cachedCards.Clear(); };
         productSort.SelectedIndexChanged += (_, _) => RenderProductCards();
         productCards.ClientSizeChanged += (_, _) => SizeProductCards();
-        refresh.Click += async (_, _) => await Run("설치 상태 확인", RefreshStatuses);
+        refresh.Click += async (_, _) => await RefreshWithUpdates();
         add.Click += (_, _) => SwitchPage("Extensions");
     }
 
@@ -83,6 +83,7 @@ public sealed partial class ManagerForm
         {
             1 => rows.OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
             2 => rows.OrderByDescending(x => x.Selected).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
+            3 => rows.OrderByDescending(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
             _ => rows.OrderByDescending(x => x.Kind == ButtonKind.Native)
         };
         var visible = rows.ToList();
@@ -111,7 +112,7 @@ public sealed partial class ManagerForm
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
         if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
-        productCount.Text = $"{visible.Count}개 버튼" + (preview ? "  ·  화면 확인용 예시 상태" : "");
+        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true)}  ·  설치 {visible.Count(x => x.Selected)}  ·  미설치 {visible.Count(x => !x.Selected && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
@@ -126,12 +127,12 @@ public sealed partial class ManagerForm
     private Control CreateCommandCard(ButtonCard feature)
     {
         var status = feature.Owner.Status; var scale = DeviceDpi / 96f;
-        var card = new ToolCardPanel { Height = (int)(88 * scale), Margin = new(0, 0, (int)(8 * scale), (int)(8 * scale)), Padding = new((int)(8 * scale)), BackColor = Color.White, AccessibleName = feature.Title };
+        var card = new ToolCardPanel { Height = (int)(88 * scale), Margin = new(0, 0, (int)(8 * scale), (int)(8 * scale)), Padding = new((int)(8 * scale)), BackColor = Color.FromArgb(246, 247, 249), AccessibleName = feature.Title };
         var tips = new ToolTip { AutoPopDelay = 15000, InitialDelay = 450, ReshowDelay = 100 };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty, BackColor = Color.Transparent };
         layout.ColumnStyles.Add(new(SizeType.Percent, 100));
         layout.RowStyles.Add(new(SizeType.Absolute, 32 * scale)); layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 22 * scale));
-        var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Margin = Padding.Empty };
+        var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Margin = Padding.Empty, BackColor = Color.Transparent };
         header.ColumnStyles.Add(new(SizeType.Absolute, 36 * scale)); header.ColumnStyles.Add(new(SizeType.Percent, 100));
         header.ColumnStyles.Add(new(SizeType.Absolute, 96 * scale)); header.ColumnStyles.Add(new(SizeType.Absolute, 30 * scale));
         header.RowStyles.Add(new(SizeType.Percent, 100));
@@ -149,7 +150,7 @@ public sealed partial class ManagerForm
             catch (Exception ex) when (ex is IOException or ArgumentException or OutOfMemoryException) { }
         }
         header.Controls.Add(icon, 0, 0);
-        var text = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        var text = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty, BackColor = Color.Transparent };
         text.ColumnStyles.Add(new(SizeType.Percent, 100)); text.RowStyles.Add(new(SizeType.Absolute, 12 * scale)); text.RowStyles.Add(new(SizeType.Percent, 100));
         var category = new Label { Text = feature.ReleaseLabel + "  ·  " + Platform(status.Tool.Kind) + "  ·  " + KindLabel(status.Tool.Kind) + "  ·  " + feature.Group, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(49, 92, 164), Font = new Font(Font.FontFamily, 7.5f), Margin = Padding.Empty };
         var title = new Label { Text = feature.Title, Dock = DockStyle.Fill, AutoEllipsis = true, Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold), Margin = Padding.Empty };
@@ -169,7 +170,7 @@ public sealed partial class ManagerForm
         card.Disposed += (_, _) => { menu.Dispose(); tips.Dispose(); instruction.Dispose(); };
         header.Controls.Add(primary, 2, 0); header.Controls.Add(more, 3, 0); layout.Controls.Add(stateLabel, 0, 2);
         tips.SetToolTip(category, category.Text); tips.SetToolTip(title, feature.Title); tips.SetToolTip(description, feature.Description);
-        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more);
+        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more, card);
         return card;
     }
 
@@ -229,7 +230,13 @@ public sealed partial class ManagerForm
             binding.Action.Text = feature.Kind == ButtonKind.Discover ? "기능 목록 보기" : appearance.Legacy ? "전환하기" : appearance.Update ? "업데이트" : feature.Selected ? "제거" : "설치하기";
             binding.Action.Enabled = ready && appearance.Enabled;
             binding.More.Enabled = ready;
-            binding.State.Text = appearance.Message; binding.Instruction.Text = appearance.Instruction;
+            var updateState = appearance.Update;
+            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : feature.Selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
+            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : feature.Selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
+            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : feature.Selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
+            binding.Card.Invalidate();
+            binding.State.Text = (updateState ? "업데이트 · " : feature.Selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            binding.Instruction.Text = appearance.Instruction;
             var detail = appearance.Message + "\n" + appearance.Instruction;
             if (binding.Tips.GetToolTip(binding.State) != detail) binding.Tips.SetToolTip(binding.State, detail);
             if (binding.Tips.GetToolTip(binding.Action) != appearance.Instruction) binding.Tips.SetToolTip(binding.Action, appearance.Instruction);
@@ -260,13 +267,15 @@ public sealed partial class ManagerForm
 
     private sealed class ToolCardPanel : Panel
     {
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Color BorderColor { get; set; } = Color.FromArgb(224, 229, 237);
         public ToolCardPanel() { DoubleBuffered = true; }
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using var path = new GraphicsPath(); var radius = 9f * DeviceDpi / 96f; var rect = new RectangleF(.5f, .5f, Width - 1.5f, Height - 1.5f);
             path.AddRoundedRectangle(rect, new SizeF(radius, radius));
-            using var pen = new Pen(Color.FromArgb(224, 229, 237)); e.Graphics.DrawPath(pen, path);
+            using var pen = new Pen(BorderColor); e.Graphics.DrawPath(pen, path);
         }
     }
 

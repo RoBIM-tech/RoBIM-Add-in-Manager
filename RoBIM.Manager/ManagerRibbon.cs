@@ -14,7 +14,7 @@ public sealed partial class ManagerForm
         ribbonEditor.ApplyRequested = async layout =>
         {
             await Task.Yield();
-            return new RibbonLayouts(paths).RequestRevit(false);
+            return RequestAutomaticRevitApply(native: true, pyRevit: new RevitReload(paths).PendingSelection() is not null, layout: true);
         };
     }
     private void RefreshRibbonEditor()

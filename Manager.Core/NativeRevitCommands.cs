@@ -69,9 +69,9 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         if (selected) ids.Add(commandId); else ids.Remove(commandId);
         var session = CurrentSession(); return NativeProtocol.Prepare(Data, package, manifest.Id, ids.ToArray(), session?.Pid ?? 0, session?.StartTicks ?? 0);
     }
-    public void RequestReload()
+    public void RequestReload(bool includeCachedUpdates = true)
     {
-        PrepareCachedUpdates();
+        if (includeCachedUpdates) PrepareCachedUpdates();
         var pending = NativeProtocol.Child(Data, "pending.json");
         if (!File.Exists(pending)) throw new IOException("먼저 설치·제거 또는 변경할 기능을 준비하십시오.");
         var request = NativeProtocol.Read<NativeRequest>(pending); NativeProtocol.Validate(Data, request);
@@ -127,7 +127,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var active = File.Exists(activePath) ? NativeProtocol.Read<NativeRequest>(activePath) : null;
         if (session is null && active?.Id == desired.Id) return (selected, false, selected ? "설치됨 · Revit 시작 시 로드" : "설치 안 됨");
         var wasSelected = active?.Modules.Any(m => m.Manifest.Id == moduleId && m.Selected.Contains(commandId)) == true;
-        var next = session is null ? "Revit 시작 시 반영" : "Reload 필요";
+        var next = session is null ? "Revit 시작 시 반영" : desired.ApplyRequested ? "자동 적용 대기 · Revit 명령/창 종료 후 반영" : "Reload 필요";
         return (selected, selected || wasSelected, selected ? "설치 준비됨 · " + next : wasSelected ? "제거 준비됨 · " + next : "설치 안 됨");
     }
     public SourcePackage Import(string archive)
