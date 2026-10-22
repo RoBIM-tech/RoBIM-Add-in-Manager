@@ -33,7 +33,7 @@
           "distribution": "release",
           "asset": "RoBIM-Sheets-Revit2026.zip",
           "description": "Revit 2026.5+ / .NET 10 독립 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
-          "channel": "test"
+          "channel": "stable"
         }
       ]
     },
