@@ -83,6 +83,7 @@ public sealed partial class ManagerForm : Form
 
     private async Task RefreshStatuses()
     {
+        await LoadRegisteredPackages();
         var selectedId = SelectedStatus()?.Tool.Id;
         var refreshed = await Task.WhenAll(Catalog.Tools.Select(tool => tool == Catalog.Revit
             ? EnvironmentProbe.RevitStatus(paths) : Task.Run(() => installer.Status(tool))));

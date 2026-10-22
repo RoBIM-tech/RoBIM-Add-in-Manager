@@ -214,6 +214,14 @@ public sealed partial class ManagerForm
             RefreshCardActions();
             Require(cardBindings[direct.Id].Action.Text == "설치하기", "Uncached native card installs directly " + direct.Id);
         }
+        var sheetsRepository = BundledCatalog.Read().Repositories.Single(r => r.Repository.EndsWith("/RoBIM-Revit-Sheets"));
+        var sheetsPackage = sheetsRepository.Packages.Single();
+        var sheetsTool = ExtensionCatalog.Tool(sheetsRepository, sheetsPackage);
+        var promoted = RegisteredNativeCard(new(new(sheetsTool, "unused", "", false, false, false, ""), new(sheetsRepository, sheetsPackage)))
+            with { Selected = true, SelectedChannel = "test" };
+        Require(promoted.Channel == "stable" && promoted.CollectionChannel == "stable" && promoted.SelectedChannel == "test",
+            "Stable offer appears in normal tools without relabeling installed TEST");
+        Require(promoted.HasChannelUpdate, "Stable promotion selects update rather than removing installed TEST");
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

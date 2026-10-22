@@ -21,6 +21,23 @@ public sealed partial class ManagerForm
         Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt);
     private string DisplayCachePath => SafeFiles.Child(paths.Data, "manager-display-cache.json");
 
+    private string registeredCatalogStamp = "";
+    private async Task LoadRegisteredPackages(bool force = false)
+    {
+        if (preview) return;
+        var file = new FileInfo(SafeFiles.Child(paths.Data, "extension-repositories.json"));
+        var stamp = file.Exists ? file.LastWriteTimeUtc.Ticks + ":" + file.Length : "missing";
+        if (!force && stamp == registeredCatalogStamp) return;
+        var registered = await Task.Run(() => new ExtensionCatalog(paths).Registered()
+            .SelectMany(repository => repository.Packages.Select(package => new PackageRow(repository, package))).ToArray());
+        foreach (var entry in registered)
+        {
+            var id = ExtensionCatalog.Tool(entry.Repository, entry.Package).Id;
+            availablePackages.RemoveAll(x => ExtensionCatalog.Tool(x.Repository, x.Package).Id == id);
+            availablePackages.Add(entry);
+        }
+        registeredCatalogStamp = stamp;
+    }
     private async Task StartLocalDisplay()
     {
         var firstDisplay = Stopwatch.StartNew();
@@ -34,7 +51,7 @@ public sealed partial class ManagerForm
                     var file = DisplayCachePath;
                     if (!File.Exists(file) || new FileInfo(file).Length > 4 * 1024 * 1024) return null;
                     var value = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(file));
-                    return value is { SchemaVersion: 3, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
+                    return value is { SchemaVersion: 4, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
                         && value.Appearance is not null ? value : null;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
@@ -56,14 +73,7 @@ public sealed partial class ManagerForm
                 }
             }
             footer.Text = cached is null ? "로컬 설치 목록을 확인하고 있습니다…" : "저장된 목록 표시 · 설치 상태를 백그라운드에서 확인하고 있습니다…";
-            var registered = await Task.Run(() => new ExtensionCatalog(paths).Registered()
-                .SelectMany(repository => repository.Packages.Select(package => new PackageRow(repository, package))).ToArray());
-            foreach (var entry in registered)
-            {
-                var id = ExtensionCatalog.Tool(entry.Repository, entry.Package).Id;
-                availablePackages.RemoveAll(x => ExtensionCatalog.Tool(x.Repository, x.Package).Id == id);
-                availablePackages.Add(entry);
-            }
+            await LoadRegisteredPackages(force: true);
             await RefreshStatuses();
             if (!usedDisplayCache) firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds;
             if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 저장소 조회는 도구 등록에서 실행할 수 있습니다."; }
@@ -116,7 +126,7 @@ public sealed partial class ManagerForm
             var owners = BuildProductRows(statusRows, packages);
             var commands = ReadCommandInventory(owners).ToArray();
             var appearance = BuildAppearances(commands);
-            return new DisplaySnapshot(3, owners, commands, appearance, packages, DateTimeOffset.UtcNow);
+            return new DisplaySnapshot(4, owners, commands, appearance, packages, DateTimeOffset.UtcNow);
         });
         if (IsDisposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;
@@ -156,7 +166,7 @@ public sealed partial class ManagerForm
     private string ReadStateStamp()
     {
         // Metadata only: no package traversal, hashing, Git or network in the timer.
-        var files = new[] { "installed.json", "pyrevit-location.json", "reload-pending.json", "reload-result.json", "reload-profile.json",
+        var files = new[] { "installed.json", "extension-repositories.json", "pyrevit-location.json", "reload-pending.json", "reload-result.json", "reload-profile.json",
             "NativeRevit/pending.json", "NativeRevit/active.json", "NativeRevit/Results", "Cad/pending.json", "Cad/active.json", "Cad/Results" };
         var stamp = string.Join("|", files.Select(relative =>
         {
@@ -187,7 +197,8 @@ public sealed partial class ManagerForm
                 {
                     legacy = new NativeLegacyPackages(paths).Present(feature.Owner.Status.Tool);
                     if (legacy) { message = "기존 직접 설치 · 전환 필요"; instruction = "최초 한 번 Revit 종료 후 Reload 방식으로 전환"; }
-                    else if (feature.Selected && new NativeRevitCommands(paths).HasUpdate(feature.ModuleId)) { update = true; message = "새 기능 패키지 · 업데이트 가능"; }
+                    else if (feature.Selected && (new NativeRevitCommands(paths).HasUpdate(feature.ModuleId) ||
+                        feature.HasChannelUpdate)) { update = true; message = "새 기능 패키지 · 업데이트 가능"; }
                 }
                 else if (feature.Kind == ButtonKind.Cad)
                 {

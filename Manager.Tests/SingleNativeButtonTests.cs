@@ -27,6 +27,29 @@ internal static class SingleNativeButtonTests
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("wrong-command",commandId:"wrong")));
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("two",two:true)));
         });
+        test("ReleasePromotionDownloadsStableWithoutRelabelingInstalledTest",()=> {
+            var target=paths("single-promotion");var old=Fixture("promotion-old");
+            var manager=new NativeRevitCommands(target,()=>null);var cached=manager.Cache(old);var before=manager.Toggle(cached.Path,"copy",true);
+            var stable=Fixture("promotion-stable");var module=NativeProtocol.Module(stable.Path) with {Version="0.1.0"};
+            NativeProtocol.Save(Path.Combine(stable.Path,NativeProtocol.ManifestName),module);
+            File.WriteAllText(Path.Combine(stable.Path,"robim-release.json"),JsonSerializer.Serialize(new {schemaVersion=1,modules=new[]{new {id="parameter-copy",version="0.1.0",channel="stable",validation=new {by="fixture",hostBuild="Revit 2026.5",evidence="https://example.org/validation"}}}}));
+            stable=stable with {Version="0.1.0"};var descriptor=package with {Channel="stable"};int downloads=0;
+            require(SingleNativeButton.Validate(repo,descriptor,cached,requireChannel:false).Version=="0.1.0-test.2","Display/removal rejected installed TEST");
+            Reject(()=>SingleNativeButton.Validate(repo,descriptor,cached));
+            var source=SingleNativeButton.Resolve(target,repo,descriptor,()=>{downloads++;return Task.FromResult(stable);}).GetAwaiter().GetResult();
+            require(downloads==1 && ModuleReleases.Native(source.Path,"parameter-copy","0.1.0").Channel=="stable","Promotion reused old TEST cache");
+            manager.PrepareCachedUpdates();
+            require(manager.Desired()!.Id==before.Id && manager.Desired()!.Modules.Single().Manifest.Version=="0.1.0-test.2","Catalog update silently upgraded installed channel");
+            var selected=manager.Toggle(source.Path,"copy",true);
+            require(selected.Modules.Single().Manifest.Version=="0.1.0","Explicit upgrade did not select stable bytes");
+        });
+        test("ReleaseDescriptorRefreshAllowsChannelAndNameButRejectsIdentityChange",()=> {
+            var promoted=package with {Channel="stable",Name="파라미터 복사"};
+            require(ExtensionCatalog.CurrentPackage(package,repo with {Packages=[promoted]})==promoted,"Channel promotion rejected");
+            Reject(()=>ExtensionCatalog.CurrentPackage(package,repo with {Packages=[promoted with {Folder="Other.bundle"}]}));
+            Reject(()=>ExtensionCatalog.CurrentPackage(package,repo with {Packages=[promoted with {Asset="other.zip"}]}));
+            Reject(()=>ExtensionCatalog.CurrentPackage(package,repo with {Packages=[]}));
+        });
         test("SingleNativeColdInstallResolvesAndSelectsOneButton",()=> {
             var target=paths("single-cold"); int downloads=0;
             var input=Fixture("cold");

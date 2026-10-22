@@ -9,7 +9,7 @@ public static class SingleNativeButton
         BundledCatalog.Read().Commands.SingleOrDefault(c => c.Host == "revit" &&
             c.Repository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && c.PackageId == package.Id);
 
-    public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source)
+    public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source, bool requireChannel = true)
     {
         if (package.Host != "revit" || package.Distribution != "release") throw new IOException("독립 Revit 배포 패키지가 필요합니다.");
         var module = NativeProtocol.Module(source.Path);
@@ -18,7 +18,7 @@ public static class SingleNativeButton
         if (expected is not null && (module.Id != expected.ModuleId || module.Commands[0].Id != expected.CommandId))
             throw new IOException("다운로드한 버튼의 ID가 Manager 등록 정보와 다릅니다. 설치하지 않습니다.");
         ModuleReleases.ValidateNative(source.Path);
-        if (package.Channel != "unknown" && ModuleReleases.Native(source.Path, module.Id, module.Version).Channel != package.Channel)
+        if (requireChannel && package.Channel != "unknown" && ModuleReleases.Native(source.Path, module.Id, module.Version).Channel != package.Channel)
             throw new IOException("다운로드한 버튼의 TEST/실사용 구분이 등록 정보와 다릅니다.");
         return module;
     }
@@ -30,6 +30,12 @@ public static class SingleNativeButton
         var expected = Registration(repository, package);
         // Older downloads used a directory called runtime. Folder names are not command identity.
         var cached = expected is null ? manager.CachedForFolder(package.Folder) : manager.Cached(expected.ModuleId);
+        if (cached is not null)
+        {
+            var module = Validate(repository, package, cached, requireChannel: false);
+            if (package.Channel != "unknown" && ModuleReleases.Native(cached.Path, module.Id, module.Version).Channel != package.Channel)
+                cached = null; // Promotion requires the new release, not relabeling old TEST bytes.
+        }
         var source = !refresh && cached is not null ? cached : await download();
         Validate(repository, package, source);
         return manager.Cache(source);

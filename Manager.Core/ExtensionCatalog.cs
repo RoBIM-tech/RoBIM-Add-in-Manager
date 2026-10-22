@@ -177,6 +177,14 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         return new("ext-" + digest, ToolNames.Display(package.Name), package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
     }
+    public static ExtensionPackage CurrentPackage(ExtensionPackage previous, ExtensionRepository current)
+    {
+        var package = current.Packages.SingleOrDefault(p => p.Id == previous.Id) ?? throw new IOException("기존 패키지 ID가 저장소에 없습니다.");
+        if (package.Host != previous.Host || package.Path != previous.Path || package.Folder != previous.Folder ||
+            package.Distribution != previous.Distribution || package.Asset != previous.Asset)
+            throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
+        return package;
+    }
     public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)
     {
         var refreshed = await Inspect("https://github.com/" + repository.Repository);
