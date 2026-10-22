@@ -10,10 +10,11 @@ public sealed partial class ManagerForm
 {
     private enum ButtonKind { Cad, PyRevit, Native, Discover }
     private sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
-        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "")
+        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "", string ViewChannel = "")
     {
         public bool HasChannelUpdate => Selected && Channel is "test" or "stable" && SelectedChannel is "test" or "stable" && Channel != SelectedChannel && !(SelectedChannel == "stable" && Channel == "test");
-        public string CollectionChannel => Channel is "test" or "stable" ? Channel : (Selected || Pending) && SelectedChannel.Length > 0 ? SelectedChannel : Channel;
+        public bool TestView => ViewChannel == "test";
+        public string CollectionChannel => TestView ? "test" : Channel is "test" or "stable" ? Channel : (Selected || Pending) && SelectedChannel.Length > 0 ? SelectedChannel : Channel;
     }
     private readonly Dictionary<string, RevitButton[]> revitButtonCache = new(StringComparer.OrdinalIgnoreCase);
     private SourcePackage? cadButtonPackage;
@@ -281,7 +282,8 @@ public sealed partial class ManagerForm
         var menu = new ContextMenuStrip();
         menu.Items.Add("기능 설명 / 설치 위치", null, (_, _) => MessageBox.Show(this, card.Description + "\n\n분류: " + card.Group + "\n상태: " + card.Message + "\n배포 구분: " + card.ReleaseLabel + "\n" + card.ReleaseDetail + "\n원본: " + (card.Source ?? "목록 확인 필요"), card.Title));
         var legacy = !preview && appearanceSnapshot.GetValueOrDefault(card.Id)?.Legacy == true;
-        menu.Items.Add(legacy ? "기존 설치를 Reload 방식으로 전환" : card.Selected ? "이 버튼 제거" : "이 버튼 설치", null, async (_, _) => await ToggleButton(card, legacy || !card.Selected));
+        menu.Items.Add(legacy ? "기존 설치를 Reload 방식으로 전환" : SelectedInView(card) ? "이 버튼 제거" : card.TestView ? "TEST 버전 설치" : "이 버튼 설치", null,
+            async (_, _) => { if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test"); else await ToggleButton(card, legacy || !card.Selected); });
         if (card.Kind == ButtonKind.Native && card.Selected) menu.Items.Add("기능 업데이트 준비", null, async (_, _) => await ToggleButton(card, true));
         if (card.Kind == ButtonKind.Native && card.Owner.Package is not null) menu.Items.Add("업데이트 확인", null, async (_, _) => await LoadButtonCatalog(card.Owner));
         else if (card.Kind != ButtonKind.Native) menu.Items.Add("기능 목록 업데이트", null, async (_, _) => await LoadButtonCatalog(card.Owner));
@@ -308,7 +310,7 @@ public sealed partial class ManagerForm
         var revit = productRows.First(x => x.Status.Tool.Id == Catalog.Revit.Id);
         var cad = productRows.First(x => x.Status.Tool.Id == Catalog.Cad.Id);
         var native = productRows.First(x => x.Status.Tool.Kind == ToolKind.NativeRevit);
-        yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets", "unknown", "미확인 · 예시 버전");
+        yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets", "stable", "실사용 · 0.2.0 · 예시 버전");
         yield return new("native:sample-test:sample", "신규 기능 TEST", "독립 Add-in 검증용 예시입니다.", "RoBIM TEST / 독립 도구", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "sample", "sample-test", "test", "TEST · 0.1.0-test.2", "화면 확인용 예시");
         yield return new("revit:auto-join", "AutoJoin", "선택 요소·현재 뷰·프로젝트에서 카테고리별 조인과 절단 순서를 정리합니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "auto-join");
         yield return new("revit:beam-to-slab", "보 슬래브 높이 맞춤", "보와 겹치는 슬래브를 찾아 이동량을 검토하고, 선택한 보의 높이를 맞춥니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "beam-to-slab");

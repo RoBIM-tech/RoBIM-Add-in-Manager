@@ -6,6 +6,16 @@ namespace RoBIM.Manager.Core;
 
 public sealed record ReleaseOffer(string Version, string Channel, long AssetId = 0, string Digest = "", string Branch = "");
 
+public sealed record ReleaseChannels(ReleaseOffer? Stable, ReleaseOffer? Test, string? StableError = null, string? TestError = null)
+{
+    public bool HasNewTest(string installedStable = "")
+    {
+        if (Test is null) return false;
+        return (Stable is null || ReleaseUpdates.IsNewer(Stable.Version, "", Test)) &&
+            (installedStable.Length == 0 || ReleaseUpdates.IsNewer(installedStable, "", Test));
+    }
+}
+
 // Metadata only. This service never downloads or prepares an install payload.
 public static class ReleaseUpdates
 {
@@ -25,7 +35,26 @@ public static class ReleaseUpdates
         using var json = JsonDocument.Parse(await releases.Content.ReadAsStringAsync());
         return Select(json.RootElement, package);
     }
-    public static ReleaseOffer Select(JsonElement releases, ExtensionPackage package)
+    public static async Task<ReleaseChannels> CheckChannels(ExtensionRepository repository, ExtensionPackage package)
+    {
+        _ = ExtensionCatalog.ReleaseChannel(package, "stable");
+        using var response = await GitHubSession.Request("/repos/" + repository.Repository + "/releases?per_page=100");
+        if (!response.IsSuccessStatusCode) throw new IOException("배포 릴리스 조회 실패");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return SelectChannels(json.RootElement, package);
+    }
+    public static ReleaseChannels SelectChannels(JsonElement releases, ExtensionPackage package)
+    {
+        ReleaseOffer? stable = null, test = null; string? stableError = null, testError = null;
+        try { stable = Find(releases, ExtensionCatalog.ReleaseChannel(package, "stable")); }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or JsonException or FormatException) { stableError = ex.Message; }
+        try { test = Find(releases, ExtensionCatalog.ReleaseChannel(package, "test")); }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or JsonException or FormatException) { testError = ex.Message; }
+        return new(stable, test, stableError, testError);
+    }
+    public static ReleaseOffer Select(JsonElement releases, ExtensionPackage package) =>
+        Find(releases, package) ?? throw new IOException("배포 구분에 맞는 ZIP을 찾지 못했습니다.");
+    private static ReleaseOffer? Find(JsonElement releases, ExtensionPackage package)
     {
         foreach (var release in releases.EnumerateArray())
         {
@@ -39,7 +68,7 @@ public static class ReleaseUpdates
                 return new(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" && release.GetProperty("prerelease").GetBoolean() ? "test" : package.Channel, asset.GetProperty("id").GetInt64(), digest);
             }
         }
-        throw new IOException("배포 구분에 맞는 ZIP을 찾지 못했습니다.");
+        return null;
     }
     public static bool IsNewer(string installed, string installedChannel, ReleaseOffer offer)
     {

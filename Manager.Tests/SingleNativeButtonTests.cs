@@ -54,6 +54,23 @@ internal static class SingleNativeButtonTests
             var selected=manager.Toggle(source.Path,"copy",true);
             require(selected.Modules.Single().Manifest.Version=="0.1.0","Explicit upgrade did not select stable bytes");
         });
+        test("StableAndTestSwitchOnlyOnExplicitSelectionAndKeepOneRibbonIdentity", () => {
+            var target=paths("two-channel-switch"); var manager=new NativeRevitCommands(target,()=>null);
+            var stable=Fixture("two-channel-stable");
+            NativeProtocol.Save(Path.Combine(stable.Path,NativeProtocol.ManifestName),NativeProtocol.Module(stable.Path) with { Version="0.2.0" });
+            File.WriteAllText(Path.Combine(stable.Path,"robim-release.json"),JsonSerializer.Serialize(new{schemaVersion=1,modules=new[]{new{id="parameter-copy",version="0.2.0",channel="stable",validation=new{by="fixture",hostBuild="Revit 2026.5",evidence="https://example.org/check"}}}}));
+            var cached=manager.Cache(stable); var before=manager.Toggle(cached.Path,"copy",true);
+            var testSource=Fixture("two-channel-test");
+            var test=SingleNativeButton.Resolve(target,repo,ExtensionCatalog.ReleaseChannel(package,"test"),()=>Task.FromResult(testSource),refresh:true).GetAwaiter().GetResult();
+            require(manager.Desired()!.Id==before.Id && manager.Desired()!.Modules.Single().Manifest.Version=="0.2.0","Discovering TEST changed installed stable");
+            manager.PrepareCachedUpdates();
+            require(manager.Desired()!.Id==before.Id,"Generic Reload silently switched channel");
+            var chosen=manager.Toggle(test.Path,"copy",true);
+            require(chosen.Modules.Length==1 && chosen.Modules[0].Manifest.Id=="parameter-copy" && chosen.Modules[0].Selected.SequenceEqual(new[]{"copy"}),"TEST duplicated ribbon identity");
+            var back=SingleNativeButton.Resolve(target,repo,ExtensionCatalog.ReleaseChannel(package,"stable"),()=>Task.FromResult(stable),refresh:true).GetAwaiter().GetResult();
+            manager.Toggle(back.Path,"copy",true);
+            require(manager.Desired()!.Modules.Single().Manifest.Version=="0.2.0","Explicit return to stable failed");
+        });
         test("ReleaseDescriptorRefreshAllowsChannelAndNameButRejectsIdentityChange",()=> {
             var promoted=package with {Channel="stable",Name="파라미터 복사"};
             require(ExtensionCatalog.CurrentPackage(package,repo with {Packages=[promoted]})==promoted,"Channel promotion rejected");

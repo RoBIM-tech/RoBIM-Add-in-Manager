@@ -229,7 +229,7 @@ public sealed partial class ManagerForm
         var statusBinding = cardBindings[promoted.Id];
         appearanceSnapshot[promoted.Id] = new(true, true, false, "업데이트 가능 · 0.1.0-test.2 → 0.2.0", "업데이트 후 Reload");
         RefreshCardActions(); var updateColor = statusCard.BackColor;
-        Require(statusBinding.Action.Text == "업데이트" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        Require(statusBinding.Action.Text == "정식으로 전환" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
         appearanceSnapshot[promoted.Id] = new(true, false, false, "설치됨", ""); RefreshCardActions();
         Require(statusCard.BackColor != updateColor && statusBinding.State.Text.StartsWith("설치 ·"), "Installed card uses separate color and text");
         using var missingCard = CreateCommandCard(promoted with { Id = "missing", Selected = false }); RefreshCardActions();
@@ -240,6 +240,33 @@ public sealed partial class ManagerForm
         updateErrors[promoted.Owner.Status.Tool.Id] = "offline";
         var failedAppearance = BuildAppearances([promoted with { SelectedVersion = "0.2.0" }])[promoted.Id];
         Require(failedAppearance.Update && failedAppearance.Message.Contains("최신 확인 실패"), "Refresh failure retains last verified update offer");
+        var stableCard = promoted with { SelectedChannel="stable",SelectedVersion="0.2.0" };
+        var stableId=stableCard.Owner.Status.Tool.Id;
+        updateErrors.Clear(); updateOffers[stableId]=new("v0.2.0","stable"); testOffers[stableId]=new("v0.3.0-test.1","test");
+        var projected=ProductCommands("Test",[stableCard]).Single();
+        Require(projected.TestView && projected.Id==stableCard.Id && projected.CommandId==stableCard.CommandId && stableCard.Channel=="stable", "TEST view preserves canonical button identity and default channel");
+        Require(!SelectedInView(projected) && PrimaryText(projected,AppearanceFor(projected))=="TEST 설치", "Installed stable offers explicit TEST install instead of removal");
+        Require(AppearanceFor(stableCard).Message.Contains("TEST 보기") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
+        using var testCard=CreateCommandCard(projected); RefreshCardActions();
+        Require(cardBindings[projected.Id].Action.Text=="TEST 설치" && cardBindings[projected.Id].State.Text.Contains("정식 0.2.0"),"TEST card explains currently installed stable version");
+        var selectedTest=projected with { SelectedChannel="test",SelectedVersion="0.2.5-test.1" };
+        Require(PrimaryText(selectedTest,AppearanceFor(selectedTest))=="TEST 업데이트","Installed TEST can update within TEST channel");
+        Require(PrimaryText(stableCard with { SelectedChannel="test" },AppearanceFor(stableCard))=="정식으로 전환", "Normal card provides explicit return to stable");
+        testOffers[stableId]=new("0.2.0-test.1","test");
+        Require(!ProductCommands("Test",[stableCard]).Any() && ProductCommands("Test",[selectedTest]).Any(),"Covered TEST is hidden while installed TEST remains manageable");
+        testOffers[stableId]=new("v0.3.0-test.1","test"); testOfferErrors[stableId]="offline";
+        Require(AppearanceFor(stableCard).Message.Contains("TEST 확인 실패") && NewTestAvailable(stableCard),"Failed TEST check retains prior offer and current installation");
+        var cacheRoundtrip=JsonSerializer.Deserialize<DisplaySnapshot>(JsonSerializer.Serialize(new DisplaySnapshot(6,[],[],[],[],DateTimeOffset.UtcNow,updateOffers,testOffers,testOfferErrors)))!;
+        Require(cacheRoundtrip.Tests![stableId].Version=="v0.3.0-test.1" && cacheRoundtrip.TestErrors![stableId]=="offline","TEST offers and check failures survive display-cache roundtrip");
+        // Exercise navigation from the actual link against the preview fixture's stable card.
+        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable");
+        updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");
+        productSearch.Clear(); Navigate("Revit");
+        var notice=(LinkLabel)cardBindings[sample.Id].State;
+        Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
+        typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
+        Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
+        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

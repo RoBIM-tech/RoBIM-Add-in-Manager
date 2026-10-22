@@ -67,7 +67,7 @@ public sealed partial class ManagerForm
     {
         if (!IsProductPage) return;
         var scroll = productCards.VerticalScroll.Value;
-        IEnumerable<ButtonCard> rows = CommandInventory();
+        IEnumerable<ButtonCard> rows = ProductCommands(currentPage);
         rows = rows.Where(x => currentPage switch
         {
             "Test" => x.CollectionChannel == "test",
@@ -82,8 +82,8 @@ public sealed partial class ManagerForm
         rows = productSort.SelectedIndex switch
         {
             1 => rows.OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
-            2 => rows.OrderByDescending(x => x.Selected).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
-            3 => rows.OrderByDescending(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
+            2 => rows.OrderByDescending(SelectedInView).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
+            3 => rows.OrderByDescending(x => AppearanceFor(x).Update).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
             _ => rows.OrderByDescending(x => x.Kind == ButtonKind.Native)
         };
         var visible = rows.ToList();
@@ -112,7 +112,7 @@ public sealed partial class ManagerForm
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
         if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
-        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true)}  ·  설치 {visible.Count(x => x.Selected)}  ·  미설치 {visible.Count(x => !x.Selected && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
+        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
@@ -157,14 +157,15 @@ public sealed partial class ManagerForm
         text.Controls.Add(category, 0, 0); text.Controls.Add(title, 0, 1); header.Controls.Add(text, 1, 0); layout.Controls.Add(header, 0, 0);
         var description = new Label { Text = feature.Description, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(102, 112, 131), Font = new Font(Font.FontFamily, 8.5f), Margin = Padding.Empty };
         layout.Controls.Add(description, 0, 1);
-        var stateLabel = new Label { Text = feature.Message, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8), ForeColor = Color.FromArgb(102, 112, 131), Margin = new(0, 0, (int)(6 * scale), 0) };
+        var stateLabel = new LinkLabel { Text = feature.Message, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8), ForeColor = Color.FromArgb(102, 112, 131), Margin = new(0, 0, (int)(6 * scale), 0) };
         var more = MakeButton("···"); more.MinimumSize = new((int)(30 * scale), (int)(22 * scale)); more.AutoSize = false; more.Dock = DockStyle.Fill; more.Margin = Padding.Empty; more.Padding = Padding.Empty; more.AccessibleName = feature.Title + " 관리 메뉴";
         var primary = MakeButton("설치하기", true); primary.Font = new Font(Font.FontFamily, 8.5f); primary.MinimumSize = new((int)(80 * scale), (int)(22 * scale)); primary.AutoSize = false; primary.Dock = DockStyle.Fill; primary.Padding = Padding.Empty; primary.Margin = new(0, 0, (int)(6 * scale), 0);
         primary.Dock = more.Dock = DockStyle.None;
         primary.Anchor = more.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         primary.Size = new((int)(90 * scale), (int)(22 * scale)); more.Size = new((int)(30 * scale), (int)(22 * scale));
         primary.Margin = new(0, (int)(4 * scale), (int)(6 * scale), 0); more.Margin = new(0, (int)(4 * scale), 0, 0);
-        primary.Click += async (_, _) => { if (busy || preview) return; await ToggleButton(feature); };
+        primary.Click += async (_, _) => { if (busy || preview) return; await PrimaryCardAction(feature); };
+        stateLabel.LinkClicked += (_, _) => { if (!busy) ShowTestOffer(feature); };
         var menu = BuildButtonMenu(feature); more.Click += (_, _) => menu.Show(more, new Point(0, more.Height));
         var instruction = new Label { Visible = false };
         card.Disposed += (_, _) => { menu.Dispose(); tips.Dispose(); instruction.Dispose(); };
@@ -226,16 +227,23 @@ public sealed partial class ManagerForm
         foreach (var binding in cardBindings.Values)
         {
             var feature = binding.Row;
-            var appearance = appearanceSnapshot.GetValueOrDefault(feature.Id) ?? new(true, false, false, feature.Message, "");
-            binding.Action.Text = feature.Kind == ButtonKind.Discover ? "기능 목록 보기" : appearance.Legacy ? "전환하기" : appearance.Update ? "업데이트" : feature.Selected ? "제거" : "설치하기";
+            var appearance = AppearanceFor(feature);
+            binding.Action.Text = PrimaryText(feature, appearance);
             binding.Action.Enabled = ready && appearance.Enabled;
             binding.More.Enabled = ready;
             var updateState = appearance.Update;
-            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : feature.Selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
-            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : feature.Selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
-            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : feature.Selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
+            var selected = SelectedInView(feature);
+            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
+            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
+            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
-            binding.State.Text = (updateState ? "업데이트 · " : feature.Selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            binding.State.Text = (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            if (binding.State is LinkLabel link)
+            {
+                link.Links.Clear();
+                var at = link.Text.LastIndexOf("TEST 보기", StringComparison.Ordinal);
+                if (at >= 0) link.Links.Add(at, "TEST 보기".Length);
+            }
             binding.Instruction.Text = appearance.Instruction;
             var detail = appearance.Message + "\n" + appearance.Instruction;
             if (binding.Tips.GetToolTip(binding.State) != detail) binding.Tips.SetToolTip(binding.State, detail);

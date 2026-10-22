@@ -18,7 +18,7 @@ public sealed partial class ManagerForm
     private int repositoryLookupCount;
     private sealed record CardAppearance(bool Enabled, bool Update, bool Legacy, string Message, string Instruction);
     private sealed record DisplaySnapshot(int SchemaVersion, ProductRow[] Products, ButtonCard[] Commands,
-        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt, Dictionary<string, ReleaseOffer>? Offers = null);
+        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt, Dictionary<string, ReleaseOffer>? Offers = null, Dictionary<string, ReleaseOffer>? Tests = null, Dictionary<string, string>? TestErrors = null);
     private string DisplayCachePath => SafeFiles.Child(paths.Data, "manager-display-cache.json");
 
     private string registeredCatalogStamp = "";
@@ -51,7 +51,7 @@ public sealed partial class ManagerForm
                     var file = DisplayCachePath;
                     if (!File.Exists(file) || new FileInfo(file).Length > 4 * 1024 * 1024) return null;
                     var value = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(file));
-                    return value is { SchemaVersion: 5, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
+                    return value is { SchemaVersion: 5 or 6, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
                         && value.Appearance is not null ? value : null;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
@@ -62,7 +62,7 @@ public sealed partial class ManagerForm
                 try
                 {
                     productRows.AddRange(cached.Products); commandSnapshot = cached.Commands;
-                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? [];
+                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? []; testOffers = cached.Tests ?? []; testOfferErrors = cached.TestErrors ?? [];
                     RenderProductCards();
                     firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds; usedDisplayCache = true;
                 }
@@ -126,7 +126,7 @@ public sealed partial class ManagerForm
             var owners = BuildProductRows(statusRows, packages);
             var commands = ReadCommandInventory(owners).ToArray();
             var appearance = BuildAppearances(commands);
-            return new DisplaySnapshot(5, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers));
+            return new DisplaySnapshot(6, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers), new(testOffers), new(testOfferErrors));
         });
         if (IsDisposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;

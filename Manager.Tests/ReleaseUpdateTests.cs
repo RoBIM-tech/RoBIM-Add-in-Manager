@@ -36,6 +36,32 @@ static class ReleaseUpdateTests
             var legacy = ReleaseUpdates.Select(document.RootElement, package with { Channel = "unknown" });
             require(legacy.AssetId == 2 && legacy.Channel == "test", "Legacy prerelease ZIP was ignored or mislabeled stable");
         });
+        test("StableRepositoryAlsoDiscoversNewTestWithoutChangingDefault", () =>
+        {
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(new[] {
+                new { draft=false, prerelease=true, tag_name="v0.3.0-test.1", assets=new[]{new{name="tool.zip",id=3,size=100,digest="sha256:"+new string('b',64)}} },
+                new { draft=false, prerelease=false, tag_name="v0.2.0", assets=new[]{new{name="tool.zip",id=2,size=100,digest="sha256:"+new string('a',64)}} } }));
+            var package = new ExtensionPackage("tool","tool","revit",".","Tool.bundle","release","tool.zip",Channel:"stable");
+            var channels = ReleaseUpdates.SelectChannels(document.RootElement,package);
+            require(channels.Stable?.AssetId == 2 && channels.Test?.AssetId == 3 && channels.HasNewTest("0.2.0"), "Both channels were not discovered");
+            require(package.Channel == "stable" && !ReleaseUpdates.IsNewer("0.2.0","stable",channels.Test!), "Discovery switched stable to TEST");
+            require(!channels.HasNewTest("0.4.0"), "Older TEST advertised against newer installed stable");
+        });
+        test("PublishedStableSupersedesOlderTestAndMissingTestIsNotFailure", () =>
+        {
+            require(!new ReleaseChannels(new("0.3.0","stable"),new("0.3.0-test.2","test")).HasNewTest(),"Obsolete prerelease advertised");
+            using var empty = JsonDocument.Parse("[]");
+            var channels=ReleaseUpdates.SelectChannels(empty.RootElement,new("tool","tool","revit",".","Tool.bundle","release","tool.zip",Channel:"stable"));
+            require(channels.Stable is null && channels.Test is null && channels.TestError is null && !channels.HasNewTest(),"No TEST was treated as failed check");
+        });
+        test("BrokenTestAssetDoesNotHideValidStableRelease", () =>
+        {
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(new[] {
+                new {draft=false,prerelease=true,tag_name="v0.3.0-test.1",assets=new[]{new{name="tool.zip",id=3,size=100,digest="invalid"}}},
+                new {draft=false,prerelease=false,tag_name="v0.2.0",assets=new[]{new{name="tool.zip",id=2,size=100,digest="sha256:"+new string('a',64)}}} }));
+            var channels=ReleaseUpdates.SelectChannels(document.RootElement,new("tool","tool","revit",".","Tool.bundle","release","tool.zip",Channel:"stable"));
+            require(channels.Stable?.AssetId==2 && channels.StableError is null && channels.Test is null && channels.TestError is not null,"Broken TEST suppressed stable check");
+        });
         test("ExplicitReleaseChannelRejectsUnsupportedSourcesAndChannels", () =>
         {
             var native = new ExtensionPackage("tool", "tool", "revit", ".", "Tool.bundle", "release", "tool.zip", Channel: "stable");
