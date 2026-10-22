@@ -27,12 +27,23 @@ public sealed partial class ManagerForm
         return string.Join(" · ", messages.Count == 0 ? ["변경 저장 완료"] : messages) + " · Revit 대기 상태에서 처리하며 실제 응답 후 적용 완료로 표시합니다.";
     }
 
+    private PackageRow[] UpdateTargets()
+    {
+        var registered = availablePackages.ToList();
+        if (!registered.Any(p => ExtensionCatalog.Tool(p.Repository, p.Package).Id == Catalog.Revit.Id))
+        {
+            var package = new ExtensionPackage("robim-revit", "RoBIM for Revit", "pyrevit", ".", Catalog.Revit.FolderName);
+            registered.Add(new(new(Catalog.Revit.Repository, Catalog.Revit.Branch, [package], "기본 pyRevit"), package));
+        }
+        return registered.ToArray();
+    }
+
     private async Task RefreshWithUpdates()
     {
         await Run("설치 상태 · 업데이트 확인", async () =>
         {
             await LoadRegisteredPackages();
-            var targets = availablePackages.ToArray().GroupBy(x => x.Repository.Repository, StringComparer.OrdinalIgnoreCase).ToArray();
+            var targets = UpdateTargets().GroupBy(x => x.Repository.Repository, StringComparer.OrdinalIgnoreCase).ToArray();
             using var gate = new SemaphoreSlim(4);
             // Fetch independently; one denied/offline repository must not discard other results.
             var results = await Task.WhenAll(targets.Select(async group =>

@@ -29,14 +29,14 @@ public static class ReleaseUpdates
     {
         foreach (var release in releases.EnumerateArray())
         {
-            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test")) continue;
+            if (release.GetProperty("draft").GetBoolean() || (package.Channel is "test" or "stable" && release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test"))) continue;
             foreach (var asset in release.GetProperty("assets").EnumerateArray())
             {
                 if (asset.GetProperty("name").GetString() != package.Asset) continue;
                 var digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
                 if (asset.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
                     throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
-                return new(release.GetProperty("tag_name").GetString()!, package.Channel, asset.GetProperty("id").GetInt64(), digest);
+                return new(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" && release.GetProperty("prerelease").GetBoolean() ? "test" : package.Channel, asset.GetProperty("id").GetInt64(), digest);
             }
         }
         throw new IOException("배포 구분에 맞는 ZIP을 찾지 못했습니다.");

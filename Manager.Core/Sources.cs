@@ -64,25 +64,9 @@ public sealed class Sources(ManagerPaths paths)
 
     public async Task<SourcePackage> DownloadCad()
     {
-        using var response = await Request("https://api.github.com/repos/gagaggan/RoBIM-CAD/releases?per_page=100", "application/vnd.github+json");
-        using var data = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        JsonElement? chosenAsset = null;
-        string? version = null;
-        foreach (var release in data.RootElement.EnumerateArray())
-        {
-            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) continue;
-            foreach (var asset in release.GetProperty("assets").EnumerateArray())
-                if (asset.GetProperty("name").GetString() == "DelHiddenNet-AutoCAD2026.zip")
-                { chosenAsset = asset; version = release.GetProperty("tag_name").GetString(); break; }
-            if (chosenAsset is not null) break;
-        }
-        if (chosenAsset is null) throw new IOException("설치 가능한 CAD 릴리스가 없습니다.");
-        var item = chosenAsset.Value;
-        var assetId = item.GetProperty("id").GetInt64();
-        if (item.GetProperty("size").GetInt64() > 128 * 1024 * 1024) throw new IOException("릴리스 파일이 크기 제한을 초과합니다.");
-        var digest = item.TryGetProperty("digest", out var digestValue) ? digestValue.GetString() : null;
-        if (digest is null || !digest.StartsWith("sha256:") || digest.Length != 71)
-            throw new IOException("GitHub 릴리스의 SHA-256 검증 정보가 없습니다.");
+        var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", "DelHiddenNet-AutoCAD2026.zip");
+        var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
+        var assetId = offer.AssetId; var digest = offer.Digest; var version = offer.Version;
         var archive = Path.Combine(NewCache(), "package.zip");
         using (var download = await Request($"https://api.github.com/repos/gagaggan/RoBIM-CAD/releases/assets/{assetId}", "application/octet-stream", true))
         using (var input = await download.Content.ReadAsStreamAsync())

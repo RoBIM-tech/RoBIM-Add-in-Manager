@@ -30,6 +30,8 @@ static class ReleaseUpdateTests
             var stable = ReleaseUpdates.Select(document.RootElement, package);
             var preview = ReleaseUpdates.Select(document.RootElement, package with { Channel = "test" });
             require(stable.AssetId == 1 && stable.Version == "v1.0.0" && preview.AssetId == 2, "Incorrect release chosen");
+            var legacy = ReleaseUpdates.Select(document.RootElement, package with { Channel = "unknown" });
+            require(legacy.AssetId == 2 && legacy.Channel == "test", "Legacy prerelease ZIP was ignored or mislabeled stable");
         });
         test("CadUpdateVersionFollowsActualSelectedDllAcrossRestart", () =>
         {
