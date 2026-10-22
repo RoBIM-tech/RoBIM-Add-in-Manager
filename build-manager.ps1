@@ -25,8 +25,8 @@ foreach ($name in @('Install.ps1','Uninstall.ps1')) {
     [IO.File]::WriteAllText((Join-Path $output $name), [IO.File]::ReadAllText($source), [Text.UTF8Encoding]::new($true))
 }
 Compress-Archive -LiteralPath $output -DestinationPath (Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager-Portable.zip') -Force
-& dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Setup\RoBIM.Setup.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true --source https://api.nuget.org/v3/index.json -o (Join-Path $PSScriptRoot 'artifacts\setup-build') --nologo
-if ($LASTEXITCODE -ne 0) { throw 'Setup publish failed.' }
+$compiler = & (Join-Path $PSScriptRoot 'installer\Get-InnoCompiler.ps1')
+& $compiler (Join-Path $PSScriptRoot 'installer\Manager.iss')
+if ($LASTEXITCODE -ne 0) { throw 'Windows Setup compilation failed.' }
 $setup = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager-Setup.exe'
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'artifacts\setup-build\RoBIM-Manager-Setup.exe') -Destination $setup -Force
 Write-Output "Installer: $setup"

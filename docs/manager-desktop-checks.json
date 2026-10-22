@@ -1,8 +1,22 @@
 {
+  "WindowsInstalledAppsUiVerified": true,
   "InstalledHashVerified": true,
   "NativeRevitReloadExecuted": false,
-  "RevitModelModified": false,
-  "InstalledVersion": "1.0.0-preview.5",
+  "NativeUninstallerTestVerified": true,
+  "WindowsUninstallMenuUiVerified": true,
+  "WindowsAppName": "RoBIM Add-in Manager",
+  "InstalledVersion": "1.0.0-preview.6",
   "NewShortcutVerified": true,
-  "WindowsAppName": "RoBIM Add-in Manager"
+  "AppIconFrames": [
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    128,
+    256
+  ],
+  "RevitModelModified": false
 }

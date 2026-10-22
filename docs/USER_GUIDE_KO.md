@@ -1,12 +1,16 @@
 # RoBIM Add-in Manager 간단 사용설명서
 
-**Preview 5 / 2026-10-15**
+**Preview 6 / 2026-10-15**
 
 ## 1. 설치 파일 받기
 
-[RoBIM Add-in Manager 배포 페이지](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases/tag/manager-v1.0.0-preview.5)에서 `RoBIM-Manager-Setup.exe`를 실행합니다. 기존 매니저가 있으면 종료한 뒤 실행하십시오. 바탕화면/시작 메뉴의 **RoBIM Add-in Manager**를 엽니다.
+[RoBIM Add-in Manager 배포 페이지](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases/tag/manager-v1.0.0-preview.6)에서 `RoBIM-Manager-Setup.exe`를 실행합니다. 기존 매니저가 있으면 종료한 뒤 실행하십시오. 바탕화면/시작 메뉴의 **RoBIM Add-in Manager**를 엽니다.
 
 매니저 설치와 CAD/Revit 도구 설치는 별도입니다. 매니저를 열고 사용할 제품에서 도구를 설치합니다.
+
+설치 후 **Windows 설정 → 앱 → 설치된 앱**에서 `RoBIM Add-in Manager`를 확인할 수 있습니다. 업데이트도 새 Setup.exe를 실행하면 됩니다. 제거는 해당 항목의 **⋯ → 제거**를 사용합니다. 매니저를 제거해도 설치된 Revit·AutoCAD 도구, 사용자 설정, 인증과 백업은 유지합니다.
+
+설치 직후 목록이 갱신되지 않으면 Windows 설정 창을 완전히 종료하고 다시 여십시오. 현재 PC에서는 설정 프로세스를 새로 연 뒤 Preview 6 표시와 제거 메뉴를 직접 확인했습니다.
 
 ## 2. AutoCAD 도구 사용
 

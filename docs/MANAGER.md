@@ -6,7 +6,7 @@
 
 - Manager.Core: .NET 10 설치·백업·복원·GitHub 인증·패키지 검색·설치 흐름 정책
 - RoBIM.Manager: Windows Forms. Revit / AutoCAD 제품별 목록과 한 개의 기본 작업 버튼
-- RoBIM.Setup: 런타임 포함 페이로드 설치. 기존 사용자 설치와 설정 유지
+- installer/Manager.iss: Inno Setup 기반 사용자별 Windows 설치·업데이트·전용 제거 프로그램. 기존 사용자 설치와 설정 유지
 - reload-bridge: pyRevit 원본을 수정하지 않는 별도 연결 확장
 - tests: 임시 경로 설치 및 실제 GitHub 읽기 검증
 

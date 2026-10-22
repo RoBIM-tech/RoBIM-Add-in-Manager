@@ -44,7 +44,7 @@ public sealed partial class ManagerForm
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
-        sidebar.Controls.Add(new Label { Text = "Add-in Manager\nPreview 5", ForeColor = Color.FromArgb(148, 165, 190), AutoSize = true, Dock = DockStyle.Bottom, Padding = new(8) });
+        sidebar.Controls.Add(new Label { Text = "Add-in Manager\n" + Application.ProductVersion.Split('+')[0], ForeColor = Color.FromArgb(148, 165, 190), AutoSize = true, Dock = DockStyle.Bottom, Padding = new(8) });
         var shell = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
         shell.RowStyles.Add(new(SizeType.AutoSize)); shell.RowStyles.Add(new(SizeType.AutoSize));
         shell.RowStyles.Add(new(SizeType.Percent, 100)); shell.RowStyles.Add(new(SizeType.AutoSize));

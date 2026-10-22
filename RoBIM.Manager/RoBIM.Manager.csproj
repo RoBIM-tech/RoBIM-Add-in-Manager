@@ -7,10 +7,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RoBIM.Manager</AssemblyName>
-    <Version>1.0.0-preview.5</Version>
+    <ApplicationIcon>..\assets\RoBIM.Manager.ico</ApplicationIcon>
+    <Version>1.0.0-preview.6</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Product>RoBIM Add-in Manager</Product>
     <Description>AutoCAD 및 Revit 도구 설치 관리자</Description>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Manager.Core\Manager.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\assets\RoBIM.Manager.ico" LogicalName="RoBIM.Manager.AppIcon.ico" />
+    <Content Include="..\assets\RoBIM.Manager.ico" Link="RoBIM.Manager.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

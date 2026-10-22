@@ -1,13 +1,11 @@
-param([string]$SetupPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\RoBIM-Manager-Setup.exe'))
+param([string]$PortablePath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\RoBIM-Manager-Portable.zip'))
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $runRoot = [IO.Path]::GetFullPath((Join-Path $root ('artifacts\setup-tests-' + [guid]::NewGuid().ToString('N'))))
 if (!$runRoot.StartsWith(([IO.Path]::GetFullPath((Join-Path $root 'artifacts')) + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Test path outside workspace artifacts' }
 New-Item -ItemType Directory -Path $runRoot | Out-Null
 $extract = Join-Path $runRoot 'extracted'
-$process = Start-Process -FilePath $SetupPath -ArgumentList @('--extract',('"' + $extract + '"')) -PassThru -WindowStyle Hidden
-if (!$process.WaitForExit(30000)) { Stop-Process -Id $process.Id -Force; throw 'Setup extraction timeout' }
-if ($process.ExitCode -ne 0) { throw 'Setup extraction failed' }
+Expand-Archive -LiteralPath $PortablePath -DestinationPath $extract
 $payload = Join-Path $extract 'RoBIM-Manager'
 $target = Join-Path $runRoot 'installed'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $target -Quiet -SkipIntegration
@@ -36,7 +34,7 @@ Set-Content -LiteralPath (Join-Path $external 'keep.txt') -Value 'unmanaged'
 $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $external -Quiet -SkipIntegration 2>&1
 if ($LASTEXITCODE -eq 0 -or !(Test-Path -LiteralPath (Join-Path $external 'keep.txt'))) { throw 'Unmanaged installer destination was not protected' }
 @{
-    SetupExtraction=$true; Installation=$true; Reinstallation=$true; InstalledUiRender=$true
+    PortableExtraction=$true; Installation=$true; Reinstallation=$true; InstalledUiRender=$true
     Uninstall=$true; UnknownFilePreserved=$true; UnmanagedDestinationProtected=$true; ReloadBridgePackage=$true
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'artifacts\setup-test-results.json') -Encoding UTF8
 Copy-Item -LiteralPath $preview -Destination (Join-Path $root 'artifacts\manager-preview.png') -Force
