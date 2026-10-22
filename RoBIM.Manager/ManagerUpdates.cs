@@ -6,8 +6,9 @@ public sealed partial class ManagerForm
 {
     private Dictionary<string, ReleaseOffer> updateOffers = [];
     private readonly Dictionary<string, string> updateErrors = [];
-    private bool RemoteUpdate(ButtonCard card) => card.Selected && OfferFor(card) is { } offer
-        && ReleaseUpdates.IsNewer(card.SelectedVersion, card.TestView ? "" : card.SelectedChannel, offer);
+    private bool RemoteUpdate(ButtonCard card) => card.Selected && (card.Kind == ButtonKind.Native
+        ? SelectedInView(card) && NativeReleaseState(card).Update is not null
+        : OfferFor(card) is { } offer && ReleaseUpdates.IsNewer(card.SelectedVersion, card.SelectedChannel, offer));
 
     // Applying an explicitly chosen change does not opt into unrelated cached updates.
     private string RequestAutomaticRevitApply(bool native, bool pyRevit, bool layout = false)
@@ -39,7 +40,7 @@ public sealed partial class ManagerForm
     }
 
     private sealed record UpdateCheck(string Id, ReleaseOffer? Offer, string? Error,
-        bool CheckedTest = false, ReleaseOffer? Test = null, string? TestError = null);
+        bool CheckedTest = false, ReleaseOffer? Test = null, string? TestError = null, ReleaseOffer? Stable = null, string? StableError = null);
     private async Task RefreshWithUpdates()
     {
         await Run("설치 상태 · 정식/TEST 업데이트 확인", async () =>
@@ -66,7 +67,7 @@ public sealed partial class ManagerForm
                                 var channels = await ReleaseUpdates.CheckChannels(repository, package);
                                 var offer = package.Channel == "test" ? channels.Test : channels.Stable;
                                 var error = package.Channel == "test" ? channels.TestError : channels.StableError;
-                                entries.Add(new(id, offer, error ?? (offer is null ? "기본 배포 구분의 ZIP이 없습니다." : null), true, channels.Test, channels.TestError));
+                                entries.Add(new(id, offer, error ?? (offer is null ? "기본 배포 구분의 ZIP이 없습니다." : null), true, channels.Test, channels.TestError, channels.Stable, channels.StableError));
                             }
                             else entries.Add(new(id, await ReleaseUpdates.Check(repository, package), null));
                         }
@@ -80,7 +81,7 @@ public sealed partial class ManagerForm
                 }
                 finally { gate.Release(); }
             }));
-            updateErrors.Clear(); testOfferErrors.Clear();
+            updateErrors.Clear(); testOfferErrors.Clear(); stableOfferErrors.Clear();
             foreach (var result in results)
             {
                 if (result.Repository is not null) new ExtensionCatalog(paths).Register(result.Repository);
@@ -88,6 +89,11 @@ public sealed partial class ManagerForm
                 {
                     if (entry.Offer is not null) updateOffers[entry.Id] = entry.Offer;
                     else { updateErrors[entry.Id] = entry.Error ?? "조회 실패"; WriteLog(entry.Id + " 최신 확인 실패: " + entry.Error); }
+                    if (entry.CheckedTest && entry.StableError is null)
+                    {
+                        if (entry.Stable is null) stableOffers.Remove(entry.Id); else stableOffers[entry.Id] = entry.Stable;
+                    }
+                    else if (entry.CheckedTest) stableOfferErrors[entry.Id] = entry.StableError!;
                     if (entry.CheckedTest && entry.TestError is null)
                     {
                         if (entry.Test is null) testOffers.Remove(entry.Id); else testOffers[entry.Id] = entry.Test;
@@ -99,7 +105,7 @@ public sealed partial class ManagerForm
             var count = appearanceSnapshot.Count(x => x.Value.Update);
             var tests = CommandInventory().Count(NewTestAvailable);
             refreshSummary = "확인 완료 · 업데이트 " + count + "개 · 새 TEST " + tests + "개 (TEST 도구에서 확인)" +
-                (updateErrors.Count + testOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
+                (updateErrors.Count + testOfferErrors.Count + stableOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
             WriteLog(refreshSummary);
         });
         if (refreshSummary is not null) { footer.Text = refreshSummary; refreshSummary = null; }

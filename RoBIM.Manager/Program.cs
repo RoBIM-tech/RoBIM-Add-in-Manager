@@ -28,6 +28,11 @@ internal static class Program
             using var check = new ManagerForm(inspect: true);
             check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Revit", refreshOffers: true); Application.Run(check); return 0;
         }
+        if (args.Length is 2 or 3 && args[0] == "--inspect-my-tools")
+        {
+            using var check = new ManagerForm(inspect: true);
+            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Mine", refreshOffers: true); Application.Run(check); return 0;
+        }
         if (args.Length is 2 or 3 && args[0] == "--inspect-test-card-ui")
         {
             using var check = new ManagerForm(inspect: true);

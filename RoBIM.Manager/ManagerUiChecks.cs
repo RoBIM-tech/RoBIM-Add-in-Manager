@@ -27,10 +27,10 @@ public sealed partial class ManagerForm
                 File.WriteAllText(destination, JsonSerializer.Serialize(new
                 {
                     Products = productRows.Select(x => new { x.Status.Tool.Id, x.Status.Path, x.Status.Managed, x.Status.External, x.Status.Modified, x.Status.Detail }),
-                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, Source = x.Row.Source,
+                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, x.Row.SelectedChannel, x.Row.SelectedVersion, x.Row.CollectionChannel, UpdateChannel = OfferFor(x.Row)?.Channel, Source = x.Row.Source,
                         Enabled = x.Action.Enabled, Action = x.Action.Text, State = x.State.Text, Instruction = x.Instruction.Text }),
                     Log = log.Text,
-                    UpdateOffers = updateOffers, TestOffers = testOffers, TestErrors = testOfferErrors,
+                    UpdateOffers = updateOffers, TestOffers = testOffers, StableOffers = stableOffers, TestErrors = testOfferErrors, StableErrors = stableOfferErrors,
                     TestCards = ProductCommands("Test").Where(c => c.CollectionChannel == "test").Select(c => new { c.Id, c.TestView, c.ReleaseLabel, c.SelectedChannel, c.SelectedVersion, Action = PrimaryText(c,AppearanceFor(c)) }),
                     SelectionUnchanged = before.SequenceEqual(SelectionProof())
                 }, new JsonSerializerOptions { WriteIndented = true }));
@@ -229,15 +229,17 @@ public sealed partial class ManagerForm
         var sheetsPackage = sheetsRepository.Packages.Single();
         var sheetsTool = ExtensionCatalog.Tool(sheetsRepository, sheetsPackage);
         var promoted = RegisteredNativeCard(new(new(sheetsTool, "unused", "", false, false, false, ""), new(sheetsRepository, sheetsPackage)))
-            with { Selected = true, SelectedChannel = "test" };
-        Require(promoted.Channel == "stable" && promoted.CollectionChannel == "stable" && promoted.SelectedChannel == "test",
-            "Stable offer appears in normal tools without relabeling installed TEST");
-        Require(promoted.HasChannelUpdate, "Stable promotion selects update rather than removing installed TEST");
+            with { Selected = true, SelectedChannel = "test", SelectedVersion = "0.1.0-test.2" };
+        Require(promoted.Channel == "stable" && promoted.CollectionChannel == "test" && promoted.SelectedChannel == "test",
+            "Installed TEST controls collection despite stable catalog default");
+        updateOffers[promoted.Owner.Status.Tool.Id] = new("0.2.0", "stable");
+        Require(NativeReleaseState(promoted).Update?.Channel == "stable", "Newer stable promotion selects update");
         using var statusCard = CreateCommandCard(promoted with { SelectedVersion = "0.1.0-test.2" });
         var statusBinding = cardBindings[promoted.Id];
         appearanceSnapshot[promoted.Id] = new(true, true, false, "업데이트 가능 · 0.1.0-test.2 → 0.2.0", "업데이트 후 Reload");
         RefreshCardActions(); var updateColor = statusCard.BackColor;
-        Require(statusBinding.Action.Text == "정식으로 전환" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        Require(statusBinding.Action.Text == "정식 업데이트" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        updateOffers[promoted.Owner.Status.Tool.Id] = new("0.0.1", "stable");
         appearanceSnapshot[promoted.Id] = new(true, false, false, "설치됨", ""); RefreshCardActions();
         Require(statusCard.BackColor != updateColor && statusBinding.State.Text.StartsWith("설치 ·"), "Installed card uses separate color and text");
         using var missingCard = CreateCommandCard(promoted with { Id = "missing", Selected = false }); RefreshCardActions();
@@ -259,13 +261,30 @@ public sealed partial class ManagerForm
         Require(cardBindings[projected.Id].Action.Text=="TEST 설치" && cardBindings[projected.Id].State.Text.Contains("정식 0.2.0"),"TEST card explains currently installed stable version");
         var selectedTest=projected with { SelectedChannel="test",SelectedVersion="0.2.5-test.1" };
         Require(PrimaryText(selectedTest,AppearanceFor(selectedTest))=="TEST 업데이트","Installed TEST can update within TEST channel");
-        Require(PrimaryText(stableCard with { SelectedChannel="test" },AppearanceFor(stableCard))=="정식으로 전환", "Normal card provides explicit return to stable");
+        var currentTest = projected with { SelectedChannel="test", SelectedVersion="v0.3.0-test.1", CachedOffer=new("0.2.0","stable") };
+        var mine = ProductCommands("Mine",[currentTest]).Single();
+        Require(mine.ReleaseLabel.StartsWith("TEST · v0.3.0-test.1") && mine.CollectionChannel=="test", "My tools labels the actual installed TEST version");
+        appearanceSnapshot[mine.Id]=new(true,true,false,"새 기능 패키지 · 업데이트 가능","");
+        Require(!AppearanceFor(mine).Update && PrimaryText(mine,AppearanceFor(mine))=="제거" && !AppearanceFor(mine).Message.Contains("새 기능 패키지"), "Old stable cache and stale UI flags do not mark current TEST outdated");
+        testOffers[stableId]=new("v0.3.0-test.2","test");
+        Require(AppearanceFor(mine).Update && PrimaryText(mine,AppearanceFor(mine))=="TEST 업데이트", "My tools offers later TEST updates");
+        stableOffers[stableId]=new("v0.3.0","stable");
+        Require(PrimaryText(mine,AppearanceFor(mine))=="정식 업데이트" && OfferFor(mine)?.Channel=="stable", "Installed TEST offers stable promotion from My tools");
+        var testCatalog = mine with { Channel="test" };
+        Require(OfferFor(testCatalog)?.Channel=="stable", "Stable promotion is found even while repository default remains TEST");
+        var promotedStable=testCatalog with { SelectedChannel="stable",SelectedVersion="0.3.0",ViewChannel="" };
+        Require(promotedStable.CollectionChannel=="stable" && !AppearanceFor(promotedStable).Update && ProductCommands("Mine",[promotedStable]).Single().ReleaseLabel.StartsWith("정식"), "Applied promotion becomes stable without repeating update");
+        stableOffers.Clear(); testOffers[stableId]=new("v0.3.0-test.1","test");
         testOffers[stableId]=new("0.2.0-test.1","test");
         Require(!ProductCommands("Test",[stableCard]).Any() && ProductCommands("Test",[selectedTest]).Any(),"Covered TEST is hidden while installed TEST remains manageable");
         testOffers[stableId]=new("v0.3.0-test.1","test"); testOfferErrors[stableId]="offline";
         Require(AppearanceFor(stableCard).Message.Contains("TEST 확인 실패") && NewTestAvailable(stableCard),"Failed TEST check retains prior offer and current installation");
         var cacheRoundtrip=JsonSerializer.Deserialize<DisplaySnapshot>(JsonSerializer.Serialize(new DisplaySnapshot(6,[],[],[],[],DateTimeOffset.UtcNow,updateOffers,testOffers,testOfferErrors)))!;
         Require(cacheRoundtrip.Tests![stableId].Version=="v0.3.0-test.1" && cacheRoundtrip.TestErrors![stableId]=="offline","TEST offers and check failures survive display-cache roundtrip");
+        stableOffers[stableId]=new("0.3.0","stable"); stableOfferErrors[stableId]="offline";
+        var fullCache=JsonSerializer.Deserialize<DisplaySnapshot>(JsonSerializer.Serialize(new DisplaySnapshot(7,[],[],[],[],DateTimeOffset.UtcNow,updateOffers,testOffers,testOfferErrors,stableOffers,stableOfferErrors)))!;
+        Require(fullCache.Stables![stableId].Version=="0.3.0" && fullCache.StableErrors![stableId]=="offline", "Stable promotion offers and errors survive display cache");
+        stableOffers.Clear(); stableOfferErrors.Clear();
         // Exercise navigation from the actual link against the preview fixture's stable card.
         var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable");
         updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");

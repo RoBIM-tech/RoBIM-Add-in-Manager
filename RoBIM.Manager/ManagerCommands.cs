@@ -10,11 +10,10 @@ public sealed partial class ManagerForm
 {
     private enum ButtonKind { Cad, PyRevit, Native, Discover }
     private sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
-        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "", string ViewChannel = "")
+        ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "", string ViewChannel = "", ReleaseOffer? CachedOffer = null)
     {
-        public bool HasChannelUpdate => Selected && Channel is "test" or "stable" && SelectedChannel is "test" or "stable" && Channel != SelectedChannel && !(SelectedChannel == "stable" && Channel == "test");
         public bool TestView => ViewChannel == "test";
-        public string CollectionChannel => TestView ? "test" : Channel is "test" or "stable" ? Channel : (Selected || Pending) && SelectedChannel.Length > 0 ? SelectedChannel : Channel;
+        public string CollectionChannel => TestView ? "test" : (Selected || Pending) && SelectedChannel is "test" or "stable" ? SelectedChannel : Channel;
     }
     private readonly Dictionary<string, RevitButton[]> revitButtonCache = new(StringComparer.OrdinalIgnoreCase);
     private SourcePackage? cadButtonPackage;
@@ -91,7 +90,7 @@ public sealed partial class ManagerForm
                             if (new NativeLegacyPackages(paths).Present(owner.Status.Tool)) state = (true, false, "기존 직접 설치 · Reload 방식 전환 필요");
                             cards.Add(new("native:" + module.Id + ":" + command.Id, command.Title, command.Description, command.Tab + " / " + command.Panel, command.Icon is null ? null : NativeProtocol.Child(source.Path, command.Icon), owner, ButtonKind.Native, state.Selected, state.Pending, state.Message, source.Path, command.Id, module.Id, availableChannel, selectedRelease is not null && (state.Selected || state.Pending)
                                 ? availableChannel != selectedRelease.Channel ? availableLabel + " · 설치: " + selectedRelease.Label : selectedRelease.Label + " (선택)" : availableLabel,
-                                "배포: " + availableLabel + "\n캐시: " + release.Label + "\n설치/준비: " + (selectedRelease?.Label ?? "없음") + "\n" + release.Detail, selectedRelease?.Channel ?? "", chosen?.Manifest.Version ?? ""));
+                                "배포: " + availableLabel + "\n캐시: " + release.Label + "\n설치/준비: " + (selectedRelease?.Label ?? "없음") + "\n" + release.Detail, selectedRelease?.Channel ?? "", chosen?.Manifest.Version ?? "", CachedOffer: new(module.Version, release.Channel)));
                         }
                     }
                 }
@@ -178,7 +177,7 @@ public sealed partial class ManagerForm
             card = card with { Channel = releaseChannel };
         }
         var currentSelected = card.Kind == ButtonKind.Native ? new NativeRevitCommands(paths).State(card.ModuleId, card.CommandId).Selected : card.Kind == ButtonKind.Cad ? CadButtonState(card.Owner, card.CommandId).Selected : RevitInventory(card.Owner).Selected.Contains(card.CommandId);
-        var update = currentSelected && (releaseChannel is not null || RemoteUpdate(card) || card.Kind == ButtonKind.Native && (new NativeRevitCommands(paths).HasUpdate(card.ModuleId) || card.HasChannelUpdate));
+        var update = currentSelected && (releaseChannel is not null || RemoteUpdate(card));
         var legacyNative = card.Kind == ButtonKind.Native && new NativeLegacyPackages(paths).Present(card.Owner.Status.Tool);
         var enable = installChoice ?? (legacyNative || update || !currentSelected);
         var channelMessage = releaseChannel is null ? "" : "저장소의 최신 " + (releaseChannel == "test" ? "TEST" : "정식") + " 버전을 다운로드합니다. 현재 선택된 이 도구의 코드 버전이 바뀝니다.\n\n";
@@ -240,9 +239,19 @@ public sealed partial class ManagerForm
                 if (enable && card.Owner.Package is { } registered)
                 {
                     var current = await RefreshNativeRegistration(registered);
-                    var requestedPackage = releaseChannel is null ? current.Package : ExtensionCatalog.ReleaseChannel(current.Package, releaseChannel);
+                    var target = releaseChannel is null && currentSelected ? NativeReleaseState(card).Update : null;
+                    var requestedChannel = releaseChannel ?? target?.Channel ?? (currentSelected && card.SelectedChannel is "test" or "stable" ? card.SelectedChannel : current.Package.Channel);
+                    var requestedPackage = requestedChannel is "test" or "stable" ? ExtensionCatalog.ReleaseChannel(current.Package, requestedChannel) : current.Package;
+                    var cachedUpdate = target is { AssetId: 0 } && card.CachedOffer == target;
                     source = await SingleNativeButton.Resolve(paths, current.Repository, requestedPackage,
-                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package, releaseChannel), refresh: true);
+                        () => new ExtensionCatalog(paths).Download(current.Repository, current.Package, requestedChannel), refresh: !cachedUpdate);
+                    if (target is not null)
+                    {
+                        var resolved = NativeProtocol.Module(source.Path);
+                        var resolvedRelease = ModuleReleases.Native(source.Path, resolved.Id, resolved.Version);
+                        if (!ReleaseUpdates.IsNewer(card.SelectedVersion, card.SelectedChannel, new(resolved.Version, resolvedRelease.Channel)))
+                            throw new IOException("새 버전을 다시 확인하십시오. 현재 선택보다 같거나 낮은 버전으로 업데이트하지 않습니다.");
+                    }
                     var downloaded = NativeProtocol.Module(source.Path);
                     WriteLog(card.Title + " 다운로드 검증 완료 · " + ModuleReleases.Native(source.Path, downloaded.Id, downloaded.Version).Label);
                     commandId = NativeProtocol.Module(source.Path).Commands.Single().Id;

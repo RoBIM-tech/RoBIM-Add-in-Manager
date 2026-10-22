@@ -5,30 +5,46 @@ namespace RoBIM.Manager;
 public sealed partial class ManagerForm
 {
     private Dictionary<string, ReleaseOffer> testOffers = [];
+    private Dictionary<string, ReleaseOffer> stableOffers = [];
     private Dictionary<string, string> testOfferErrors = [];
-    private ReleaseOffer? OfferFor(ButtonCard card) => (card.TestView ? testOffers : updateOffers).GetValueOrDefault(card.Owner.Status.Tool.Id);
+    private Dictionary<string, string> stableOfferErrors = [];
+    private ReleaseOffer? ChannelOffer(ButtonCard card, string channel)
+    {
+        var id = card.Owner.Status.Tool.Id;
+        var offer = (channel == "test" ? testOffers : stableOffers).GetValueOrDefault(id);
+        var fallback = updateOffers.GetValueOrDefault(id);
+        if (fallback?.Channel == channel) offer = NativeReleasePolicy.Newest(offer, fallback);
+        if (card.CachedOffer?.Channel == channel) offer = NativeReleasePolicy.Newest(offer, card.CachedOffer);
+        return offer;
+    }
+    private NativeReleaseStatus NativeReleaseState(ButtonCard card) => NativeReleasePolicy.Evaluate(
+        card.SelectedVersion, card.SelectedChannel, ChannelOffer(card, "stable"), ChannelOffer(card, "test"));
+    private ReleaseOffer? OfferFor(ButtonCard card) => card.Kind == ButtonKind.Native && card.Selected
+        ? NativeReleaseState(card).Update : (card.TestView ? testOffers : updateOffers).GetValueOrDefault(card.Owner.Status.Tool.Id);
     private bool SelectedInView(ButtonCard card) => card.Selected && (!card.TestView || card.SelectedChannel == "test");
     private bool NewTestAvailable(ButtonCard card)
     {
-        if (card.Kind != ButtonKind.Native || card.Channel != "stable" || card.TestView) return false;
-        var id = card.Owner.Status.Tool.Id;
-        var offer = testOffers.GetValueOrDefault(id);
-        return new ReleaseChannels(updateOffers.GetValueOrDefault(id), offer)
-            .HasNewTest(card.SelectedChannel == "stable" ? card.SelectedVersion : "") &&
-            (!card.Selected || card.SelectedChannel != "test" || offer is not null && ReleaseUpdates.IsNewer(card.SelectedVersion, "", offer));
+        if (card.Kind != ButtonKind.Native || (!card.Selected && card.Channel != "stable") || card.TestView || (card.Selected && card.SelectedChannel != "stable")) return false;
+        return new ReleaseChannels(ChannelOffer(card, "stable"), ChannelOffer(card, "test"))
+            .HasNewTest(card.Selected ? card.SelectedVersion : "");
     }
     private bool ListTestOffer(ButtonCard card) => NewTestAvailable(card) || card.Kind == ButtonKind.Native &&
         card.Channel == "stable" && card.Selected && card.SelectedChannel == "test";
     private IEnumerable<ButtonCard> ProductCommands(string page, IEnumerable<ButtonCard>? inventory = null)
     {
-        foreach (var card in inventory ?? CommandInventory())
+        foreach (var original in inventory ?? CommandInventory())
         {
+            var card = original;
+            if (card.Kind == ButtonKind.Native && card.Selected && card.SelectedChannel is "stable" or "test")
+                card = card with { ReleaseLabel = (card.SelectedChannel == "test" ? "TEST" : "정식") + " · " + card.SelectedVersion + (card.Pending ? " (적용 준비)" : " (설치됨)") };
+            if (page == "Mine" && card.Kind == ButtonKind.Native && card.SelectedChannel == "test")
+                card = card with { ViewChannel = "test" };
             if (page == "Test" && card.CollectionChannel != "test")
             {
                 if (!ListTestOffer(card)) continue;
-                var offer = testOffers.GetValueOrDefault(card.Owner.Status.Tool.Id);
-                yield return card with { ViewChannel = "test", ReleaseLabel = "TEST · " + (offer?.Version ?? card.SelectedVersion) +
-                    (card.Selected ? " · 현재 " + (card.SelectedChannel == "test" ? "TEST " : "정식 ") + card.SelectedVersion : "") };
+                var offer = ChannelOffer(card, "test");
+                yield return card with { ViewChannel = "test", ReleaseLabel = card.Selected && card.SelectedChannel == "test" ? card.ReleaseLabel :
+                    "TEST · " + (offer?.Version ?? "제공 확인 필요") + (card.Selected ? " · 현재 정식 " + card.SelectedVersion : "") };
             }
             else yield return card;
         }
@@ -37,34 +53,49 @@ public sealed partial class ManagerForm
     {
         var value = appearanceSnapshot.GetValueOrDefault(card.Id) ?? new(true, false, false, card.Message, "");
         var id = card.Owner.Status.Tool.Id;
-        if (card.TestView)
+        if (card.Kind == ButtonKind.Native && !value.Legacy)
         {
-            var offer = testOffers.GetValueOrDefault(id);
-            var selected = SelectedInView(card);
-            var update = selected && RemoteUpdate(card);
-            var available = offer is not null;
-            value = value with {
-                Enabled = value.Enabled && (selected || available), Update = update,
-                Message = selected ? card.Message + (update ? " · TEST " + card.SelectedVersion + " → " + offer!.Version : " · TEST " + card.SelectedVersion)
-                    : (card.Selected ? "현재 정식 " + card.SelectedVersion + " · " : "") + "TEST " + (offer?.Version ?? "제공 확인 필요"),
-                Instruction = "TEST 설치는 이 버튼의 현재 버전을 교체합니다. 정식으로 돌아가려면 일반 Revit 목록에서 정식으로 전환을 누르십시오. " + value.Instruction };
+            var target = card.Selected && SelectedInView(card) ? NativeReleaseState(card).Update : null;
+            value = value with { Update = target is not null, Message = card.Message };
+            if (card.Selected && card.SelectedChannel is "stable" or "test")
+                value = value with { Message = (card.SelectedChannel == "test" ? "TEST" : "정식") + " " + card.SelectedVersion + " · " + card.Message };
+            if (target is not null)
+                value = value with { Message = (card.SelectedChannel == "test" && target.Channel == "stable" ? "정식 승격 업데이트" : target.Channel == "test" ? "TEST 업데이트" : "업데이트 가능") +
+                    " · " + card.SelectedVersion + " → " + target.Version,
+                    Instruction = "업데이트를 누르면 " + (target.Channel == "test" ? "TEST" : "정식") + " 버전을 준비하고 Revit에 자동 적용을 요청합니다. " + value.Instruction };
+            if (card.TestView && !SelectedInView(card))
+            {
+                var offer = ChannelOffer(card, "test");
+                value = value with { Enabled = value.Enabled && offer is not null, Update = false,
+                    Message = (card.Selected ? "현재 정식 " + card.SelectedVersion + " · " : "") + "TEST " + (offer?.Version ?? "제공 확인 필요"),
+                    Instruction = "TEST 설치는 이 버튼의 현재 버전을 교체합니다. 이전 정식으로 돌아가려면 ···의 저장소 정식 버전 설치를 선택하십시오. " + value.Instruction };
+            }
+            else if (NewTestAvailable(card))
+                value = value with { Message = "TEST 보기 · " + ChannelOffer(card, "test")!.Version + " 제공 · " + value.Message,
+                    Instruction = value.Instruction + "\nTEST 보기를 눌러 선택 설치할 수 있습니다. 정식 설치는 자동으로 바뀌지 않습니다." };
+            if (updateErrors.TryGetValue(id, out var error))
+                value = value with { Message = value.Message + " · 최신 확인 실패", Instruction = value.Instruction + "\n마지막 확인 결과 유지: " + error };
         }
-        else if (NewTestAvailable(card))
-        {
-            value = value with { Message = "TEST 보기 · " + testOffers[id].Version + " 제공 · " + value.Message,
-                Instruction = value.Instruction + "\nTEST 보기를 눌러 TEST 목록에서 선택 설치할 수 있습니다. 정식 설치는 자동으로 바뀌지 않습니다." };
-        }
-        if (testOfferErrors.TryGetValue(id, out var error))
-            value = value with { Message = value.Message + " · TEST 확인 실패", Instruction = value.Instruction + "\n마지막 TEST 조회 결과 유지: " + error };
+        if (testOfferErrors.TryGetValue(id, out var testError))
+            value = value with { Message = value.Message + " · TEST 확인 실패", Instruction = value.Instruction + "\n마지막 TEST 조회 결과 유지: " + testError };
+        if (stableOfferErrors.TryGetValue(id, out var stableError))
+            value = value with { Message = value.Message + " · 정식 확인 실패", Instruction = value.Instruction + "\n마지막 정식 조회 결과 유지: " + stableError };
         return value;
     }
-    private string PrimaryText(ButtonCard card, CardAppearance appearance) => card.Kind == ButtonKind.Discover ? "기능 목록 보기" :
-        appearance.Legacy ? "전환하기" : card.Selected && card.SelectedChannel == "test" && card.Channel == "stable" && !card.TestView ? "정식으로 전환" : card.TestView ? !SelectedInView(card) ? "TEST 설치" : appearance.Update ? "TEST 업데이트" : "제거" :
-        appearance.Update ? "업데이트" : card.Selected ? "제거" : "설치하기";
+    private string PrimaryText(ButtonCard card, CardAppearance appearance)
+    {
+        if (card.Kind == ButtonKind.Discover) return "기능 목록 보기";
+        if (appearance.Legacy) return "전환하기";
+        if (card.TestView && !SelectedInView(card)) return "TEST 설치";
+        if (appearance.Update)
+            return card.Kind == ButtonKind.Native && card.SelectedChannel == "test"
+                ? NativeReleaseState(card).Update?.Channel == "stable" ? "정식 업데이트" : "TEST 업데이트" : "업데이트";
+        return card.Selected ? "제거" : "설치하기";
+    }
     private async Task PrimaryCardAction(ButtonCard card)
     {
-        if (card.TestView && (!SelectedInView(card) || RemoteUpdate(card))) await ToggleButton(card, true, "test");
-        else await ToggleButton(card, card.TestView ? false : null);
+        if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test");
+        else await ToggleButton(card);
     }
     private void ShowTestOffer(ButtonCard card)
     {

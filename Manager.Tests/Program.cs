@@ -718,6 +718,7 @@ if (args.Contains("--online"))
     catch (Exception ex) { failures++; results.Add(new { Name = "PrivateGitHubCadAndRevitDownloadInstall", Passed = false, Error = ex.ToString() }); Console.WriteLine(ex.Message); }
 }
 PyRevitLocationTests.Run(Test, Paths, Require, root);
+NativeReleasePolicyTests.Run(Test, Require);
 NativeRevitTests.Run(Test, Paths, Require, root);
 ButtonTests.Run(Test, Paths, Require, root);
 File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
