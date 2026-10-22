@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "repositories": [
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "branch": "main",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "delhidden",
+          "name": "RoBIM CAD 도구",
+          "host": "autocad",
+          "path": "DelHiddenNet.bundle",
+          "folder": "DelHiddenNet.bundle",
+          "distribution": "release",
+          "asset": "DelHiddenNet-AutoCAD2026.zip",
+          "description": "CAD 기능별 선택 설치"
+        }
+      ]
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-Sheets",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "robim-revit-sheets",
+          "name": "RoBIM 시트 생성",
+          "host": "revit",
+          "path": "RoBIM.Revit.Sheets.bundle",
+          "folder": "RoBIM.Revit.Sheets.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-Sheets-Revit2026.zip",
+          "description": "Revit 2026.5+ / .NET 10 독립 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
+          "channel": "stable"
+        }
+      ]
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-ParameterCopy",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "robim-revit-parameter-copy",
+          "name": "RoBIM 파라미터 복사",
+          "host": "revit",
+          "path": "RoBIM.Revit.ParameterCopy.bundle",
+          "folder": "RoBIM.Revit.ParameterCopy.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Revit.ParameterCopy-Revit2026.zip",
+          "description": "카테고리를 선택하고 각 요소의 원본 값을 같은 요소의 대상 파라미터에 복사합니다. 미리보기·덮어쓰기·타입 충돌 검사를 지원합니다.",
+          "channel": "test"
+        }
+      ]
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-ParameterBulkEdit",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 중앙 등록",
+      "packages": [
+        {
+          "id": "robim-revit-parameter-bulk-edit",
+          "name": "RoBIM 파라미터 일괄 수정",
+          "host": "revit",
+          "path": "RoBIM.Revit.ParameterBulkEdit.bundle",
+          "folder": "RoBIM.Revit.ParameterBulkEdit.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Revit.ParameterBulkEdit-Revit2026.zip",
+          "description": "카테고리의 파라미터 값을 일괄 수정합니다. 문자 추가·치환·삭제와 구분자 이전/이후 삭제 규칙을 순서대로 적용하고 미리보기합니다.",
+          "channel": "test"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "delhidden",
+      "commandId": "cleanup",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "delhidden",
+      "commandId": "preview",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "ezsplit",
+      "commandId": "split",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "exbx",
+      "commandId": "explode",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "moduleId": "xclip",
+      "commandId": "cut",
+      "host": "autocad"
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-Sheets",
+      "packageId": "robim-revit-sheets",
+      "moduleId": "sheets",
+      "commandId": "create-sheets",
+      "host": "revit"
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-ParameterCopy",
+      "packageId": "robim-revit-parameter-copy",
+      "moduleId": "parameter-copy",
+      "commandId": "copy",
+      "host": "revit"
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-ParameterBulkEdit",
+      "packageId": "robim-revit-parameter-bulk-edit",
+      "moduleId": "parameter-bulk-edit",
+      "commandId": "bulk-edit",
+      "host": "revit"
+    }
+  ],
+  "repositoryPolicy": {
+    "default": "one-button-per-repository",
+    "legacyAggregates": [
+      "gagaggan/RoBIM-CAD"
+    ]
+  },
+  "repositoryMoves": [
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-Addin",
+      "packageId": "robim-revit-sheets",
+      "toRepositories": [
+        "gagaggan/RoBIM-Revit-Sheets"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-Addin",
+      "packageId": "robim-revit-parameters",
+      "toRepositories": [
+        "gagaggan/RoBIM-Revit-ParameterCopy",
+        "gagaggan/RoBIM-Revit-ParameterBulkEdit"
+      ]
+    }
+  ]
+}

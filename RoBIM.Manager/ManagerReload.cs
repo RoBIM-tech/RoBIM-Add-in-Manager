@@ -6,7 +6,7 @@ namespace RoBIM.Manager;
 public sealed partial class ManagerForm
 {
     private void ShowReloadReady() => MessageBox.Show(this,
-        "준비 완료.\n\nRevit → RoBIM TEST → RoBIM 연결 TEST → 적용 및 Reload\n\n버튼이 없으면 pyRevit의 Reload를 한 번 누르세요.", Text);
+        "준비 완료.\n\nRevit → RoBIM TEST → RoBIM 연결 TEST → 적용 및 Reload\n\n이 버튼이 준비된 선택을 적용한 뒤 pyRevit Reload를 실행합니다.\n버튼이 아직 없으면 pyRevit의 Reload를 한 번 눌러 연결 버튼을 표시하세요.", Text);
 
     private async Task PrepareUserReload()
     {
@@ -37,7 +37,7 @@ public sealed partial class ManagerForm
                 await Task.Run(() => reload.Prepare(row.Tool, package));
             }
             WriteLog("Revit 업데이트 준비 완료. Revit 안에서 적용 및 Reload를 실행하십시오.");
-            ShowReloadReady();
+            WriteLog(RequestAutomaticRevitApply(native: false, pyRevit: true));
         });
     }
 }

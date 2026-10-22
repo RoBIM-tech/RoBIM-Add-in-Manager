@@ -1,4 +1,4 @@
-param([string]$PortablePath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\RoBIM-Manager-Portable.zip'))
+﻿param([string]$PortablePath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\RoBIM-Manager-Portable.zip'))
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $runRoot = [IO.Path]::GetFullPath((Join-Path $root ('artifacts\setup-tests-' + [guid]::NewGuid().ToString('N'))))
@@ -13,9 +13,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Installer script failed' }
 if (!(Test-Path -LiteralPath (Join-Path $target 'RoBIM.Manager.exe'))) { throw 'Manager EXE missing after install' }
 $bridgeZip = Join-Path $target 'RoBIM-ReloadBridge.zip'
 if ((Get-FileHash -LiteralPath $bridgeZip).Hash -ne (Get-Content -LiteralPath ($bridgeZip + '.sha256') -Raw).Trim()) { throw 'Bridge hash mismatch' }
+$nativeZip = Join-Path $target 'RoBIM-Host-Revit2026.zip'
+if ((Get-FileHash -LiteralPath $nativeZip).Hash -ne (Get-Content -LiteralPath ($nativeZip + '.sha256') -Raw).Trim()) { throw 'Native Revit host hash mismatch' }
+$nativeCheck = Join-Path $runRoot 'native-check'
+Expand-Archive -LiteralPath $nativeZip -DestinationPath $nativeCheck
+foreach ($name in @('RoBIM.Revit.Host.dll','RoBIM.Revit.Reload.dll','RoBIM.Revit.Host.addin','Icons/reload.png','Icons/reload.dark.png','Icons/manager.png','Icons/manager.dark.png')) {
+    if (!(Test-Path -LiteralPath (Join-Path $nativeCheck ('RoBIM.Revit.Host.bundle/Contents/2026/' + $name)))) { throw ('Native host file missing: ' + $name) }
+}
+if (Get-ChildItem -LiteralPath $nativeCheck -File -Recurse | Where-Object { $_.Name -match '^RevitAPI.*\.dll$|\.(rvt|dwg|pdf)$' }) { throw 'Forbidden SDK/model file in native host package' }
+if (!(Test-Path -LiteralPath (Join-Path $target 'YamlDotNet-LICENSE.txt'))) { throw 'Dependency license missing after install' }
 $bridgeCheck = Join-Path $runRoot 'bridge-check'
 Expand-Archive -LiteralPath $bridgeZip -DestinationPath $bridgeCheck
-$bridgeButton = Join-Path $bridgeCheck 'RoBIM Manager.extension\RoBIM TEST.tab\TEST_jm.panel\ManagerReload.pushbutton'
+$bridgeButton = Join-Path $bridgeCheck 'RoBIM Manager.extension\RoBIM 관리.tab\Manager.panel\ManagerReload.pushbutton'
 foreach ($name in @('script.py','bundle.yaml','icon.png','icon.dark.png')) { if (!(Test-Path -LiteralPath (Join-Path $bridgeButton $name))) { throw "Bridge file missing: $name" } }
 $preserved = Join-Path $target 'personal-file.keep'
 Set-Content -LiteralPath $preserved -Value 'must survive uninstall'
@@ -31,11 +40,16 @@ if ((Test-Path -LiteralPath (Join-Path $target 'RoBIM.Manager.exe')) -or !(Test-
 $external = Join-Path $runRoot 'external'
 New-Item -ItemType Directory -Path $external | Out-Null
 Set-Content -LiteralPath (Join-Path $external 'keep.txt') -Value 'unmanaged'
-$output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $external -Quiet -SkipIntegration 2>&1
+$previousErrorPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue' # This child is expected to reject an unmanaged destination.
+    $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $external -Quiet -SkipIntegration 2>&1
+} finally { $ErrorActionPreference = $previousErrorPreference }
 if ($LASTEXITCODE -eq 0 -or !(Test-Path -LiteralPath (Join-Path $external 'keep.txt'))) { throw 'Unmanaged installer destination was not protected' }
 @{
     PortableExtraction=$true; Installation=$true; Reinstallation=$true; InstalledUiRender=$true
-    Uninstall=$true; UnknownFilePreserved=$true; UnmanagedDestinationProtected=$true; ReloadBridgePackage=$true
+    Uninstall=$true; UnknownFilePreserved=$true; UnmanagedDestinationProtected=$true; ReloadBridgePackage=$true; NativeRevitHostPackage=$true; DependencyLicenses=$true
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'artifacts\setup-test-results.json') -Encoding UTF8
 Copy-Item -LiteralPath $preview -Destination (Join-Path $root 'artifacts\manager-preview.png') -Force
 Write-Output "Setup checks passed: $runRoot"
+$global:LASTEXITCODE = 0 # The unmanaged-destination test above intentionally runs a failing child.

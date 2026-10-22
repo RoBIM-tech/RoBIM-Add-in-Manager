@@ -45,9 +45,10 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
             modified ? "로컬 변경 있음 — 변경 보존을 위해 작업 차단" : "관리 중");
     }
 
-    private void ValidateRecord(ToolSpec tool, InstallRecord record)
+    private void ValidateRecord(ToolSpec tool, InstallRecord record, bool backup = false)
     {
-        if (record.Id != tool.Id || !Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase))
+        if (record.Id != tool.Id || (!Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase) &&
+            !(backup && tool.Kind == ToolKind.PyRevit && PyRevitLocation.HistoricalTarget(paths, tool, record.Path))))
             throw new InvalidDataException("설치 기록의 경로가 현재 관리 경로와 다릅니다.");
         SafeFiles.NoLinks(record.Path);
     }
@@ -73,7 +74,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
             if (!File.Exists(file)) continue; // An interrupted backup is never restorable.
             var record = JsonSerializer.Deserialize<InstallRecord>(File.ReadAllText(file));
             if (record is null) continue;
-            ValidateRecord(tool, record);
+            ValidateRecord(tool, record, true);
             result.Add(new(directory, record));
         }
         return result;
@@ -127,6 +128,99 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
         finally { TryCleanup(parent, stage); }
     }
 
+    // A running pyRevit engine can hold its extension directory open. Keep that root
+    // and identical binaries in place; replace only the verified reloadable file delta.
+    public void InstallReload(ToolSpec tool, SourcePackage package)
+    {
+        if (tool.Kind != ToolKind.PyRevit) throw new IOException("pyRevit 파일만 실행 중 교체할 수 있습니다.");
+        using var operation = Lock();
+        ensureHostClosed?.Invoke(tool);
+        var state = ReadState();
+        if (!state.TryGetValue(tool.Id, out var old)) throw new IOException("관리 중인 설치만 Reload할 수 있습니다.");
+        ValidateRecord(tool, old); EnsureUnchanged(old); ValidatePackage(tool, package.Path);
+        var stage = SafeFiles.Child(paths.Data, "ReloadApply/" + Guid.NewGuid().ToString("N"));
+        var completed = new List<string>();
+        BackupInfo? backup = null;
+        var target = paths.Target(tool);
+        void Put(string source, string destination)
+        {
+            SafeFiles.NoLinks(destination);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".reloadtmp";
+            try { File.Copy(source, temporary); File.Move(temporary, destination, true); }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+        try
+        {
+            SafeFiles.Copy(package.Path, stage, false);
+            var after = SafeFiles.Hashes(stage);
+            RevitReload.EnsureReloadable(old.Hashes, after);
+            ensureHostClosed?.Invoke(tool); EnsureUnchanged(old);
+            backup = Backup(old);
+            foreach (var relative in old.Hashes.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                if (old.Hashes.GetValueOrDefault(relative) == after.GetValueOrDefault(relative)) continue;
+                var destination = SafeFiles.Child(target, relative);
+                var expected = old.Hashes.GetValueOrDefault(relative);
+                if ((File.Exists(destination) ? SafeFiles.Hash(destination) : null) != expected)
+                    throw new IOException("Reload 중 설치 파일이 변경되었습니다: " + relative);
+                if (after.ContainsKey(relative)) Put(SafeFiles.Child(stage, relative), destination);
+                else File.Delete(destination);
+                completed.Add(relative);
+            }
+            if (!SafeFiles.Same(after, SafeFiles.Hashes(target))) throw new IOException("Reload 파일 검증 실패");
+            state[tool.Id] = new(tool.Id, package.Version, target, DateTimeOffset.UtcNow, after);
+            Save(state);
+        }
+        catch (Exception update)
+        {
+            if (backup is not null)
+            {
+                try
+                {
+                    foreach (var relative in completed.AsEnumerable().Reverse())
+                    {
+                        var destination = SafeFiles.Child(target, relative);
+                        if (old.Hashes.TryGetValue(relative, out var hash))
+                        {
+                            var original = SafeFiles.Child(Path.Combine(backup.Directory, "content"), relative);
+                            if (SafeFiles.Hash(original) != hash) throw new IOException("Reload 복구 백업 변경 감지");
+                            Put(original, destination);
+                        }
+                        else if (File.Exists(destination)) File.Delete(destination);
+                    }
+                    if (!SafeFiles.Same(old.Hashes, SafeFiles.Hashes(target))) throw new IOException("Reload 복구 검증 실패");
+                }
+                catch (Exception restore) { throw new IOException("Reload와 복구가 실패했습니다. 백업을 확인하십시오.", new AggregateException(update, restore)); }
+            }
+            throw;
+        }
+        finally { TryCleanup(Path.GetDirectoryName(stage)!, stage); }
+        // Empty command bundle folders are also removed; a directory held by the host
+        // may remain empty until exit, but no unselected command files remain in it.
+        foreach (var directory in Directory.GetDirectories(target, "*", SearchOption.AllDirectories).OrderByDescending(x => x.Length))
+            try { SafeFiles.NoLinks(directory); if (Path.GetDirectoryName(directory) != target && !Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory); }
+            catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
+    // Explicit handover only: caller supplies a verified distribution reference. Merely
+    // recognizing a folder name is never enough to adopt or remove an external add-in.
+    public void AdoptVerifiedNative(ToolSpec tool, SourcePackage reference)
+    {
+        using var operation = Lock();
+        if (tool.Kind != ToolKind.NativeRevit) throw new IOException("독립 Revit 패키지만 검증 후 연결할 수 있습니다.");
+        void Check() { if (ensureHostClosed is null) EnvironmentProbe.EnsureHostClosed(tool); else ensureHostClosed(tool); }
+        Check();
+        var target = paths.Target(tool); var state = ReadState();
+        if (state.ContainsKey(tool.Id)) throw new IOException("이미 관리 중인 패키지입니다.");
+        if (Path.GetFullPath(target).Equals(Path.GetFullPath(reference.Path), StringComparison.OrdinalIgnoreCase)) throw new IOException("별도 배포 원본이 필요합니다.");
+        ValidatePackage(tool, reference.Path); ValidatePackage(tool, target);
+        var expected = SafeFiles.Hashes(reference.Path);
+        if (!SafeFiles.Same(expected, SafeFiles.Hashes(target))) throw new IOException("기존 설치가 확인된 배포본과 다릅니다. 사용자 변경을 보존합니다.");
+        Check();
+        state[tool.Id] = new(tool.Id, reference.Version, target, DateTimeOffset.UtcNow, expected); Save(state);
+    }
+
     public void Remove(ToolSpec tool)
     {
         using var operation = Lock();
@@ -139,6 +233,8 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
         var target = paths.Target(tool);
         var parent = Path.GetDirectoryName(target)!;
         var retired = SafeFiles.Child(parent, ".robim-removed-" + Guid.NewGuid().ToString("N"));
+        ensureHostClosed?.Invoke(tool);
+        EnsureUnchanged(record);
         Directory.Move(target, retired);
         try { state.Remove(tool.Id); Save(state); }
         catch { Directory.Move(retired, target); throw; }
@@ -147,7 +243,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
 
     public void Restore(ToolSpec tool, BackupInfo backup)
     {
-        ValidateRecord(tool, backup.Record);
+        ValidateRecord(tool, backup.Record, true);
         var root = SafeFiles.Child(paths.Data, "Backups/" + tool.Id);
         var directory = SafeFiles.Child(root, Path.GetFileName(backup.Directory));
         if (!directory.Equals(Path.GetFullPath(backup.Directory), StringComparison.OrdinalIgnoreCase))
@@ -168,10 +264,14 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     {
         SafeFiles.NoLinks(source);
         _ = SafeFiles.Hashes(source);
-        if (tool.Kind == ToolKind.AutoCAD)
+        if (tool.Kind is ToolKind.NativeRevit or ToolKind.NativeRevitHost)
+        {
+            NativeRevitPackages.Validate(source);
+        }
+        else if (tool.Kind == ToolKind.AutoCAD)
         {
             var manifest = System.Xml.Linq.XDocument.Load(Path.Combine(source, "PackageContents.xml"));
-            if (tool.CustomPackage)
+            if (tool.CustomPackage || CadReload.Compatible(source))
             {
                 if (manifest.Root?.Name.LocalName != "ApplicationPackage") throw new InvalidDataException("AutoCAD bundle 매니페스트 오류");
                 var modules = manifest.Descendants().Where(x => x.Name.LocalName == "ComponentEntry").Select(x => (string?)x.Attribute("ModuleName")).ToArray();
@@ -181,6 +281,12 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
                     var relative = (module ?? "").Replace('\\', '/');
                     if (relative.StartsWith("./")) relative = relative[2..];
                     if (relative.Length == 0 || !File.Exists(SafeFiles.Child(source, relative))) throw new InvalidDataException("AutoCAD 실행 파일 누락 또는 경로 오류");
+                }
+                if (CadReload.Compatible(source))
+                {
+                    var root = CadReload.WindowsDirectory(source);
+                    foreach (var module in RoBIM.Cad.Configuration.CadFiles.Catalog(root).Modules)
+                        _ = ModuleReleases.Cad(root, module.Id, module.Version);
                 }
             }
             else if (manifest.Root?.Name.LocalName != "ApplicationPackage" ||

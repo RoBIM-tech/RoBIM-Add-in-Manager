@@ -36,7 +36,7 @@ public sealed partial class ManagerForm : Form
     private bool busy;
     private readonly bool preview;
 
-    public ManagerForm(bool preview = false)
+    public ManagerForm(bool preview = false, bool inspect = false)
     {
         this.preview = preview;
         installer = new(paths, EnvironmentProbe.EnsureHostClosed);
@@ -45,15 +45,16 @@ public sealed partial class ManagerForm : Form
         using (var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico")!)
         using (var icon = new Icon(stream)) Icon = (Icon)icon.Clone();
         Font = new Font("맑은 고딕", 10F);
+        AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
-        Size = new Size(1240, 820);
-        MinimumSize = new Size(1120, 740);
+        Size = new Size(1320, 850);
+        MinimumSize = new Size(1180, 740);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.White;
         BuildView();
         FormClosing += (_, e) => { if (busy) { e.Cancel = true; MessageBox.Show(this, "작업이 끝난 뒤 닫아 주십시오.", Text); } };
         if (preview) { ShowPreviewRows(); _ = RefreshProfileLabel(); }
-        else Shown += async (_, _) => await Run("설치 상태 확인", async () => { await RefreshStatuses(); await RefreshAccountAndCatalog(); await RefreshProfileLabel(); });
+        else if (!inspect) Shown += async (_, _) => await StartLocalDisplay();
     }
     private static Button MakeButton(string text, bool primary = false) => new()
     {
@@ -82,38 +83,13 @@ public sealed partial class ManagerForm : Form
 
     private async Task RefreshStatuses()
     {
+        await LoadRegisteredPackages();
         var selectedId = SelectedStatus()?.Tool.Id;
+        var refreshed = await Task.WhenAll(Catalog.Tools.Select(tool => tool == Catalog.Revit
+            ? EnvironmentProbe.RevitStatus(paths) : Task.Run(() => installer.Status(tool))));
+        if (IsDisposed) return;
         statuses.Clear();
-        foreach (var tool in Catalog.Tools)
-        {
-            var status = await Task.Run(() => installer.Status(tool));
-            if (tool.Kind == ToolKind.PyRevit)
-            {
-                try
-                {
-                    var external = await EnvironmentProbe.ExternalRevit(paths.Target(tool));
-                    if (external is not null && (status.Managed || status.External))
-                        status = status with { Modified = true, Detail = "중복 RoBIM 설치 감지 — 경로 정리 필요" };
-                    else if (external is not null && !status.Managed)
-                    {
-                        var version = await EnvironmentProbe.ExternalVersion(external);
-                        var dirty = (await ProcessRunner.GitRequired(external, "status", "--porcelain", "--untracked-files=normal")).Length != 0;
-                        status = new(tool, external, version, false, true, dirty,
-                            dirty ? "기존 설치 연결 · 로컬 변경 있음" : "기존 설치 연결 · 브랜치 유지");
-                    }
-                    else if (status.External)
-                    {
-                        var dirty = (await ProcessRunner.GitRequired(status.Path, "status", "--porcelain", "--untracked-files=normal")).Length != 0;
-                        status = status with { Version = await EnvironmentProbe.ExternalVersion(status.Path), Modified = dirty,
-                            Detail = dirty ? "기존 설치 연결 · 로컬 변경 있음" : "기존 설치 연결 · 브랜치 유지" };
-                    }
-                }
-                catch (Exception ex) { status = status with { Modified = true, Detail = "pyRevit 확인 필요: " + ex.Message }; }
-                if (status.External && !status.Version.StartsWith("main@", StringComparison.Ordinal) && !status.Modified)
-                    status = status with { Detail = "기존 개발 브랜치 · 코드 보존" };
-            }
-            statuses[tool.Id] = status;
-        }
+        foreach (var status in refreshed) statuses[status.Tool.Id] = status;
         grid.Rows.Clear();
         foreach (var row in statuses.Values)
         {
@@ -122,8 +98,10 @@ public sealed partial class ManagerForm : Form
             grid.Rows[index].Tag = row;
             if (row.Tool.Id == selectedId) grid.CurrentCell = grid.Rows[index].Cells[0];
         }
+        if (!preview && cadButtonPackage is null && File.Exists(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip")))
+            cadButtonPackage = await Task.Run(() => sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip")));
         ShowSelected();
-        RefreshProductList();
+        await RefreshProductListAsync();
         WriteLog("설치 상태를 확인했습니다. Revit 기존 경로는 자동 연결하며 원본을 이동하지 않습니다.");
     }
 
@@ -218,10 +196,10 @@ public sealed partial class ManagerForm : Form
 
     private async Task Run(string name, Func<Task> operation)
     {
-        if (busy || preview) return;
+        if (busy || preview || refreshingSnapshot) return;
         busy = true;
         toolbar.Enabled = actions.Enabled = grid.Enabled = false;
-        userPage.Enabled = developerPage.Enabled = accountPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = false;
+        userPage.Enabled = developerPage.Enabled = accountPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = false;
         foreach (var control in navigation) control.Enabled = false;
         footer.Text = name + " 중…";
         try { await operation(); footer.Text = "완료 — 제품 실행 파일과 사용자 모델은 수정하지 않습니다."; }
@@ -234,14 +212,20 @@ public sealed partial class ManagerForm : Form
         finally
         {
             busy = false; toolbar.Enabled = actions.Enabled = grid.Enabled = true;
-            userPage.Enabled = developerPage.Enabled = accountPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = true;
+            userPage.Enabled = developerPage.Enabled = accountPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = true;
             foreach (var control in navigation) control.Enabled = true;
             ShowSelected();
             RefreshProductAction();
+            if (currentPage == "Locations") UpdateLocationActions();
         }
     }
 
-    private void WriteLog(string message) => log.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+    private void WriteLog(string message)
+    {
+        if (IsDisposed) return;
+        if (InvokeRequired) { try { BeginInvoke(() => WriteLog(message)); } catch (InvalidOperationException) { } return; }
+        log.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+    }
     private static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     private static void OpenFolder(string directory)
     {
@@ -251,6 +235,8 @@ public sealed partial class ManagerForm : Form
 
     private void ShowPreviewRows()
     {
+        var sheetPackage = new ExtensionPackage("sheets", "RoBIM 시트 생성", "revit", ".", "RoBIM.Sheets.bundle", "release", "RoBIM-Sheets-Revit2026.zip", "CAD · PDF 도면목록에서 도면번호와 도면명을 읽어 Revit 시트를 생성합니다.");
+        availablePackages.Add(new PackageRow(new ExtensionRepository("gagaggan/RoBIM-Revit-Addin", "main", [sheetPackage], "화면 확인용 예시"), sheetPackage));
         var cad = new ToolStatus(Catalog.Cad, paths.Target(Catalog.Cad), "v1.0.0-preview.1", true, false, false, "관리 중");
         var revit = new ToolStatus(Catalog.Revit, @"C:\RoBIM\RoBIM.extension", "main@82b51a7e0d42", false, true, false, "기존 설치 연결 · 브랜치 유지");
         foreach (var row in new[] { cad, revit })

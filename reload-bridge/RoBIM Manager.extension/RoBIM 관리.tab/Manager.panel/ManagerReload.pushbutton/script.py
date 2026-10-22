@@ -3,6 +3,10 @@
 import io
 import json
 import os
+import clr
+clr.AddReference("System.Diagnostics.Process")
+# .NET 8 splits FileVersionInfo into a separate assembly (Revit 2025+).
+clr.AddReference("System.Diagnostics.FileVersionInfo")
 
 from System import Environment
 from System.Diagnostics import Process, ProcessStartInfo, FileVersionInfo
@@ -27,7 +31,7 @@ def main():
         forms.alert(u"RoBIM Manager Preview 3 이상을 먼저 설치하십시오.")
         return
     version = FileVersionInfo.GetVersionInfo(exe).ProductVersion or ""
-    if not version or version.startswith("1.0.0-preview.1") or version.startswith("1.0.0-preview.2"):
+    if not version or version.split("+")[0] in ("1.0.0-preview.1", "1.0.0-preview.2"):
         forms.alert(u"Reload 연결에는 RoBIM Manager Preview 3 이상이 필요합니다.")
         return
     current = Process.GetCurrentProcess()
@@ -55,6 +59,11 @@ def main():
         forms.alert(message, title="RoBIM Reload")
         return
     try:
+        try:
+            from robim_ribbon import stop
+            stop()
+        except ImportError:
+            pass
         sessionmgr.reload_pyrevit()
     except Exception as error:
         script.get_logger().exception("RoBIM files applied, pyRevit reload failed")

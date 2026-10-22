@@ -300,47 +300,47 @@
     "Error": ""
   },
   {
-    "Name": "AuthenticatedGitHubIdentity",
+    "Name": "CadPrepareKeepsInstalledFilesAndStartsPending",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "AuthenticatedAddinRepositoryDiscovery",
+    "Name": "CadPreparedSelectionAndRenamePreserved",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "GitUrlInspectionAndVerifiedReleaseDownload",
+    "Name": "CadReceiptRequiredForAppliedStatus",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "WindowsCredentialRoundtripAndCleanup",
+    "Name": "CadCoreUpdateRequiresClosedHostInstall",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "InvalidTokenPreservesCurrentConnection",
+    "Name": "CadTamperedSnapshotRejected",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "PrivateGitHubCadAndRevitDownloadInstall",
+    "Name": "CadUnknownSelectionAndDuplicateIdsRejected",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "ExternalReloadPinnedCommitRejected",
+    "Name": "CadTraversalAndStaleSessionRejected",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "ExternalRevitFastForwardAndBackup",
+    "Name": "CadCorruptPendingCanBeReprepared",
     "Passed": true,
     "Error": ""
   },
   {
-    "Name": "ExternalRevitLocalChangesPreserved",
+    "Name": "CadLocalModificationPreserved",
     "Passed": true,
     "Error": ""
   }

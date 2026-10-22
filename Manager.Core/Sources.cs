@@ -43,7 +43,7 @@ public sealed class Sources(ManagerPaths paths)
         var digestFile = archive + ".sha256";
         if (!File.Exists(digestFile) || !SafeFiles.Hash(archive).Equals(File.ReadAllText(digestFile).Trim(), StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("동봉 CAD 패키지의 해시가 일치하지 않습니다.");
-        return ExtractCad(archive, "v1.0.0-preview.1 (동봉)");
+        return ExtractCad(archive, "동봉 " + SafeFiles.Hash(archive)[..12]);
     }
 
     private string NewCache()
@@ -70,7 +70,7 @@ public sealed class Sources(ManagerPaths paths)
         string? version = null;
         foreach (var release in data.RootElement.EnumerateArray())
         {
-            if (release.GetProperty("draft").GetBoolean()) continue;
+            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) continue;
             foreach (var asset in release.GetProperty("assets").EnumerateArray())
                 if (asset.GetProperty("name").GetString() == "DelHiddenNet-AutoCAD2026.zip")
                 { chosenAsset = asset; version = release.GetProperty("tag_name").GetString(); break; }

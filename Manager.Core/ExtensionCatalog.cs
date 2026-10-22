@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace RoBIM.Manager.Core;
 
 public sealed record ExtensionPackage(string Id, string Name, string Host, string Path, string Folder,
-    string Distribution = "git", string? Asset = null, string Description = "");
+    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown");
 public sealed record ExtensionManifest(int SchemaVersion, ExtensionPackage[] Packages);
 public sealed record ExtensionRepository(string Repository, string Branch, ExtensionPackage[] Packages, string Recognition);
 public sealed record CatalogResult(IReadOnlyList<ExtensionRepository> Repositories, string[] Warnings);
@@ -43,7 +43,9 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         {
             if (package is null || string.IsNullOrWhiteSpace(package.Name) || package.Name.Length > 120 ||
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
-            if (package.Host is not ("pyrevit" or "autocad")) throw new InvalidDataException("지원 host: pyrevit, autocad");
+            if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
+            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
+            if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
             if (package.Folder is null || !Regex.IsMatch(package.Folder, @"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,100}$") ||
                 !package.Folder.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || package.Folder.Contains("..") || !folders.Add(package.Host + "/" + package.Folder))
@@ -96,11 +98,13 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, [entry])));
             return new(canonical, branch, [entry], "pyRevit .tab / .extension 구조");
         }
-        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD .bundle");
+        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD / 독립 Revit .bundle");
     }
     public ExtensionRepository[] Registered()
     {
-        if (!File.Exists(FilePath)) return [];
+        var bundled = BundledCatalog.Read();
+        var defaults = bundled.Repositories;
+        if (!File.Exists(FilePath)) return defaults;
         var repos = JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [];
         foreach (var repo in repos)
         {
@@ -108,7 +112,17 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             RevitPackages.ValidateBranch(repo.Branch);
             ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, repo.Packages)));
         }
-        return repos;
+        // Only superseded, centrally owned package entries are redirected. Reading
+        // the registry never rewrites it, installs tools or drops unrelated entries.
+        repos = CurrentSources(repos);
+        return defaults.Where(x => !repos.Any(r => r.Repository.Equals(x.Repository, StringComparison.OrdinalIgnoreCase))).Concat(repos).ToArray();
+    }
+    private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
+    {
+        var moves = BundledCatalog.Read().RepositoryMoves ?? [];
+        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
+            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))).ToArray() })
+            .Where(repo => repo.Packages.Length > 0).ToArray();
     }
     public void Register(ExtensionRepository repository)
     {
@@ -147,17 +161,29 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException or ArgumentException)
             { repos[entry.Repository] = entry with { Recognition = "등록 사본 · 접근 확인 필요" }; warnings.Add(entry.Repository + ": " + ex.Message); }
         }
-        return new(repos.Values.OrderBy(x => x.Repository).ToArray(), warnings.ToArray());
+        return new(CurrentSources(repos.Values).OrderBy(x => x.Repository).ToArray(), warnings.ToArray());
     }
     public static ToolSpec Tool(ExtensionRepository repository, ExtensionPackage package)
     {
         if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Cad.FolderName) return Catalog.Cad;
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
-        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
+        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
-        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(repository.Repository.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
-        return new("ext-" + digest, package.Name, package.Host == "autocad" ? ToolKind.AutoCAD : ToolKind.PyRevit,
+        // A one-to-one repository move keeps the legacy installation record key.
+        // Module/command IDs continue to identify Native selections and ribbon state.
+        var identity = (BundledCatalog.Read().RepositoryMoves ?? []).FirstOrDefault(move => move.ToRepositories.Length == 1 &&
+            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? repository.Repository;
+        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
+        return new("ext-" + digest, ToolNames.Display(package.Name), package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
+    }
+    public static ExtensionPackage CurrentPackage(ExtensionPackage previous, ExtensionRepository current)
+    {
+        var package = current.Packages.SingleOrDefault(p => p.Id == previous.Id) ?? throw new IOException("기존 패키지 ID가 저장소에 없습니다.");
+        if (package.Host != previous.Host || package.Path != previous.Path || package.Folder != previous.Folder ||
+            package.Distribution != previous.Distribution || package.Asset != previous.Asset)
+            throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
+        return package;
     }
     public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)
     {
@@ -175,23 +201,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         }
         else
         {
-            using var releases = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases?per_page=100");
-            if (!releases.IsSuccessStatusCode) throw new IOException("배포 릴리스 조회 실패");
-            using var json = JsonDocument.Parse(await releases.Content.ReadAsStringAsync());
-            JsonElement? asset = null; version = "";
-            foreach (var release in json.RootElement.EnumerateArray())
-            {
-                if (release.GetProperty("draft").GetBoolean()) continue;
-                foreach (var candidate in release.GetProperty("assets").EnumerateArray())
-                    if (candidate.GetProperty("name").GetString() == package.Asset) { asset = candidate; version = release.GetProperty("tag_name").GetString()!; break; }
-                if (asset is not null) break;
-            }
-            if (asset is null) throw new IOException("표시 정보의 ZIP 배포 파일을 찾지 못했습니다.");
-            var selected = asset.Value;
-            var digest = selected.TryGetProperty("digest", out var d) ? d.GetString() : null;
-            if (selected.GetProperty("size").GetInt64() > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
-                throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
-            using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + selected.GetProperty("id").GetInt64(), "application/octet-stream");
+            var offer = await ReleaseUpdates.Check(refreshed, package);
+            version = offer.Version;
+            var digest = offer.Digest;
+            using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + offer.AssetId, "application/octet-stream");
             if (!download.IsSuccessStatusCode) throw new IOException("배포 다운로드 실패");
             var zip = System.IO.Path.Combine(cache, "package.zip");
             using (var input = await download.Content.ReadAsStreamAsync())
@@ -204,7 +217,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             root = System.IO.Path.Combine(cache, "extracted"); SafeFiles.Extract(zip, root);
         }
         var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
-        var prepared = System.IO.Path.Combine(cache, "runtime"); SafeFiles.Copy(source, prepared, false);
+        var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
         InstallService.ValidatePackage(Tool(refreshed, package), prepared);
         return new(prepared, version);
     }

@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private readonly Panel content = new() { Dock = DockStyle.Fill, Padding = new(28, 22, 28, 20), BackColor = Color.FromArgb(248, 250, 253) };
+    private readonly Panel content = new() { Dock = DockStyle.Fill, Padding = new(26, 22, 26, 16), BackColor = Color.FromArgb(246, 247, 249) };
     private readonly Panel userPage = new() { Dock = DockStyle.Fill };
     private readonly Panel developerPage = new() { Dock = DockStyle.Fill };
     private readonly Panel accountPage = new() { Dock = DockStyle.Fill };
@@ -32,32 +32,38 @@ public sealed partial class ManagerForm
 
     private void BuildView()
     {
-        var sidebar = new Panel { Dock = DockStyle.Left, Width = 208, BackColor = Color.FromArgb(23, 36, 58), Padding = new(16, 24, 16, 16) };
-        sidebar.Controls.Add(new Label { Text = "RoBIM\nADD-IN\nMANAGER", ForeColor = Color.White, Font = new Font(Font.FontFamily, 19, FontStyle.Bold), AutoSize = true, Location = new(22, 20) });
-        var nav = new FlowLayoutPanel { Location = new(12, 140), Size = new(184, 360), FlowDirection = FlowDirection.TopDown, WrapContents = false };
-        foreach (var (id, title) in new[] { ("Revit", "Revit"), ("Cad", "AutoCAD"), ("Extensions", "도구 추가"), ("Developer", "개발자 TEST"), ("Account", "설정 / GitHub") })
+        var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
+        var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 540, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit 독립 Add-in"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Test", "TEST 도구"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
         {
-            var button = new Button { Text = title, Tag = id, Width = 180, Height = 48, FlatStyle = FlatStyle.Flat,
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new(12, 0, 0, 0), Margin = new(0, 0, 0, 8), ForeColor = Color.White, BackColor = sidebar.BackColor };
+            var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
             button.FlatAppearance.BorderSize = 0;
             button.Click += (_, _) => SwitchPage(id);
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
-        sidebar.Controls.Add(new Label { Text = "Add-in Manager\n" + Application.ProductVersion.Split('+')[0], ForeColor = Color.FromArgb(148, 165, 190), AutoSize = true, Dock = DockStyle.Bottom, Padding = new(8) });
+        sidebar.Controls.Add(new Label { Text = "RoBIM Manager\n" + Application.ProductVersion.Split('+')[0], ForeColor = Color.FromArgb(112, 123, 140), AutoSize = true, Dock = DockStyle.Bottom, Padding = new(8) });
+        var brand = new Panel { Dock = DockStyle.Top, Height = 62, BackColor = Color.White, Padding = new(24, 12, 24, 12) };
+        brand.Controls.Add(new Label { Text = "RoBIM", Font = new Font(Font.FontFamily, 18, FontStyle.Bold), ForeColor = Color.FromArgb(49, 92, 164), AutoSize = true, Location = new(24, 12) });
+        brand.Controls.Add(new Label { Text = "Add-in Manager", Font = new Font(Font.FontFamily, 12), ForeColor = Color.FromArgb(55, 65, 81), AutoSize = true, Location = new(127, 20) });
         var shell = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
         shell.RowStyles.Add(new(SizeType.AutoSize)); shell.RowStyles.Add(new(SizeType.AutoSize));
         shell.RowStyles.Add(new(SizeType.Percent, 100)); shell.RowStyles.Add(new(SizeType.AutoSize));
         var header = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new(0, 0, 0, 12) };
-        header.Controls.AddRange([pageTitle, pageSubtitle]); shell.Controls.Add(header);
-        shell.Controls.Add(profileLabel);
+        header.Controls.AddRange([pageTitle, pageSubtitle]); shell.Controls.Add(header, 0, 0);
+        profileLabel.Font = new Font(Font.FontFamily, 9);
+        shell.Controls.Add(profileLabel, 0, 1);
         var pages = new Panel { Dock = DockStyle.Fill };
-        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage]); shell.Controls.Add(pages);
+        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage, ribbonPage, locationsPage]); shell.Controls.Add(pages, 0, 2);
         footer.Font = new Font(Font.FontFamily, 9);
-        footer.ForeColor = Color.FromArgb(110, 120, 135); shell.Controls.Add(footer);
+        footer.ForeColor = Color.FromArgb(110, 120, 135); shell.Controls.Add(footer, 0, 3);
         content.Controls.Add(shell);
-        Controls.Add(content); Controls.Add(sidebar);
-        BuildUserPage(); BuildDeveloperPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage();
+        var workspace = new Panel { Dock = DockStyle.Fill };
+        workspace.Controls.Add(content); workspace.Controls.Add(sidebar);
+        Controls.Add(workspace); Controls.Add(brand);
+        BuildUserPage(); BuildDeveloperPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildLocationsPage();
         try
         {
             var file = Path.Combine(paths.Data, "ui-preferences.json");
@@ -225,17 +231,26 @@ public sealed partial class ManagerForm
 
     private void SwitchPage(string id)
     {
-        if (id == "User") id = SelectedStatus()?.Tool.Kind == ToolKind.AutoCAD ? "Cad" : "Revit";
+        if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
         currentPage = id;
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";
         extensionsPage.Visible = id == "Extensions";
-        productsPage.Visible = id is "Revit" or "Cad";
-        profileLabel.Visible = true;
+        ribbonPage.Visible = id == "Ribbon";
+        locationsPage.Visible = id == "Locations";
+        if (id == "Locations") ShowLocation();
+        if (id == "Ribbon") RefreshRibbonEditor();
+        productsPage.Visible = IsProductPage;
+        profileLabel.Visible = id is "Revit" or "PyRevit" or "Cad" or "Developer";
         _ = RefreshProfileLabel();
-        pageTitle.Text = id == "Revit" ? "Revit" : id == "Cad" ? "AutoCAD" : id == "Developer" ? "개발자 TEST" : id == "Extensions" ? "도구 추가" : "설정 / GitHub";
-        pageSubtitle.Text = id is "Revit" or "Cad" ? "도구를 선택하고 아래 버튼을 누르세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "처음 한 번 계정을 연결하면 설치할 수 있습니다.";
-        foreach (var control in navigation) control.BackColor = (string?)control.Tag == id ? Color.FromArgb(42, 67, 105) : Color.FromArgb(23, 36, 58);
-        RefreshProductList();
+        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit 독립 Add-in" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
+        pageSubtitle.Text = id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "처음 한 번 계정을 연결하면 설치할 수 있습니다.";
+        foreach (var control in navigation)
+        {
+            var selected = (string?)control.Tag == id;
+            control.BackColor = selected ? Color.FromArgb(232, 238, 249) : Color.White;
+            control.ForeColor = selected ? Color.FromArgb(49, 92, 164) : Color.FromArgb(70, 79, 94);
+        }
+        RenderProductCards();
     }
 
     public void PreviewPage(string mode)
@@ -252,6 +267,11 @@ public sealed partial class ManagerForm
         if (mode == "Account") accountStatus.Text = "저장된 계정  ·  예시 사용자";
         if (mode == "Extensions") ShowExtensionsPreview();
         SwitchPage(mode);
+        if (mode == "Ribbon" && ribbonEditor is not null)
+        {
+            ribbonEditor.LoadTools([new("demo:sheet", "시트 생성", "RoBIM 도면", "시트", true), new("demo:join", "AutoJoin", "RoBIM 기본", "요소 수정", true), new("demo:beam", "보 높이 맞춤", "RoBIM 기본", "요소 수정", true), new("demo:copy", "뷰 복제", "RoBIM 기본", "뷰", true), new("demo:rotate", "뷰 회전", "RoBIM 기본", "뷰", true), new("demo:name", "뷰 이름 변경", "RoBIM 기본", "뷰", true)]);
+            ribbonEditor.LoadLayout(new(1, "Revit", [new("RoBIM 기본", [new("모델 수정", [new("demo:sheet", "시트 생성"), new("separator:demo", "구분선", Kind: "Separator"), new("demo:join", "AutoJoin", "Small", "demo-two", 2), new("demo:beam", "보 높이 맞춤", "Small", "demo-two", 2)]), new("뷰 관리", [new("demo:copy", "뷰 복제", "Small", "demo-three", 3), new("demo:rotate", "뷰 회전", "Small", "demo-three", 3), new("demo:name", "뷰 이름 변경", "Small", "demo-three", 3)])])]));
+        }
     }
 
     private async Task RefreshAccount()
@@ -272,11 +292,14 @@ public sealed partial class ManagerForm
 
     private Task RefreshProfileLabel()
     {
-        if (currentPage == "Cad") { profileLabel.Text = "AutoCAD 2026 · 설치 후 DHNET 실행"; return Task.CompletedTask; }
-        if (currentPage is "Extensions" or "Account") { profileLabel.Text = "필요할 때만 사용하는 추가 설정입니다."; return Task.CompletedTask; }
+        if (currentPage == "Revit") { profileLabel.Text = "독립 Add-in만 표시 · 설치·제거 준비 후 독립 Add-in Reload로 적용"; return Task.CompletedTask; }
+        if (currentPage == "PyRevit") { profileLabel.Text = "pyRevit 버튼만 표시 · 설치·제거 준비 후 pyRevit Reload로 적용"; return Task.CompletedTask; }
+        if (currentPage == "Cad") { profileLabel.Text = "버튼별 설치·제거 준비 → AutoCAD의 RoBIM → 관리 → Reload"; return Task.CompletedTask; }
+        if (currentPage is "Extensions" or "Account" or "Locations") { profileLabel.Text = "필요할 때만 사용하는 추가 설정입니다."; return Task.CompletedTask; }
         if (preview) { profileLabel.Text = "Revit 적용 프로필  ·  사용자"; return Task.CompletedTask; }
         var developer = RevitProfiles.EnabledFromUserIni("RoBIM-Developer");
-        profileLabel.Text = developer ? "Revit 적용 프로필  ·  개발자 TEST — Reload 또는 재시작 후 반영" : "Revit 적용 프로필  ·  사용자 / 기존 설치";
+        var selected = RevitProfiles.EnabledFromUserIni("RoBIM-Selected");
+        profileLabel.Text = "독립 Add-in: Revit Reload · pyRevit 버튼 선택: 적용 및 Reload · " + (selected ? "선택 프로필" : developer ? "개발자 TEST" : "사용자 / 기존 설치");
         return Task.CompletedTask;
     }
 

@@ -10,3 +10,6 @@ artifacts/
 *.bak
 .vs/
 *.user
+
+__pycache__/
+*.pyc

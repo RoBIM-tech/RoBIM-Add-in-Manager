@@ -8,3 +8,9 @@ if ($Online) { $arguments += '--online' }
 & dotnet @arguments
 if ($LASTEXITCODE -ne 0) { throw "Manager tests failed: $runRoot" }
 Copy-Item -LiteralPath (Join-Path $runRoot 'results.json') -Destination (Join-Path $root 'artifacts\manager-test-results.json') -Force
+
+& python (Join-Path $PSScriptRoot 'test-ribbon-activation.py')
+if ($LASTEXITCODE -ne 0) { throw 'Ribbon activation regression failed.' }
+
+& python (Join-Path $root 'scripts/validate_registration.py')
+if ($LASTEXITCODE -ne 0) { throw 'Central catalog regression failed.' }

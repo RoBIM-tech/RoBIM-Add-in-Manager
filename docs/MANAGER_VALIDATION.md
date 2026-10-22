@@ -1,5 +1,21 @@
 # RoBIM Add-in Manager 검증
 
+## 실제 사용자 환경 실행 경로 복구 (2026-10-15)
+
+- Codex에서 직접 실행한 Manager의 데이터 파일이 Windows 패키지 가상화 폴더에 저장되어 일반 AutoCAD와 공유되지 않는 문제를 확인.
+- Manager 정상 종료 후 원본 데이터를 보존하고 일반 사용자 경로로 누락 파일만 해시 검증 복사. Explorer를 통해 Preview 7 재실행하고 프로세스에 패키지 식별자가 없음을 확인.
+- 실행 중인 실제 AutoCAD에서 도면 객체 변경 없이 ROBIMRELOAD 실행. 정리·분할 선택 버튼 2개 적용 완료 응답(`applied`, 2026-10-15 16:51:14 +09:00)을 확인. CAD 리본 클릭·실제 삭제·분할 실행은 이 검증에 포함하지 않음.
+
+## Preview 7 CAD 선택 준비 / Reload
+
+- Manager 로컬 테스트 69개 통과 (`artifacts/manager-tests-54f8cf8c8de74f1ba1ce0e879ac656cd/results.json`). 기존 설치·백업·Revit 보호 회귀 및 CAD 스냅샷 준비·파일 보존·선택/이름/순서 유지·응답 구분·코어/세션/경로/로컬 변경 거부 포함. 이번 실행은 온라인 옵션을 사용하지 않았으며 아래 과거 온라인 검증과 구분한다.
+- CAD 저장소의 별도 Core Console 테스트 18개 통과. 실제 A/B 코드 교체와 선택 복원·실패 복구 검증. Manager 실제 준비 코드 → 별도 CAD 테스트 프로필의 ROBIMRELOAD → 선택 실행/미선택 차단 → 적용 응답 연동 통과.
+- Portable 임시 설치/재설치/UI 렌더/제거 등 8항목 통과 (`artifacts/setup-tests-a396b2b3fcd54ac29dc03593e1e0361f`). 최초 샌드박스 UI 렌더는 타임아웃, 권한 확장 재실행에서 통과.
+- Test AppId로 별도 임시 폴더 네이티브 Setup 설치·ARP 등록·업데이트·제거·개인 파일 보존 등 7항목 통과 (`artifacts/native-tests-f58182a38a8f408c963c59b5b991a836`). 실제 설치된 Manager는 변경하지 않음.
+- 예시 데이터의 CAD 버튼 선택 창 렌더링/육안 확인: `artifacts/cad-buttons-preview.png`.
+- Preview 7 Setup과 Portable 빌드 성공. NuGet 취약성 메타데이터 서버 접근의 NU1900 경고가 있었으며 컴파일 오류나 패키지 생성 실패는 아님. CAD 빌드는 경고/오류 0.
+- 실제 AutoCAD GUI의 리본 클릭·작업공간 전환·연속 창·Esc·UNDO는 현장 확인 범위. Core Console 연동 통과를 이 GUI 검증으로 대신하지 않음.
+
 2026-10-15 / Windows x64 / .NET SDK 10.0.301.
 
 ## 설치 엔진·온라인 연동: 69개 통과

@@ -1,5 +1,18 @@
 # RoBIM Add-in Manager 기술 구조
 
+> 초기 구현·설계 이력을 포함한 기술 참고입니다. 현재 사용자 조작은 [사용설명서](user/README.md), 현재 적용 경로는 [개발자 설명서](developer/README.md)를 우선합니다.
+
+
+## Preview 7 CAD 연결
+
+기존 Windows Manager의 AutoCAD 화면에서 연결 모듈 최초 설치와 기능 버튼 선택/적용 준비를 구분한다. 연결 모듈 설치·업데이트/제거/복원은 호스트 종료가 필요하다. 이후 호환 기능과 버튼 정의는 별도 `CadReload` 경로로 준비하며 일반 설치 보호를 해제하지 않는다.
+
+`Manager.Core/CadConfiguration.cs`는 CAD와 독립 구현한 JSON 계약이며 Autodesk 참조가 없다. `CadReload`는 설치 해시·코어 DLL 해시·상대 경로·선택 ID를 확인하고 `%LOCALAPPDATA%/RoBIM/Manager/Cad/Snapshots/<ID>`에 완성된 payload를 준비한다. CAD는 명령 컨텍스트의 ROBIMRELOAD에서 PID/시작 시각과 파일 해시를 다시 검증하고 active.json/Results에 적용 상태를 기록한다. 타깃 PID 0은 CAD가 종료된 상태에서 다음 실행에 적용하도록 준비한 경우다.
+
+pending.json이 있다는 사실은 적용 완료가 아니다. Manager는 Results 응답을 읽어 준비됨/적용 완료/실패를 표시한다. CAD 로더가 바뀐 준비 요청은 다시 준비하도록 안내한다. 사용자별 구성은 설치 파일 밖에 있어 일반 설치 기록과 로컬 변경 검사를 보존한다.
+
+이 기능은 RoBIM 호환 catalog에 한한다. 타사 DLL을 일반적으로 언로드하는 도구가 아니며 Revit의 기존 binary 변경 차단 규칙은 유지한다. Manager EXE와 CAD 고정 코어 변경은 재시작 대상이다.
+
 사용 순서는 [간단 사용설명서](USER_GUIDE_KO.md)를 참고하십시오.
 
 이 저장소는 매니저·Setup·Reload 연결과 문서를 관리합니다. CAD는 gagaggan/RoBIM-CAD, Revit은 gagaggan/RoBIM-pyrevit에서 관리합니다. 초기 구현의 이전 Git 이력은 CAD 저장소의 과거 브랜치에 보존하고 현재 작업과 배포는 이 저장소로 분리합니다.
