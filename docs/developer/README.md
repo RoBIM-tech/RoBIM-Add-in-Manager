@@ -109,3 +109,12 @@ Revit `robim-release.json`, CAD robim-cad.json module의 channel·validation·li
 pyRevit의 UI cleanup은 같은 pyRevit 탭에 있던 미갱신 Native 버튼/패널에도 Enabled=false를 설정할 수 있습니다. Manager 연결에서 Visible만 복원하면 버튼이 보이면서 회색으로 남습니다. Preview 26은 실제 설치/활성 선택에서 해석한 버튼에 한해 API Enabled=true를 복원하고, 소유 탭/목적지 패널도 활성화합니다. Revit 명령의 availability나 모델 편집 상태를 우회하지 않으며 다른 제품·미설치 버튼은 복원하지 않습니다. start마다 fingerprint/warmup을 초기화해 pyRevit UI cleanup이 끝난 뒤 Idling에서 다시 적용합니다.
 
 revit-ui-state.json의 EnabledBeforeRestore, Enabled, UiEnabled, PanelEnabled는 복원 전후 상태를 기록합니다. tests/test-ribbon-activation.py는 실제 apply_layout 코드를 가짜 리본에 적용하여 두 관리 버튼과 부모 복원, 다른 제품/제거 버튼 보존, 미설치 탭 미생성, 반복 적용을 검사합니다. run-manager-tests.ps1에서 함께 실행합니다. pyRevit core와 Native Host DLL은 이 수정에 포함되지 않습니다.
+
+
+## 저장소 이동과 단일 버튼 등록
+
+신규 Revit 저장소는 중앙 목록 한 패키지·한 명령과 기능 descriptor가 일치해야 합니다. validate_registration.py는 두 번째 명령, 서로 다른 패키지 정의, 다른 저장소 ProjectReference, 부정확한 RoBIM 의존성 버전을 거부합니다.
+
+catalog/modules.json의 repositoryMoves는 구 Native 저장소에 등록된 중앙 소유 패키지만 새 기본 저장소로 연결합니다. Registered()는 사용자 파일을 쓰지 않고 모르는 패키지·새 저장소의 사용자 브랜치 선택을 유지합니다. 시트의 일대일 이동은 Tool 설치 ID도 구 identity로 계산해 기존 레코드를 유지합니다. 이 이전 정의를 임의 제거하면 설치 ID가 달라지므로 호환 계약으로 보존합니다. 모듈/명령 ID는 저장소 이동으로 바꾸지 않습니다.
+
+신규 소스 생성은 Workspace 도구를 사용하고 Manager와 Workspace PR을 함께 검토합니다. 중앙 목록 변경은 앱 소스 반영이며 사용자 PC는 새 목록이 포함된 Manager 배포 또는 URL 등록이 필요합니다. 새 저장소 자체는 자동 설치가 아닙니다.

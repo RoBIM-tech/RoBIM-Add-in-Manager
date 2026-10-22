@@ -2,6 +2,8 @@ param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackageP
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+python (Join-Path $PSScriptRoot 'scripts/validate_registration.py')
+if ($LASTEXITCODE -ne 0) { throw 'Central button catalog validation failed.' }
 # Compatibility switch retained for existing build commands. CAD is a separately released package.
 $cadPackage = if ($CadPackagePath) { [IO.Path]::GetFullPath($CadPackagePath) } else { Join-Path $PSScriptRoot 'artifacts\DelHiddenNet-AutoCAD2026.zip' }
 if (!(Test-Path -LiteralPath $cadPackage) -or !(Test-Path -LiteralPath ($cadPackage + '.sha256'))) {

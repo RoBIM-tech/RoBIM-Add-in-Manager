@@ -17,6 +17,14 @@ def validate_catalog(catalog):
             if key in packages: raise ValueError('Duplicate package')
             packages.add(key)
             if package['host'] not in ('revit','autocad') or package['distribution'] != 'release': raise ValueError('New tools must be independent release packages')
+    repositories={r['repository'].lower():r for r in catalog['repositories']}
+    if len(repositories)!=len(catalog['repositories']): raise ValueError('Duplicate repository')
+    for name,repo in repositories.items():
+        declared=[c for c in catalog['commands'] if c['repository'].lower()==name]
+        if any(p['host']=='revit' for p in repo['packages']):
+            if len(repo['packages'])!=1 or len(declared)!=1: raise ValueError('One native button/package per repository required: '+repo['repository'])
+        elif name!='gagaggan/robim-cad' and (len(repo['packages'])!=1 or len(declared)!=1):
+            raise ValueError('New button repositories must own one command')
     for command in catalog['commands']:
         key=(command['host'],command['moduleId'],command['commandId'])
         if key in commands: raise ValueError('Duplicate global command ID')
@@ -33,6 +41,7 @@ def validate_source(catalog, source, host, repository):
         if manifest is None: raise ValueError('robim-module.json missing')
         module=read(manifest)
         definitions=[(module['id'],c['id']) for c in module['commands']]
+        if len(definitions)!=1: raise ValueError('One command per native button repository required')
         release=read(manifest.parent/'robim-release.json')
         entries={m['id']:m for m in release['modules']}
         maturity=entries[module['id']]
@@ -44,6 +53,22 @@ def validate_source(catalog, source, host, repository):
             if '-' in maturity['version'].split('+')[0] or not all(v.get(k) for k in ('by','hostBuild','evidence')) or not v['evidence'].startswith('https://'): raise ValueError('Stable needs host verification evidence')
         descriptor=read(source/'robim-package.json')
         packageIds={p['id'] for p in descriptor['packages'] if p['host']=='revit' and p['distribution']=='release'}
+        if len(descriptor['packages'])!=1 or len(packageIds)!=1: raise ValueError('One native package per button repository required')
+        central=[r for r in catalog['repositories'] if r['repository']==repository]
+        if len(central)!=1 or central[0]['packages']!=descriptor['packages']: raise ValueError('Source/Manager package definitions differ')
+        import xml.etree.ElementTree as ET
+        libraries={x['id']:x['version'] for x in maturity.get('libraries',[])}
+        for project in (source/'src').rglob('*.csproj'):
+            tree=ET.parse(project)
+            for ref in tree.findall('.//ProjectReference'):
+                target=(project.parent/ref.attrib['Include']).resolve()
+                if not target.is_relative_to(source.resolve()): raise ValueError('Cross-repository ProjectReference forbidden; use a pinned package')
+            for ref in tree.findall('.//PackageReference'):
+                name=ref.attrib.get('Include','')
+                if name.startswith('RoBIM.'):
+                    version=ref.attrib.get('Version','')
+                    if not re.fullmatch(r'\[[^,\[\]*]+\]',version) or libraries.get(name)!=version[1:-1]: raise ValueError('RoBIM dependency must be exactly pinned and declared: '+name)
+
     elif host=='autocad':
         manifest=source/'bundle/DelHiddenNet.bundle/Contents/Windows/robim-cad.json'
         definitions=[(m['id'],a['id']) for m in read(manifest)['modules'] for a in m['actions']]

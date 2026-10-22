@@ -102,7 +102,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     public ExtensionRepository[] Registered()
     {
-        var defaults = BundledCatalog.Read().Repositories;
+        var bundled = BundledCatalog.Read();
+        var defaults = bundled.Repositories;
         if (!File.Exists(FilePath)) return defaults;
         var repos = JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [];
         foreach (var repo in repos)
@@ -111,7 +112,17 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             RevitPackages.ValidateBranch(repo.Branch);
             ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, repo.Packages)));
         }
+        // Only superseded, centrally owned package entries are redirected. Reading
+        // the registry never rewrites it, installs tools or drops unrelated entries.
+        repos = CurrentSources(repos);
         return defaults.Where(x => !repos.Any(r => r.Repository.Equals(x.Repository, StringComparison.OrdinalIgnoreCase))).Concat(repos).ToArray();
+    }
+    private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
+    {
+        var moves = BundledCatalog.Read().RepositoryMoves ?? [];
+        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
+            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))).ToArray() })
+            .Where(repo => repo.Packages.Length > 0).ToArray();
     }
     public void Register(ExtensionRepository repository)
     {
@@ -150,7 +161,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException or ArgumentException)
             { repos[entry.Repository] = entry with { Recognition = "등록 사본 · 접근 확인 필요" }; warnings.Add(entry.Repository + ": " + ex.Message); }
         }
-        return new(repos.Values.OrderBy(x => x.Repository).ToArray(), warnings.ToArray());
+        return new(CurrentSources(repos.Values).OrderBy(x => x.Repository).ToArray(), warnings.ToArray());
     }
     public static ToolSpec Tool(ExtensionRepository repository, ExtensionPackage package)
     {
@@ -158,7 +169,11 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
         if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
-        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(repository.Repository.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
+        // A one-to-one repository move keeps the legacy installation record key.
+        // Module/command IDs continue to identify Native selections and ribbon state.
+        var identity = (BundledCatalog.Read().RepositoryMoves ?? []).FirstOrDefault(move => move.ToRepositories.Length == 1 &&
+            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? repository.Repository;
+        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
         return new("ext-" + digest, package.Name, package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
     }

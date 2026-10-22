@@ -79,7 +79,7 @@ Manager의 해당 Reload 작업을 사용할 수도 있습니다. 진행 중인 
 | LocalCache/실제 경로 오류 | Manager를 정상 종료하고 Windows 시작 메뉴에서 다시 실행. 기존 데이터 폴더를 임의로 삭제하지 않음 |
 | Reload 후 오류 | 오류 메시지·도구 버전·호스트 버전·누른 순서 기록. 준비/적용 상태를 확인하고 제공되는 복원 사용 |
 
-기능 자체의 조작은 [pyRevit](https://github.com/gagaggan/RoBIM-pyrevit/blob/codex/jm/manager-workspace-cleanup/docs/user/README.md), [시트 생성](https://github.com/gagaggan/RoBIM-Revit-Addin/blob/codex/manager-workspace-cleanup/docs/user/README.md), [CAD](https://github.com/gagaggan/RoBIM-CAD/blob/codex/manager-workspace-cleanup/docs/user/README.md) 설명서를 사용합니다.
+기능 자체의 조작은 [pyRevit](https://github.com/gagaggan/RoBIM-pyrevit/blob/codex/jm/manager-workspace-cleanup/docs/user/README.md), [시트 생성](https://github.com/gagaggan/RoBIM-Revit-Sheets/blob/main/docs/user/README.md), [CAD](https://github.com/gagaggan/RoBIM-CAD/blob/codex/manager-workspace-cleanup/docs/user/README.md) 설명서를 사용합니다.
 
 [문서 목록](../README.md) · [개발자 설명서](../developer/README.md)
 

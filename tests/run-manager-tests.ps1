@@ -11,3 +11,6 @@ Copy-Item -LiteralPath (Join-Path $runRoot 'results.json') -Destination (Join-Pa
 
 & python (Join-Path $PSScriptRoot 'test-ribbon-activation.py')
 if ($LASTEXITCODE -ne 0) { throw 'Ribbon activation regression failed.' }
+
+& python (Join-Path $root 'scripts/validate_registration.py')
+if ($LASTEXITCODE -ne 0) { throw 'Central catalog regression failed.' }
