@@ -2,6 +2,11 @@ using System.IO.Compression;
 using System.Text.Json;
 using RoBIM.Manager.Core;
 
+if (args.Length == 2 && args[0] == "--check-native-downloads")
+{
+    await SingleNativeButtonTests.Downloads(Path.GetFullPath(args[1])); return 0;
+}
+
 if (args.Length == 2 && args[0] == "--check-existing-button-workflows")
 {
     await ExistingButtonWorkflows.Run(Path.GetFullPath(args[1])); return 0;
@@ -53,7 +58,14 @@ if (args.Contains("--location-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
+if (args.Contains("--native-single-only"))
+{
+    SingleNativeButtonTests.Run(Test, Paths, Require, root);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
+}
 ReleaseTests.Run(Test, Require, root);
+SingleNativeButtonTests.Run(Test, Paths, Require, root);
 var v1 = Package("v1", "version one");
 var v2 = Package("v2", "version two");
 var tool = Catalog.Cad;

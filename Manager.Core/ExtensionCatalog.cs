@@ -174,7 +174,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         var identity = (BundledCatalog.Read().RepositoryMoves ?? []).FirstOrDefault(move => move.ToRepositories.Length == 1 &&
             move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? repository.Repository;
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
-        return new("ext-" + digest, package.Name, package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
+        return new("ext-" + digest, ToolNames.Display(package.Name), package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
     }
     public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)
@@ -222,7 +222,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             root = System.IO.Path.Combine(cache, "extracted"); SafeFiles.Extract(zip, root);
         }
         var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
-        var prepared = System.IO.Path.Combine(cache, "runtime"); SafeFiles.Copy(source, prepared, false);
+        var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
         InstallService.ValidatePackage(Tool(refreshed, package), prepared);
         return new(prepared, version);
     }

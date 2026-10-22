@@ -70,11 +70,13 @@ public sealed partial class ManagerForm
                 else
                 {
                     var manager = new NativeRevitCommands(paths);
-                    var source = manager.CachedForFolder(owner.Status.Tool.FolderName);
+                    var registration = owner.Package is null ? null : SingleNativeButton.Registration(owner.Package.Repository, owner.Package.Package);
+                    var source = registration is null ? manager.CachedForFolder(owner.Status.Tool.FolderName) : manager.Cached(registration.ModuleId);
                     if (source is null && File.Exists(Path.Combine(owner.Status.Path, NativeProtocol.ManifestName))) source = new(owner.Status.Path, owner.Status.Version);
                     if (source is not null)
                     {
-                        var module = NativeProtocol.Module(source.Path);
+                        var module = owner.Package is not null && registration is not null
+                            ? SingleNativeButton.Validate(owner.Package.Repository, owner.Package.Package, source) : NativeProtocol.Module(source.Path);
                         var release = ModuleReleases.Native(source.Path, module.Id, module.Version);
                         var chosen = manager.Desired()?.Modules.FirstOrDefault(x => x.Manifest.Id == module.Id);
                         var selectedRelease = chosen is null ? "선택된 버전 없음" : "설치/준비 선택: " + ModuleReleases.Native(chosen.Directory, chosen.Manifest.Id, chosen.Manifest.Version).Label;
@@ -88,9 +90,23 @@ public sealed partial class ManagerForm
                 }
             }
             catch (Exception ex) { WriteLog(owner.Status.Tool.Name + " 버튼 목록: " + ex.Message); }
+            if (cards.Count == 0 && owner.Status.Tool.Kind == ToolKind.NativeRevit && owner.Package is { } registered)
+            {
+                cards.Add(RegisteredNativeCard(owner));
+            }
             if (cards.Count == 0) cards.Add(new("discover:" + owner.Status.Tool.Id, owner.Status.Tool.Name, owner.Status.Tool.Description, "버튼 정보 확인 필요", null, owner, ButtonKind.Discover, false, false, "기능 목록을 불러오십시오.", null, "", Channel: owner.Package?.Package.Channel == "test" ? "test" : "unknown", ReleaseLabel: owner.Package?.Package.Channel == "test" ? "TEST · 목록 확인 필요" : "미확인 · 목록 확인 필요"));
-            foreach (var card in cards) yield return card;
+            foreach (var card in cards) yield return card with { Title = ToolNames.Display(card.Title) };
         }
+    }
+    private ButtonCard RegisteredNativeCard(ProductRow owner)
+    {
+        var registered = owner.Package ?? throw new IOException("버튼 저장소 등록이 필요합니다.");
+        var command = SingleNativeButton.Registration(registered.Repository, registered.Package);
+        var state = preview || command is null ? (Selected: false, Pending: false, Message: "설치 안 됨") : new NativeRevitCommands(paths).State(command.ModuleId, command.CommandId);
+        return new(command is null ? "native-package:" + owner.Status.Tool.Id : "native:" + command.ModuleId + ":" + command.CommandId,
+            ToolNames.Display(owner.Status.Tool.Name), owner.Status.Tool.Description, "독립 Add-in", null, owner, ButtonKind.Native,
+            state.Selected, state.Pending, state.Message, null, command?.CommandId ?? "", command?.ModuleId ?? "",
+            registered.Package.Channel, registered.Package.Channel == "test" ? "TEST · 설치 시 버전 확인" : "설치 시 버전 확인");
     }
     private (bool Selected, bool Pending, string Message) CadButtonState(ProductRow owner, string key)
     {
@@ -107,15 +123,14 @@ public sealed partial class ManagerForm
     }
     private async Task LoadButtonCatalog(ProductRow owner)
     {
-        await Run("버튼 기능 목록 확인", async () =>
+        await Run(owner.Status.Tool.Kind == ToolKind.NativeRevit ? "업데이트 확인" : "버튼 기능 목록 확인", async () =>
         {
             if (owner.Status.Tool.Kind == ToolKind.AutoCAD) cadButtonPackage = authenticated ? await sources.DownloadCad() : await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip"));
             else if (owner.Status.Tool.Kind == ToolKind.PyRevit) revitButtonPackage = await sources.DownloadRevit();
             else if (owner.Package is not null)
             {
-                var source = await new ExtensionCatalog(paths).Download(owner.Package.Repository, owner.Package.Package);
-                if (!File.Exists(Path.Combine(source.Path, NativeProtocol.ManifestName))) throw new IOException("배포된 패키지에는 버튼별 Reload 정보가 없습니다. 새 robim-module.json 포함 패키지를 가져오십시오.");
-                new NativeRevitCommands(paths).Cache(source);
+                await SingleNativeButton.Resolve(paths, owner.Package.Repository, owner.Package.Package,
+                    () => new ExtensionCatalog(paths).Download(owner.Package.Repository, owner.Package.Package), refresh: true);
             }
             revitButtonCache.Clear(); await RefreshProductListAsync();
         });
@@ -177,12 +192,39 @@ public sealed partial class ManagerForm
             else
             {
                 var manager = new NativeRevitCommands(paths);
-                var source = manager.Cache(new SourcePackage(card.Source!, NativeProtocol.Module(card.Source!).Version));
+                SourcePackage source;
+                var commandId = card.CommandId;
+                if (card.Source is null)
+                {
+                    var registered = card.Owner.Package ?? throw new IOException("버튼의 저장소 등록 정보가 없습니다.");
+                    source = await SingleNativeButton.Resolve(paths, registered.Repository, registered.Package,
+                        () => new ExtensionCatalog(paths).Download(registered.Repository, registered.Package));
+                    commandId = NativeProtocol.Module(source.Path).Commands.Single().Id;
+                }
+                else
+                {
+                    var input = new SourcePackage(card.Source, NativeProtocol.Module(card.Source).Version);
+                    if (card.Owner.Package is { } registered && SingleNativeButton.Registration(registered.Repository, registered.Package) is not null)
+                        SingleNativeButton.Validate(registered.Repository, registered.Package, input);
+                    source = manager.Cache(input);
+                }
                 var runtimeFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2026", "RevitNET.runtimeconfig.json");
                 if (!File.Exists(runtimeFile) || System.Text.Json.JsonDocument.Parse(File.ReadAllText(runtimeFile)).RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString() != "net10.0") throw new IOException("이 독립 로더에는 Revit 2026.5+ / .NET 10이 필요합니다.");
                 var hostZip = Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip");
                 manager.InstallHost(hostZip, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
-                manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, card.CommandId, enable);
+                if (enable)
+                {
+                    var module = NativeProtocol.Module(source.Path); var command = module.Commands.Single(c => c.Id == commandId);
+                    var installed = new RibbonTool("native:" + module.Id + ":" + command.Id, ToolNames.Display(command.Title), command.Tab, command.Panel, true);
+                    var existing = CommandInventory().Where(c => c.Selected && c.Kind is ButtonKind.Native or ButtonKind.PyRevit).Select(c =>
+                    {
+                        var group = c.Group.Split(" / ", StringSplitOptions.TrimEntries);
+                        return new RibbonTool(c.Id, c.Title, group.Length > 1 ? group[0] : "RoBIM 도구", group.Length > 1 ? group[1] : "도구", true);
+                    });
+                    new RibbonLayouts(paths).EnsureInstalled(installed, existing,
+                        () => manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, commandId, true));
+                }
+                else manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, commandId, false);
                 WriteLog("독립 Revit 버튼 변경 준비 완료 — Revit Reload로 적용하십시오.");
             }
             await RefreshStatuses();
@@ -195,11 +237,12 @@ public sealed partial class ManagerForm
         var legacy = !preview && appearanceSnapshot.GetValueOrDefault(card.Id)?.Legacy == true;
         menu.Items.Add(legacy ? "기존 설치를 Reload 방식으로 전환" : card.Selected ? "이 버튼 제거" : "이 버튼 설치", null, async (_, _) => await ToggleButton(card, legacy || !card.Selected));
         if (card.Kind == ButtonKind.Native && card.Selected) menu.Items.Add("기능 업데이트 준비", null, async (_, _) => await ToggleButton(card, true));
-        if (card.Kind != ButtonKind.Native || card.Owner.Package is not null) menu.Items.Add("기능 목록 업데이트", null, async (_, _) => await LoadButtonCatalog(card.Owner));
+        if (card.Kind == ButtonKind.Native && card.Owner.Package is not null) menu.Items.Add("업데이트 확인", null, async (_, _) => await LoadButtonCatalog(card.Owner));
+        else if (card.Kind != ButtonKind.Native) menu.Items.Add("기능 목록 업데이트", null, async (_, _) => await LoadButtonCatalog(card.Owner));
         if (card.Kind == ButtonKind.Native) menu.Items.Add("새 버전 ZIP 가져오기", null, async (_, _) => await ImportNativePackage());
         if (card.Kind == ButtonKind.Cad) menu.Items.Add("CAD 버튼 이름·패널·순서 구성", null, async (_, _) => { if (busy || preview) return; SelectProduct(card.Owner.Status.Tool.Id); await ConfigureCadButtons(false); await RefreshProductListAsync(); });
         menu.Items.Add(new ToolStripSeparator());
-        if (card.Owner.Package is not null || !card.Owner.Status.Tool.CustomPackage)
+        if (card.Kind != ButtonKind.Native && (card.Owner.Package is not null || !card.Owner.Status.Tool.CustomPackage))
         {
             var packageItem = new ToolStripMenuItem("공용 패키지 관리") { DropDown = BuildCardMenu(card.Owner) };
             packageItem.DropDownOpening += (_, _) => SelectProduct(card.Owner.Status.Tool.Id);

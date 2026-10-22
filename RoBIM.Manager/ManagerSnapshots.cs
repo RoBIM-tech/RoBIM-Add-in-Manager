@@ -34,7 +34,7 @@ public sealed partial class ManagerForm
                     var file = DisplayCachePath;
                     if (!File.Exists(file) || new FileInfo(file).Length > 4 * 1024 * 1024) return null;
                     var value = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(file));
-                    return value is { SchemaVersion: 2, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
+                    return value is { SchemaVersion: 3, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
                         && value.Appearance is not null ? value : null;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
@@ -116,7 +116,7 @@ public sealed partial class ManagerForm
             var owners = BuildProductRows(statusRows, packages);
             var commands = ReadCommandInventory(owners).ToArray();
             var appearance = BuildAppearances(commands);
-            return new DisplaySnapshot(2, owners, commands, appearance, packages, DateTimeOffset.UtcNow);
+            return new DisplaySnapshot(3, owners, commands, appearance, packages, DateTimeOffset.UtcNow);
         });
         if (IsDisposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;

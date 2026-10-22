@@ -95,7 +95,9 @@ public sealed partial class ManagerForm
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
         if (tool.Kind == ToolKind.NativeRevit)
         {
-            await LoadButtonCatalog(new ProductRow(installer.Status(tool), row));
+            var owner = new ProductRow(installer.Status(tool), row);
+            var card = ReadCommandInventory([owner]).Single();
+            await ToggleButton(card, true);
             return;
         }
         if (!tool.CustomPackage)
@@ -121,7 +123,10 @@ public sealed partial class ManagerForm
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
         if (tool.Kind == ToolKind.NativeRevit)
         {
-            await LoadButtonCatalog(new ProductRow(installer.Status(tool), row));
+            var owner = new ProductRow(installer.Status(tool), row);
+            var card = ReadCommandInventory([owner]).Single();
+            if (restoreBackup) { MessageBox.Show(this, "독립 버튼은 해당 카드에서 이전 버전 ZIP을 가져와 설치하십시오.", Text); return; }
+            await ToggleButton(card, false);
             return;
         }
         if (!tool.CustomPackage) { MessageBox.Show(this, "RoBIM 기본 도구는 사용자 도구 화면에서 관리하십시오.", Text); return; }

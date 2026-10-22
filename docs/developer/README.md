@@ -18,7 +18,7 @@ Manager는 .NET 10 Windows x64 앱이며 Autodesk SDK를 참조하지 않습니�
 ## 카탈로그에서 카드까지
 
 - **pyRevit:** `Manager.Core/RevitButtons.cs`가 layout을 따라 bundle의 title·tooltip·아이콘과 제한된 script 문자열 메타데이터를 읽습니다. 검색 과정에서 명령 코드를 실행하지 않습니다. 운영 경로와 TEST/미공개 경로를 구분합니다. 버튼 ID는 원본의 상대 bundle 경로입니다.
-- **독립 Revit:** `robim-module.json`의 모듈 ID·버전·commands를 읽어 명령별 카드를 만듭니다. 명령 선택은 모듈 ID/command ID에 연결합니다.
+- **독립 Revit:** 중앙 목록의 모듈 ID/command ID로 다운로드 전에도 바로 설치할 단일 Native 카드를 만듭니다. 설치 시 `SingleNativeButton.Resolve`가 검증된 Release ZIP을 받거나 ID로 찾은 캐시를 사용하고, 명령이 하나이며 등록된 ID와 일치하는지 검사합니다. `robim-module.json`을 읽는 별도 기능 목록 단계는 노출하지 않습니다.
 - **CAD:** `robim-cad.json`의 modules/actions를 읽습니다. 명령 키는 `모듈ID:액션ID`입니다. 한 모듈에 여러 버튼이 있을 수 있습니다.
 
 검색 결과·다운로드 캐시·설치된 명령은 서로 다른 상태입니다. 원격 목록 조회 실패를 미설치로 바꾸거나 이미 설치한 명령의 제거를 원격 조회 성공에 종속시키지 않습니다.
@@ -45,6 +45,16 @@ Manager 앱의 업데이트, 공용 패키지 업데이트, 명령 선택 변경
 6. 실패는 기록과 기존 프로필을 보존하며 재시도 가능한 상태로 남깁니다.
 
 Python 버튼을 독립 C# 모듈로 자동 변환하지 않습니다. `script.cs` 등 실행 바이너리와 개발 전용 tests 프로젝트를 구별해 불필요한 재시작 차단을 피하되 실제 바이너리 변경 검사는 생략하지 않습니다.
+
+## 단일 버튼 설치와 표시 이름
+
+`ToolNames.Display`는 화면 이름의 RoBIM 접두어만 제거합니다. 원격 package 레코드와 저장소·package/module/command ID는 바꾸지 않으며 다운로드의 메타데이터 일치 검사도 유지합니다.
+
+Release 다운로드를 준비할 때 `runtime/<package.Folder>`를 사용해 bundle 폴더명을 유지합니다. 이전 Manager가 만든 `runtime` 이름의 캐시도 `SingleNativeButton.Registration`의 모듈 ID로 찾아 재사용합니다. 등록 저장소가 소유한 모듈을 로컬 가져오기 카드로 다시 추가하지 않습니다. 시작·탭 전환에서 원격 다운로드하지 않고 설치 또는 명시적 업데이트 확인 시에만 요청합니다.
+
+설치 준비가 완료되면 `RibbonLayouts.EnsureInstalled`가 기본 탭/패널에 해당 명령 하나를 추가합니다. 기존 사용자 위치·이름·2/3단 묶음·구분선과 다른 버튼은 유지하고, 같은 ID가 있으면 파일을 다시 쓰지 않습니다. 리본 파일이 없는 경우 기존 선택 버튼의 기본 배치도 함께 보존합니다. 실제 리본은 Native Host Reload 후 생성되고 리본 연결이 저장 배치를 적용합니다.
+
+`Manager.Tests --check-native-downloads <임시경로>`는 실제 인증/Release ZIP/해시/단일 명령/선택 준비/기본 배치를 임시 영역에서 확인합니다. 사용자 모델이나 실제 선택을 바꾸지 않습니다.
 
 ## Native 모듈 Reload
 

@@ -61,7 +61,8 @@ public sealed partial class ManagerForm
             {
                 var module = RoBIM.Revit.Reload.NativeProtocol.Module(package.Path);
                 var folder = Path.GetFileName(package.Path);
-                if (result.Any(x => x.Status.Tool.FolderName.Equals(folder, StringComparison.OrdinalIgnoreCase))) continue;
+                if (result.Any(x => x.Status.Tool.FolderName.Equals(folder, StringComparison.OrdinalIgnoreCase) ||
+                    x.Package is { } entry && SingleNativeButton.Registration(entry.Repository, entry.Package)?.ModuleId == module.Id)) continue;
                 var spec = new ToolSpec("native-local-" + module.Id, module.Commands[0].Title, ToolKind.NativeRevit, "", "main", folder, "가져온 독립 Revit 모듈 · " + module.Version, true);
                 Add(new(spec, package.Path, package.Version, false, false, false, "기능 패키지 확인됨"), null);
             }

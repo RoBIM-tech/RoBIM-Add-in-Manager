@@ -13,7 +13,7 @@ public sealed partial class ManagerForm
         {
             try
             {
-                await RefreshStatuses(); SwitchPage(page); RefreshCardActions();
+                await StartLocalDisplay(); SwitchPage(page); RefreshCardActions();
                 if (snapshot is not null)
                 {
                     using var bitmap = new Bitmap(Width, Height); DrawToBitmap(bitmap, new Rectangle(Point.Empty, Size));
@@ -22,7 +22,7 @@ public sealed partial class ManagerForm
                 File.WriteAllText(destination, JsonSerializer.Serialize(new
                 {
                     Products = productRows.Select(x => new { x.Status.Tool.Id, x.Status.Path, x.Status.Managed, x.Status.External, x.Status.Modified, x.Status.Detail }),
-                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, Source = x.Row.Source,
+                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, Source = x.Row.Source,
                         Enabled = x.Action.Enabled, Action = x.Action.Text, State = x.State.Text, Instruction = x.Instruction.Text }),
                     Log = log.Text
                 }, new JsonSerializerOptions { WriteIndented = true }));
@@ -67,7 +67,7 @@ public sealed partial class ManagerForm
             Require(binding.Action.Text == (card.Selected ? "제거" : "설치하기"), "Per-button action for " + card.Id);
             using var menu = BuildButtonMenu(card);
             Require(menu.Items.Cast<ToolStripItem>().Any(x => x.Text == (card.Selected ? "이 버튼 제거" : "이 버튼 설치")), "Individual button menu for " + card.Id);
-            Require(menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "공용 패키지 관리"), "Common package separate from button removal " + card.Id);
+            Require(menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "공용 패키지 관리") == (card.Kind != ButtonKind.Native), "Single native button has no separate package action " + card.Id);
             SelectProduct(card.Owner.Status.Tool.Id); Require(SelectedProduct()?.Status.Tool.Id == card.Owner.Status.Tool.Id, "Package dispatch for " + card.Id);
         }
         busy = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled), "Busy disables all feature mutations"); busy = false; RefreshCardActions();
@@ -201,6 +201,19 @@ public sealed partial class ManagerForm
         Navigate("Extensions"); Require(extensionsPage.Visible, "Registration screen preserved");
         Navigate("Locations"); Require(locationsPage.Visible && !productsPage.Visible && pyRevitRootInput.Text.Contains("RoBIM"), "Dedicated pyRevit installation location page");
         Require(!applyLocation.Enabled, "Preview cannot migrate actual installations");
+        foreach (var repository in BundledCatalog.Read().Repositories.Where(r => r.Packages.SingleOrDefault()?.Host == "revit"))
+        {
+            var package = repository.Packages.Single(); var tool = ExtensionCatalog.Tool(repository, package);
+            var row = new ProductRow(new(tool, "unused", "", false, false, false, "설치 안 됨"), new(repository, package));
+            var direct = RegisteredNativeCard(row);
+            Require(direct.Kind == ButtonKind.Native && direct.Source is null && direct.CommandId.Length > 0 && direct.ModuleId.Length > 0, "Registered button available before package download " + direct.Id);
+            Require(!direct.Title.StartsWith("RoBIM", StringComparison.OrdinalIgnoreCase), "Display name omits product prefix " + direct.Id);
+            using var menu = BuildButtonMenu(direct);
+            Require(!menu.Items.Cast<ToolStripItem>().Any(x => (x.Text ?? "").Contains("기능 목록") || x.Text == "공용 패키지 관리"), "No native discovery or separate package menu " + direct.Id);
+            using var card = CreateCommandCard(direct); snapshotVerified = true; refreshingSnapshot = false; busy = false;
+            RefreshCardActions();
+            Require(cardBindings[direct.Id].Action.Text == "설치하기", "Uncached native card installs directly " + direct.Id);
+        }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

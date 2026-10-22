@@ -67,6 +67,41 @@ public sealed class RibbonLayouts(ManagerPaths paths)
     public static RibbonLayout Defaults(string host, IEnumerable<RibbonTool> tools) => new(1, host,
         tools.Where(x => x.Installed).GroupBy(x => x.Tab).Select(tab => new RibbonTabLayout(tab.Key,
             tab.GroupBy(x => x.Panel).Select(panel => new RibbonPanelLayout(panel.Key, panel.Select(x => new RibbonPlacement(x.Id, x.Title)).ToArray())).ToArray())).ToArray());
+    public void EnsureInstalled(RibbonTool tool, IEnumerable<RibbonTool> initialTools, Action? select = null)
+    {
+        if (!tool.Installed) throw new IOException("설치한 버튼만 자동 배치할 수 있습니다.");
+        var file = FilePath("Revit"); SafeFiles.NoLinks(file);
+        var before = File.Exists(file) ? File.ReadAllBytes(file) : null;
+        var layout = before is not null ? Read("Revit") : Defaults("Revit", initialTools);
+        if (layout.Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Any(b => b.Id == tool.Id)) { select?.Invoke(); return; }
+        var tabs = layout.Tabs.ToList();
+        var tabIndex = tabs.FindIndex(t => t.Name.Equals(tool.Tab, StringComparison.OrdinalIgnoreCase));
+        if (tabIndex < 0) { tabs.Add(new(tool.Tab, [])); tabIndex = tabs.Count - 1; }
+        var panels = tabs[tabIndex].Panels.ToList();
+        var panelIndex = panels.FindIndex(p => p.Name.Equals(tool.Panel, StringComparison.OrdinalIgnoreCase));
+        var placement = new RibbonPlacement(tool.Id, ToolNames.Display(tool.Title));
+        if (panelIndex < 0) panels.Add(new(tool.Panel, [placement]));
+        else panels[panelIndex] = panels[panelIndex] with { Buttons = [..panels[panelIndex].Buttons, placement] };
+        tabs[tabIndex] = tabs[tabIndex] with { Panels = panels.ToArray() };
+        Save(layout with { Tabs = tabs.ToArray() });
+        var written = File.ReadAllBytes(file);
+        try { select?.Invoke(); }
+        catch
+        {
+            // Roll back only this operation's placement; never overwrite another edit.
+            if (File.Exists(file) && File.ReadAllBytes(file).SequenceEqual(written))
+            {
+                if (before is null) File.Delete(file);
+                else
+                {
+                    var restore = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                    try { File.WriteAllBytes(restore, before); File.Move(restore, file, true); }
+                    finally { if (File.Exists(restore)) File.Delete(restore); }
+                }
+            }
+            throw;
+        }
+    }
     public string RequestRevit(bool reload)
     {
         var session = NativeRevitCommands.Session();
