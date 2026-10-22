@@ -40,6 +40,7 @@ public sealed partial class ManagerForm
         Require(currentPage == "Revit" && cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Default Revit shows independent Add-ins only");
         Require(navigation.Any(x => (string?)x.Tag == "PyRevit"), "Separate pyRevit navigation");
         Require(nativeReload.Text == "독립 Add-in Reload", "Independent Add-in Reload label");
+        Require(UpdateTargets().Count(p => ExtensionCatalog.Tool(p.Repository,p.Package).Id == Catalog.Revit.Id) == 1, "Built-in pyRevit participates in refresh without duplicate registration");
         Navigate("PyRevit"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.PyRevit), "pyRevit page excludes independent Add-ins and CAD");
         Require(nativeReload.Visible && nativeReload.Text == "pyRevit Reload", "pyRevit Reload label");
         Require(cardBindings.Values.Count(x => x.Row.Kind == ButtonKind.PyRevit) == 3, "Multiple buttons share one pyRevit package");
