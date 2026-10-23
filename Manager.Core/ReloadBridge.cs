@@ -16,7 +16,7 @@ public static class ReloadBridge
             throw new IOException("Reload 연결 패키지 해시가 일치하지 않습니다.");
         var cache = SafeFiles.Child(paths.Data, "BridgePackages/" + Guid.NewGuid().ToString("N"));
         SafeFiles.Extract(archive, cache);
-        var package = new SourcePackage(Path.Combine(cache, Catalog.ReloadBridge.FolderName), "1.0.0-preview.38");
+        var package = new SourcePackage(Path.Combine(cache, Catalog.ReloadBridge.FolderName), "1.0.0-preview.39");
         var session = (currentSession ?? NativeRevitCommands.Session)();
         if (session is not null && Directory.Exists(paths.Target(Catalog.ReloadBridge)))
         {

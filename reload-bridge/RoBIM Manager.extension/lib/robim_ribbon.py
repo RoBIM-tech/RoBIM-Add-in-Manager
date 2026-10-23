@@ -152,7 +152,7 @@ def _find_button(uiapp, tab, panel_name, name, prefix=False, panel_title=None):
     return found[-1] if found else None
 
 
-def _find_selected_ad(key):
+def _find_selected_ad(key, panel_title=None):
     # Match internal control IDs, never mutable display captions. Stack segments can
     # be flattened by Revit. Require the source tab, panel and exact command name.
     stems = [part.rsplit(".", 1)[0] for part in key.split("/")]
@@ -163,13 +163,82 @@ def _find_selected_ad(key):
         for ribbon_panel in ribbon_tab.Panels:
             for collection, item in _items(ribbon_panel.Source.Items):
                 tokens = (getattr(item, "Id", None) or "").split("%")
-                if len(tokens) >= 3 and tokens[-1] == stems[-1] and tab in tokens[:-1] and panel in tokens[:-1] and hasattr(item, "CommandHandler"):
+                if len(tokens) >= 3 and tokens[-1] == stems[-1] and tab in tokens[:-1] and any(alias and alias in tokens[:-1] for alias in (panel, panel_title)) and hasattr(item, "CommandHandler"):
                     found.append(item)
     exact = [item for item in found if (item.Id or "").split("%")[-len(stems):] == stems]
     found = exact or found
     if len(found) > 1:
         raise ValueError("Ambiguous selected RoBIM control ID: " + key)
     return (_AdButton(found[0]), found[0]) if found else None
+
+
+def _selected_executor(root, key):
+    from pyrevit.extensions.genericcomps import GenericUIComponent
+    from pyrevit.loader import sessioninfo
+    from Autodesk.Revit.UI import IExternalCommand
+    parts = key.split("/")
+    if any(part in ("", ".", "..") or "\\" in part or ":" in part for part in parts):
+        raise ValueError("Invalid selected pyRevit command path")
+    directory = os.path.abspath(os.path.join(root, *parts))
+    if not directory.startswith(os.path.abspath(root) + os.sep) or not os.path.isfile(os.path.join(directory, "script.py")):
+        return None
+    unique = GenericUIComponent.make_unique_name(directory)
+    current = set(sessioninfo.get_loaded_pyrevit_assemblies())
+    interface = clr.GetClrType(IExternalCommand)
+    found = []
+    for assembly in AppDomain.CurrentDomain.GetAssemblies():
+        if assembly.GetName().Name not in current:
+            continue
+        executor = assembly.GetType(unique, False, False)
+        if executor is not None and not executor.IsAbstract and interface.IsAssignableFrom(executor):
+            found.append((assembly, executor, unique))
+    if len(found) > 1:
+        raise ValueError("Ambiguous current pyRevit executor: " + key)
+    return found[0] if found else None
+
+
+def _restore_selected_button(uiapp, root, key, panel_title, button):
+    # A legacy .stack can fail to create its sole remaining button. Reuse only the
+    # current session's already loaded executor; do not load a DLL or run a script.
+    executor = _selected_executor(root, key)
+    if executor is None:
+        return None
+    pieces = key.split("/")
+    tab = pieces[0].rsplit(".", 1)[0]
+    panel_name = next((p.rsplit(".", 1)[0] for p in pieces if p.endswith(".panel")), None)
+    panels = [p for p in uiapp.GetRibbonPanels(tab) if p.Name in (panel_name, panel_title)]
+    if len(panels) != 1:
+        return None
+    name = pieces[-1].rsplit(".", 1)[0]
+    if any(item.Name == name for item in _api_items(panels[0].GetItems())):
+        return None  # Never create a duplicate if the API item exists but is unresolved.
+    from Autodesk.Revit.UI import PushButtonData
+    assembly, command, unique = executor
+    data = PushButtonData(name, button["Title"], assembly.Location, command.FullName)
+    availability = assembly.GetType(unique + "_avail", False, False)
+    if availability is not None:
+        data.AvailabilityClassName = availability.FullName
+    api = panels[0].AddItem(data)
+    api.ToolTip = button.get("Description") or ""
+    icon = button.get("Icon")
+    if icon:
+        icon_path = os.path.abspath(os.path.join(root, *icon.split("/")))
+        if icon_path.startswith(os.path.abspath(root) + os.sep) and os.path.isfile(icon_path):
+            try:
+                image = BitmapImage()
+                from System import Uri
+                from System.Windows.Media.Imaging import BitmapCacheOption
+                image.BeginInit()
+                image.CacheOption = BitmapCacheOption.OnLoad
+                image.UriSource = Uri(icon_path)
+                image.EndInit()
+                image.Freeze()
+                api.Image = image
+                api.LargeImage = image
+            except Exception:
+                pass  # An icon failure must not hide a valid selected command.
+    ad = _ad(api)
+    return (api, ad) if ad is not None else None
 
 
 def _binding_diagnostics(uiapp, tabs):
@@ -189,7 +258,13 @@ def _binding_diagnostics(uiapp, tabs):
         for panel in tab.Panels:
             controls.extend({"Tab": tab.Title, "Panel": panel.Source.Title, "Id": getattr(item, "Id", None), "Text": getattr(item, "Text", None)}
                             for collection, item in _items(panel.Source.Items) if getattr(item, "Id", None))
-    return {"Api": snapshot, "Controls": controls}
+    info = {"Api": snapshot, "Controls": controls}
+    try:
+        from pyrevit.loader import sessioninfo
+        info["CurrentPyRevitAssemblies"] = list(sessioninfo.get_loaded_pyrevit_assemblies())
+    except Exception:
+        pass
+    return info
 
 
 def _selected_root():
@@ -201,6 +276,7 @@ def _selected_root():
 def _bindings(uiapp):
     result = {}
     missing = []
+    restored = []
     root = _selected_root()
     data = read(os.path.join(root, "robim-button-selection.json"), {})
     selected = set(data.get("Selected", []))
@@ -216,7 +292,11 @@ def _bindings(uiapp):
         panel_title = button.get("Group", "").split(" / ")[-1]
         binding = _find_button(uiapp, tab, panel, name, panel_title=panel_title)
         if binding is None:
-            binding = _find_selected_ad(key)
+            binding = _find_selected_ad(key, panel_title)
+        if binding is None and key.endswith((".pushbutton", ".smartbutton")):
+            binding = _restore_selected_button(uiapp, root, key, panel_title, button)
+            if binding is not None:
+                restored.append(key)
         if binding is not None:
             result["robim-revit:" + key] = (binding[0], binding[1], tab, panel, button["Title"])
             _owned_tabs.add(tab)
@@ -259,7 +339,7 @@ def _bindings(uiapp):
                 binding = _find_button(uiapp, u"RoBIM 관리", u"독립 Add-in", name)
                 if binding is not None:
                     result["manager:" + name] = (binding[0], binding[1], u"RoBIM 관리", u"독립 Add-in", title)
-    info = {"Pid": _session_pid, "StartTicks": _session_ticks, "Resolved": list(result.keys()), "Missing": missing}
+    info = {"Pid": _session_pid, "StartTicks": _session_ticks, "Resolved": list(result.keys()), "Missing": missing, "Restored": restored}
     if missing:
         info["Diagnostics"] = _binding_diagnostics(uiapp, source_tabs)
     write(os.path.join(BASE, "revit-ui-bindings.json"), info)

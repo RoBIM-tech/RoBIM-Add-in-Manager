@@ -23,3 +23,6 @@ RepositoryDiscovery가 repository-publishers.json의 여러 개인/조직과 연
 pyRevit 묶음 안의 선택 버튼이 RibbonPanel.GetItems에서 빠지는 경우, 원본 탭·패널·명령의 내부 control ID로 AdWindows 트리를 확인합니다. 표시 이름으로 유사한 버튼을 추측하지 않으며 동일 ID가 여러 개면 적용을 중단합니다. 실패한 시작 적용은 2/4/8초 간격으로 최대 네 번 시도하고 같은 오류는 한 번만 기록합니다. 새 리본 요청이나 원본/선택/Native 배포 변경, 표준 pyRevit Reload로 다시 시도할 수 있습니다. Missing/프로세스 ID/조회 진단과 재시도 중지 상태를 Manager 데이터 폴더에 남깁니다. 성공한 재시도는 이전 failed 응답을 applied로 갱신합니다.
 
 기존 Manager 소유 연결의 스크립트·이미지 변경은 InstallReload의 파일별 검증·백업과 Revit 세션 재확인을 거쳐 적용하고 표준 pyRevit Reload를 요청합니다. 준비된 pyRevit 선택/프로필이 있으면 먼저 적용하도록 차단하며 DLL 등 바이너리 변경은 실행 중 교체하지 않습니다. 자동 적용은 Revit 한 개가 실행 중일 때 지원합니다. 파일 교체와 실제 실행 세션의 적용 응답을 구분합니다.
+
+
+Preview 39는 pyRevit이 선택된 단독 stack 버튼 자체를 생성하지 못한 경우도 처리합니다. 현재 pyRevit 세션에 이미 로드된 정확한 IExternalCommand·availability 클래스를 선택된 원본 경로로 확인한 뒤 기존 소스 패널에 리본 버튼만 복구합니다. 다른 DLL을 로드하거나 기능 스크립트·모델을 실행하지 않습니다. 동일 이름 API 버튼이 있으면 중복 생성하지 않고, 클래스/패널이 불명확하면 진단을 남깁니다. 폴더 이동·명령 ID·사용자 배치는 변경하지 않습니다.
