@@ -1,5 +1,7 @@
 # RoBIM Add-in Manager
 
+**새 버튼 제작은 [START_HERE](https://github.com/gagaggan/RoBIM-Workspace/blob/main/START_HERE.md)에서 시작합니다.**
+
 > 신규 Revit 기능은 독립 Add-in으로 개발합니다. 기존 pyRevit은 유지보수하며, 신규 명령은 Manager 등록과 TEST/실사용 구분을 포함해야 합니다. [개발 시작 안내](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)
 
 Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리본 배치를 관리하는 Windows 앱입니다.
@@ -72,3 +74,6 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 | 정식 | 더 새 정식 | 업데이트 · 해당 정식 패키지 설치 |
 
 정식에서 TEST를 선택 설치하면 같은 명령 ID의 설치 채널이 TEST로 바뀌며 내 도구와 TEST 목록에 반영됩니다. 정식 승격을 설치하면 다시 정식으로 표시합니다. 낮은 기존 정식으로 되돌리려면 ···의 저장소 정식 버전 설치를 명시적으로 선택합니다. 기본 업데이트 동작은 버전을 낮추지 않습니다. 새로고침 자체는 설치/채널/리본을 변경하지 않습니다.
+
+
+신규 버튼 제작은 [Workspace START_HERE](https://github.com/gagaggan/RoBIM-Workspace/blob/main/START_HERE.md)를 먼저 읽습니다. Preview 37+는 여러 제작자·조직을 등록하고 새로고침에서 새 저장소를 검색합니다. 중앙 등록 PR은 신규 표시의 필수 조건이 아닙니다.

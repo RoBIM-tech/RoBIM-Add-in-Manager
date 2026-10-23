@@ -1,4 +1,4 @@
-"""Require every distributed native/CAD command to be in the embedded Manager catalog."""
+"""Validate self-described native buttons and optional bundled catalog registrations."""
 import argparse
 import json
 import re
@@ -55,7 +55,15 @@ def validate_source(catalog, source, host, repository):
         packageIds={p['id'] for p in descriptor['packages'] if p['host']=='revit' and p['distribution']=='release'}
         if len(descriptor['packages'])!=1 or len(packageIds)!=1: raise ValueError('One native package per button repository required')
         central=[r for r in catalog['repositories'] if r['repository']==repository]
-        if len(central)!=1 or central[0]['packages']!=descriptor['packages']: raise ValueError('Source/Manager package definitions differ')
+        self_described = descriptor['packages'][0].get('moduleId') == module['id'] and descriptor['packages'][0].get('commandId') == module['commands'][0]['id']
+        if central:
+            expected = central[0]['packages'][0]
+            actual = descriptor['packages'][0]
+            if len(central)!=1 or any(actual.get(k)!=v for k,v in expected.items()): raise ValueError('Source/Manager package definitions differ')
+        elif not self_described:
+            raise ValueError('Native discovery requires matching moduleId/commandId in robim-package.json')
+        if any(k in descriptor['packages'][0] for k in ('moduleId','commandId')) and not self_described:
+            raise ValueError('Discovery/module command IDs differ')
         import xml.etree.ElementTree as ET
         libraries={x['id']:x['version'] for x in maturity.get('libraries',[])}
         for project in (source/'src').rglob('*.csproj'):
@@ -76,19 +84,21 @@ def validate_source(catalog, source, host, repository):
     else: raise ValueError('New pyRevit commands are not accepted; use a native module')
     registered={(c['moduleId'],c['commandId']) for c in catalog['commands'] if c['host']==host and c['repository']==repository and c['packageId'] in packageIds}
     missing=set(definitions)-registered
-    if missing: raise ValueError('Manager registration missing: '+repr(sorted(missing)))
+    if missing and not (host=='revit' and self_described and not central): raise ValueError('Manager registration missing: '+repr(sorted(missing)))
     if len(definitions)!=len(set(definitions)): raise ValueError('Duplicate command ID in source')
     return len(definitions)
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--catalog',type=Path,default=Path(__file__).resolve().parents[1]/'catalog/modules.json')
+    p.add_argument('--catalog',type=Path,default=None)
     p.add_argument('--source',type=Path)
     p.add_argument('--host',choices=['revit','autocad'])
     p.add_argument('--repository')
     a=p.parse_args()
-    catalog=read(a.catalog); validate_catalog(catalog)
+    default_catalog=Path(__file__).resolve().parents[1]/'catalog/modules.json'
+    catalog=read(a.catalog or default_catalog) if a.catalog or default_catalog.exists() else {'schemaVersion':1,'repositories':[],'commands':[]}
+    validate_catalog(catalog)
     if a.source:
         if not a.host or not a.repository: p.error('--source requires --host and --repository')
-        print('PASS registered commands:',validate_source(catalog,a.source.resolve(),a.host,a.repository))
+        print('PASS validated commands:',validate_source(catalog,a.source.resolve(),a.host,a.repository))
     else: print('PASS central Manager catalog')

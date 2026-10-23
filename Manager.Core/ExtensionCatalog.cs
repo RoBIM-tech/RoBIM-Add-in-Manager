@@ -7,9 +7,10 @@ using System.Text.RegularExpressions;
 namespace RoBIM.Manager.Core;
 
 public sealed record ExtensionPackage(string Id, string Name, string Host, string Path, string Folder,
-    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown");
+    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown", string ModuleId = "", string CommandId = "");
 public sealed record ExtensionManifest(int SchemaVersion, ExtensionPackage[] Packages);
 public sealed record ExtensionRepository(string Repository, string Branch, ExtensionPackage[] Packages, string Recognition);
+public sealed class NoInstallablePackagesException(string message) : IOException(message);
 public sealed record CatalogResult(IReadOnlyList<ExtensionRepository> Repositories, string[] Warnings);
 
 public sealed class ExtensionCatalog(ManagerPaths paths)
@@ -46,6 +47,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
             if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
+            if (package.ModuleId is null || package.CommandId is null ||
+                (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&
+                (package.Host != "revit" || !Regex.IsMatch(package.ModuleId, "^[a-z][a-z0-9.-]{0,63}$") || !Regex.IsMatch(package.CommandId, "^[a-z][a-z0-9.-]{0,63}$")))
+                throw new InvalidDataException("모듈·명령 ID를 함께 지정해야 합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
             if (package.Folder is null || !Regex.IsMatch(package.Folder, @"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,100}$") ||
                 !package.Folder.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || package.Folder.Contains("..") || !folders.Add(package.Host + "/" + package.Folder))
@@ -79,6 +84,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             using var document = JsonDocument.Parse(await manifest.Content.ReadAsStringAsync());
             if (document.RootElement.GetProperty("size").GetInt64() > 128 * 1024) throw new IOException("표시 정보 파일이 너무 큽니다.");
             var content = Encoding.UTF8.GetString(Convert.FromBase64String(document.RootElement.GetProperty("content").GetString()!));
+            using var declaration = JsonDocument.Parse(content);
+            if (declaration.RootElement.TryGetProperty("schemaVersion", out var schema) && schema.GetInt32() == 1 &&
+                declaration.RootElement.TryGetProperty("packages", out var entries) && entries.ValueKind == JsonValueKind.Array && entries.GetArrayLength() == 0)
+                throw new NoInstallablePackagesException("설치 도구가 없는 기반 저장소입니다.");
             return new(canonical, branch, ParseManifest(content), "robim-package.json");
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
@@ -104,8 +113,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     {
         var bundled = BundledCatalog.Read();
         var defaults = bundled.Repositories;
-        if (!File.Exists(FilePath)) return defaults;
-        var repos = JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [];
+        var repos = File.Exists(FilePath) ? JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [] : [];
         foreach (var repo in repos)
         {
             if (Repository("https://github.com/" + repo.Repository) != repo.Repository) throw new IOException("등록 저장소 경로 오류");
@@ -115,7 +123,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         // Only superseded, centrally owned package entries are redirected. Reading
         // the registry never rewrites it, installs tools or drops unrelated entries.
         repos = CurrentSources(repos);
-        return defaults.Where(x => !repos.Any(r => r.Repository.Equals(x.Repository, StringComparison.OrdinalIgnoreCase))).Concat(repos).ToArray();
+        return CurrentSources(defaults.Concat(RepositoryDiscovery.Cached(paths)).Concat(repos).GroupBy(r => r.Repository, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()));
     }
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
@@ -181,7 +189,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     {
         var package = current.Packages.SingleOrDefault(p => p.Id == previous.Id) ?? throw new IOException("기존 패키지 ID가 저장소에 없습니다.");
         if (package.Host != previous.Host || package.Path != previous.Path || package.Folder != previous.Folder ||
-            package.Distribution != previous.Distribution || package.Asset != previous.Asset)
+            package.Distribution != previous.Distribution || package.Asset != previous.Asset ||
+            previous.ModuleId.Length > 0 && (package.ModuleId != previous.ModuleId || package.CommandId != previous.CommandId))
             throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
         return package;
     }

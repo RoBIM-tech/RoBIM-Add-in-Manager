@@ -295,6 +295,23 @@ public sealed partial class ManagerForm
         typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
         Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
         using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
+        using (var owners = new RepositoryPublishersDialog(new(1,true,[new("alice","user"),new("team","organization")])))
+        {
+            owners.ShowInTaskbar=false;owners.StartPosition=FormStartPosition.Manual;owners.Location=new(-20000,-20000);owners.Show();Application.DoEvents();
+            IEnumerable<Control> Descendants(Control root) => root.Controls.Cast<Control>().SelectMany(c => new[]{c}.Concat(Descendants(c)));
+            var controls=Descendants(owners).ToArray();var table=controls.OfType<DataGridView>().Single();
+            var input=controls.OfType<TextBox>().Single();input.Text="another";
+            controls.OfType<Button>().Single(b=>b.Text=="추가").PerformClick();
+            Require(table.Rows.Count==3,"Publisher dialog adds a third owner");
+            table.ClearSelection();table.Rows[0].Selected=true;
+            controls.OfType<Button>().Single(b=>b.Text=="선택 삭제").PerformClick();
+            Require(table.Rows.Count==2,"Publisher dialog removes only selected owner");
+            table.Rows[0].Cells["Enabled"].Value=false;
+            controls.OfType<CheckBox>().Single().Checked=false;
+            using(var bitmap=new Bitmap(owners.Width,owners.Height)){owners.DrawToBitmap(bitmap,new Rectangle(Point.Empty,owners.Size));bitmap.Save(destination+".publishers.png");}
+            controls.OfType<Button>().Single(b=>b.Text=="저장").PerformClick();
+            Require(owners.Result is { IncludeConnectedAccount:false, Publishers.Length:2 } && !owners.Result.Publishers[0].Enabled,"Publisher dialog persists enable toggle and account scope");
+        }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

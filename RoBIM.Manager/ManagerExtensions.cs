@@ -23,7 +23,8 @@ public sealed partial class ManagerForm
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6 };
         for (var i = 0; i < 6; i++) layout.RowStyles.Add(new(i == 2 ? SizeType.Percent : SizeType.AutoSize, i == 2 ? 100 : 0));
         var top = Row(); var refresh = MakeButton("계정 저장소 새로 고침");
-        top.Controls.AddRange([refresh, catalogIdentity]); layout.Controls.Add(top);
+        var publishers = MakeButton("제작자·조직"); publishers.Click += (_, _) => EditRepositoryPublishers();
+        top.Controls.AddRange([refresh, publishers, catalogIdentity]); layout.Controls.Add(top);
         layout.Controls.Add(Note("애드인 토픽 또는 RoBIM 기본 도구만 자동 표시합니다. 다른 저장소는 Git URL로 구조를 확인하여 등록할 수 있습니다."));
         foreach (var (name, title, weight) in new[] { ("Name", "패키지", 125), ("Host", "제품", 65), ("Repo", "저장소", 180), ("Branch", "브랜치", 75), ("Status", "설치 상태", 150) })
             extensionGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = name, HeaderText = title, FillWeight = weight, SortMode = DataGridViewColumnSortMode.NotSortable });
@@ -78,7 +79,7 @@ public sealed partial class ManagerForm
     private async Task RefreshExtensionCatalog()
     {
         repositoryLookupCount++;
-        var result = await Task.Run(() => new ExtensionCatalog(paths).Discover());
+        var result = await Task.Run(() => new RepositoryDiscovery(paths).Refresh());
         availablePackages.Clear();
         foreach (var repository in result.Repositories)
             foreach (var package in repository.Packages) availablePackages.Add(new PackageRow(repository, package));

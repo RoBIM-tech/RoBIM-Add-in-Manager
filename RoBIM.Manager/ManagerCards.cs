@@ -23,14 +23,16 @@ public sealed partial class ManagerForm
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty };
         layout.ColumnStyles.Add(new(SizeType.Percent, 100));
         layout.RowStyles.Add(new(SizeType.AutoSize)); layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.AutoSize));
-        var searchRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 5, Padding = new(0, 4, 0, 16), Margin = Padding.Empty };
+        var searchRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 6, Padding = new(0, 4, 0, 16), Margin = Padding.Empty };
         searchRow.ColumnStyles.Add(new(SizeType.Percent, 100)); searchRow.ColumnStyles.Add(new(SizeType.Absolute, 150));
         searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize));
         productSearch.Margin = new(0, 4, 10, 0); productSort.Margin = new(0, 4, 10, 0);
         productSort.Items.AddRange(["기본 순서", "이름순", "설치된 도구 먼저", "업데이트 먼저"]); productSort.SelectedIndex = 0;
-        var refresh = MakeButton("새로 고침"); var add = MakeButton("＋ 도구 등록"); add.Margin = Padding.Empty;
+        searchRow.ColumnStyles.Add(new(SizeType.AutoSize));
+        var publishers = MakeButton("제작자·조직"); publishers.Click += (_, _) => EditRepositoryPublishers();
+        var refresh = MakeButton("새로고침"); var add = MakeButton("＋ 도구 등록"); add.Margin = Padding.Empty;
         searchRow.Controls.Add(productSearch, 0, 0); searchRow.Controls.Add(productSort, 1, 0);
-        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(nativeReload, 3, 0); searchRow.Controls.Add(add, 4, 0);
+        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(nativeReload, 3, 0); searchRow.Controls.Add(publishers, 4, 0); searchRow.Controls.Add(add, 5, 0);
         nativeReload.Click += async (_, _) =>
         {
             var page = currentPage;

@@ -45,6 +45,18 @@ public sealed partial class ManagerForm
     {
         await Run("설치 상태 · 정식/TEST 업데이트 확인", async () =>
         {
+            int newRepositories = 0; int discoveryWarnings = 0;
+            try
+            {
+                var before = availablePackages.Select(p => p.Repository.Repository).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var discovery = await new RepositoryDiscovery(paths).Refresh();
+                discoveryWarnings = discovery.Warnings.Length;
+                newRepositories = discovery.Repositories.Count(r => !before.Contains(r.Repository));
+                availablePackages.Clear();
+                foreach (var repo in discovery.Repositories) foreach (var package in repo.Packages) availablePackages.Add(new(repo, package));
+                foreach (var warning in discovery.Warnings) WriteLog("저장소 검색 확인 필요: " + warning);
+            }
+            catch (Exception error) { discoveryWarnings++; WriteLog("저장소 검색 실패 · 기존 목록 유지: " + error.Message); }
             await LoadRegisteredPackages();
             var targets = UpdateTargets().GroupBy(x => x.Repository.Repository, StringComparer.OrdinalIgnoreCase).ToArray();
             using var gate = new SemaphoreSlim(4);
@@ -104,8 +116,8 @@ public sealed partial class ManagerForm
             await RefreshStatuses();
             var count = appearanceSnapshot.Count(x => x.Value.Update);
             var tests = CommandInventory().Count(NewTestAvailable);
-            refreshSummary = "확인 완료 · 업데이트 " + count + "개 · 새 TEST " + tests + "개 (TEST 도구에서 확인)" +
-                (updateErrors.Count + testOfferErrors.Count + stableOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
+            refreshSummary = "확인 완료 · 새 저장소 " + newRepositories + "개 · 업데이트 " + count + "개 · 새 TEST " + tests + "개 (TEST 도구에서 확인)" +
+                (discoveryWarnings + updateErrors.Count + testOfferErrors.Count + stableOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
             WriteLog(refreshSummary);
         });
         if (refreshSummary is not null) { footer.Text = refreshSummary; refreshSummary = null; }

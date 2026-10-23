@@ -28,16 +28,16 @@ description: RoBIM Add-in Manager의 버튼 카드·선택 설치·설치 위치
 
 - 신규 Revit 기능은 독립 Native Add-in으로 만든다. pyRevit 신규 버튼은 추가하지 않고 기존 기능·Manager 연결을 유지보수한다.
 - 공용 .NET 원본은 RoBIM-Libraries에서 역할별 패키지로 관리하고 소비 버전을 정확히 고정한다. 기능 내부 DLL 사본과 Host 경계 공유 타입을 구분한다.
-- 제작자와 관계없이 새 명령은 Manager catalog/modules.json에 등록한다. 기능 PR과 등록 PR을 연결하고 scripts/validate_registration.py로 배포 전 검사한다. 저장소 생성만으로 다른 PC에 자동 등록된다고 설명하지 않는다.
+- 신규 버튼은 robim-addon 토픽·기본 브랜치 robim-package.json(moduleId/commandId)·TEST Release로 자체 배포 정보를 제공한다. Manager 제작자·조직/연결 계정 범위와 접근 권한을 확인하고 새로고침의 실제 카드를 검증한다. 중앙 목록은 기본 추천·이전 호환용이며 신규 표시를 위한 필수 PR/Manager 재배포를 요구하지 않는다.
 - 새 배포는 TEST이며 Manager TEST 도구에 표시한다. 실사용 승격은 새 정식 버전과 실제 호스트 검증자·빌드·HTTPS 기록이 필요하다. 버전명·브랜치·설치 성공만으로 승격하지 않는다.
-- 신규 제작 시 통합 저장소 docs/developer/NEW_BUTTON.md와 scripts/new_revit_module.py를 읽는다. 생성 도구는 Manager clone을 필수로 받아 등록 초안을 함께 만든다.
+- 신규 제작 시 통합 저장소 docs/developer/NEW_BUTTON.md와 scripts/new_revit_module.py를 읽는다. 생성 도구는 Manager 없이도 배포 표시 정보·검증기·설명서·전용 스킬을 만들며 중앙 등록은 선택 사항이다.
 
 
 ## 버튼별 저장소 운영
 
 신규 Revit 버튼은 **버튼 하나 = Git 저장소 하나 = Native 모듈 하나 = 설치 패키지 하나**로 운영합니다. 다른 버튼은 새 저장소에서 만들며 버튼별 장기 브랜치로 나누지 않습니다. codex/ 브랜치는 해당 저장소 안의 수정 작업용입니다. 공유 구현은 RoBIM-Libraries의 역할별 NuGet으로 제공하고 소비 버전을 정확히 고정합니다. 공용 Host/Loader/Manager를 버튼마다 복제하지 않습니다.
 
-모든 새 버튼은 Manager 중앙 목록과 Workspace 소유권 목록에 함께 등록하고 TEST부터 시작합니다. README에는 일반 사용자/개발자 설명서와 전용 스킬을 연결합니다. 기존 CAD 묶음·기존 pyRevit은 호환성을 유지하는 레거시이며 새 Native 버튼을 추가하는 장소가 아닙니다.
+모든 새 버튼은 자체 검색 메타데이터와 Workspace 소유권을 기록하고 TEST부터 시작합니다. README에는 일반 사용자/개발자 설명서와 전용 스킬을 연결합니다. 기존 CAD 묶음·기존 pyRevit은 호환성을 유지하는 레거시이며 새 Native 버튼을 추가하는 장소가 아닙니다.
 
 ## 단일 버튼 설치 UI
 
@@ -81,3 +81,8 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 | 정식 | 더 새 정식 | 업데이트 · 해당 정식 패키지 설치 |
 
 정식에서 TEST를 선택 설치하면 같은 명령 ID의 설치 채널이 TEST로 바뀌며 내 도구와 TEST 목록에 반영됩니다. 정식 승격을 설치하면 다시 정식으로 표시합니다. 낮은 기존 정식으로 되돌리려면 ···의 저장소 정식 버전 설치를 명시적으로 선택합니다. 기본 업데이트 동작은 버전을 낮추지 않습니다. 새로고침 자체는 설치/채널/리본을 변경하지 않습니다.
+
+
+## 매번 적용할 제작 출발점
+
+신규 버튼 전 Workspace START_HERE.md → NEW_BUTTON.md → BUTTON_CONTRACT.md → Libraries 공통 UI 기준/API를 읽고, 기존 버튼은 해당 README·AGENTS·전용 스킬·UI_ADOPTION도 확인한다. 생성기를 사용하고 사용한 기준·실제 버전·예외를 기록한다. 기본 브랜치/작업 브랜치/Release/PC 적용을 구분한다. 완료 보고에는 사용자·개발자 문서·스킬 갱신과 Manager 실제 카드·설치/적용 단계의 검증 결과를 포함한다. 파일 존재나 PR 생성만으로 완료라고 하지 않는다.

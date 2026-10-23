@@ -27,7 +27,7 @@
 
 - 신규 Revit 버튼은 pyRevit에 추가하지 않고 독립 Native Add-in으로 제작합니다. 기존 pyRevit 버튼과 Manager 연결은 유지보수합니다.
 - 공용 코드는 [RoBIM-Libraries](https://github.com/gagaggan/RoBIM-Libraries)의 역할별 패키지로 관리하고 정확한 버전을 고정합니다. 실행 중 모든 DLL을 공용 폴더 하나에 덮어쓰지 않습니다.
-- 누가 제작하든 신규 명령은 Manager `catalog/modules.json`에 등록합니다. 기능 PR과 Manager 등록 PR을 연결하고 배포 전에 등록 검사를 통과해야 합니다.
+- 신규 명령은 robim-addon 토픽·기본 브랜치의 자체 표시 정보·TEST Release로 검색됩니다. 중앙 목록은 기본 추천/이전 호환용이며 신규 표시의 필수 조건이 아닙니다. 실제 Manager 새로고침 결과를 검증합니다.
 - 새 버전은 TEST로 시작합니다. 실사용 승격은 실제 호스트 빌드·검증자·검증 기록을 명시한 별도 배포입니다. 설치 성공·main 병합·빌드 성공은 실사용 검증을 대신하지 않습니다.
 - [신규 버튼 제작 설명서](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)에서 clone부터 생성·패키징·등록·검증까지 진행합니다.
 
@@ -41,3 +41,6 @@
 ## 단일 버튼 설치 UI
 
 신규 독립 Revit 도구 이름에는 RoBIM 접두어를 반복하지 않는다. 내부 저장소·package/module/command ID와 원격 메타데이터는 보존한다. 중앙 등록된 단일 버튼은 패키지가 없는 첫 화면부터 설치하기를 제공하고, 별도의 기능 목록 보기나 공용 패키지 설치를 선행시키지 않는다. 설치에서 다운로드·SHA-256·단일 명령/등록 ID·배포 상태를 자동 검사하며, 기존 캐시도 폴더명이 아닌 모듈 ID로 연결한다. 새 설치는 기본 탭/패널에 자동 배치하되 저장된 사용자 위치·이름·묶음·다른 버튼을 보존한다.
+
+
+새 버튼 제작은 Workspace START_HERE.md를 매번 먼저 읽고 생성기·제작 계약·공통 UI·전용 스킬을 적용합니다. README/사용자·개발자 문서/스킬/실제 Manager 표시와 적용 단계를 함께 확인합니다.
