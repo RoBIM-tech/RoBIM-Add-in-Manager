@@ -78,6 +78,7 @@ assert writes[-1][1]['RetryPaused'] is True
 state.update(request={'Id':'retry','Pid':11,'StartTicks':22,'Reload':False}, result={'Id':'retry','Status':'failed'})
 clock['now']=100; scope['_on_idle'](sender, None)
 assert len(attempts)==5 and receipts[-1][0]=='applied', 'Successful retry kept old failure receipt'
+assert writes[-1][1]['Status']=='resolved' and not writes[-1][1]['RetryPaused'], 'Recovered error remained marked as paused'
 print('PASS real Idling: log flood stopped, no endless UI retries, new request recovers failed receipt')
 
 # A missing stack button can be restored using its already loaded command class.
@@ -114,14 +115,15 @@ fake_components.GenericUIComponent=N(make_unique_name=lambda directory:'selected
 fake_loader=ModuleType('pyrevit.loader')
 fake_loader.sessioninfo=N(get_loaded_pyrevit_assemblies=lambda:['current'])
 fake_ui.IExternalCommand=type('IExternalCommand',(),{})
-command=N(IsAbstract=False,IsCommand=True)
+command=N(IsAbstract=False,IsCommand=True,FullName='Selected_Relink')
 old=N(GetName=lambda:N(Name='old'),GetType=lambda *args:command)
-current=N(GetName=lambda:N(Name='current'),GetType=lambda *args:command)
+current=N(GetName=lambda:N(Name='current'),GetType=lambda name,throws,ignore:command if ignore and name.lower()==command.FullName.lower() else None)
 scope.update(os=N(path=N(abspath=os.path.abspath,join=os.path.join,isfile=lambda p:True),sep=os.sep),
     clr=N(GetClrType=lambda interface:N(IsAssignableFrom=lambda value:value.IsCommand)),
     AppDomain=N(CurrentDomain=N(GetAssemblies=lambda:[old,current])))
 with patch.dict(sys.modules,{'pyrevit.extensions.genericcomps':fake_components,'pyrevit.loader':fake_loader,'Autodesk.Revit.UI':fake_ui}):
     assert scope['_selected_executor'](os.path.abspath('active'),key)[0] is current
+    assert scope['_selected_executor'](os.path.abspath('active'),key)[2] == 'Selected_Relink'
     try: scope['_selected_executor'](os.path.abspath('active'),'../escape.pushbutton')
     except ValueError: pass
     else: raise AssertionError('Escaping script path accepted')

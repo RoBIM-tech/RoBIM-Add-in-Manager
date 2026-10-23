@@ -106,3 +106,6 @@ pyRevit 묶음 안의 선택 버튼이 RibbonPanel.GetItems에서 빠지는 경�
 
 
 Preview 39는 pyRevit이 선택된 단독 stack 버튼 자체를 생성하지 못한 경우도 처리합니다. 현재 pyRevit 세션에 이미 로드된 정확한 IExternalCommand·availability 클래스를 선택된 원본 경로로 확인한 뒤 기존 소스 패널에 리본 버튼만 복구합니다. 다른 DLL을 로드하거나 기능 스크립트·모델을 실행하지 않습니다. 동일 이름 API 버튼이 있으면 중복 생성하지 않고, 클래스/패널이 불명확하면 진단을 남깁니다. 폴더 이동·명령 ID·사용자 배치는 변경하지 않습니다.
+
+
+Preview 40은 Python 쪽 unique name과 네이티브 pyRevit 파서가 만든 클래스명에서 MINUS/minus 같은 토큰 대소문자가 다른 경우를 CLR의 모호성 검사로 안전하게 처리합니다. 실제 타입의 FullName을 리본과 availability에 사용합니다. 성공한 적용은 이전 오류 진단도 resolved로 갱신합니다. 실제 Revit에서 Relink Paths를 RoBIM → Insert에 복구하고 누락 0개/14개 버튼 applied 응답을 확인했습니다. 기능 실행이나 모델 쓰기 검증과는 구분합니다.

@@ -189,9 +189,12 @@ def _selected_executor(root, key):
     for assembly in AppDomain.CurrentDomain.GetAssemblies():
         if assembly.GetName().Name not in current:
             continue
-        executor = assembly.GetType(unique, False, False)
+        # The native pyRevit parser keeps tokens such as MINUS uppercase while
+        # GenericUIComponent.make_unique_name lowercases them. CLR resolves the
+        # same selected identifier ignoring case and rejects ambiguous matches.
+        executor = assembly.GetType(unique, False, True)
         if executor is not None and not executor.IsAbstract and interface.IsAssignableFrom(executor):
-            found.append((assembly, executor, unique))
+            found.append((assembly, executor, executor.FullName))
     if len(found) > 1:
         raise ValueError("Ambiguous current pyRevit executor: " + key)
     return found[0] if found else None
@@ -644,6 +647,8 @@ def _on_idle(sender, args):
                 return
             count = apply_layout(sender)
             _retry.succeeded()
+            if os.path.isfile(os.path.join(BASE, "revit-ui-error.json")):
+                write(os.path.join(BASE, "revit-ui-error.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Status": "resolved", "Attempts": 0, "RetryPaused": False})
             _fingerprint = fingerprint
             _warmup += 1
             if matched_request:
