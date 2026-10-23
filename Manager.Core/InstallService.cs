@@ -293,7 +293,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
                 !File.Exists(Path.Combine(source, "Contents", "Windows", "DelHiddenNet.dll")))
                 throw new InvalidDataException("AutoCAD 패키지 구조가 올바르지 않습니다.");
         }
-        else if (!Directory.GetDirectories(source, "*.tab").Any() || (!tool.CustomPackage && !Directory.Exists(Path.Combine(source, "lib"))))
+        else if ((!Directory.GetDirectories(source, "*.tab").Any() && !(tool.Id == Catalog.RevitSelected.Id && RevitButtons.ValidEmptySelection(source))) || (!tool.CustomPackage && !Directory.Exists(Path.Combine(source, "lib"))))
             throw new InvalidDataException("RoBIM pyRevit 패키지 구조가 올바르지 않습니다.");
     }
 

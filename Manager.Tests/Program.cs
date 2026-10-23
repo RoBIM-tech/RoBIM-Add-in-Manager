@@ -61,6 +61,12 @@ if (args.Contains("--discovery-only"))
     RepositoryDiscoveryTests.Run(root, Test);
     Console.WriteLine($"{results.Count-failures}/{results.Count} discovery checks passed"); return failures==0?0:1;
 }
+if (args.Contains("--buttons-only"))
+{
+    ButtonTests.Run(Test, Paths, Require, root);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} button checks passed"); return failures==0?0:1;
+}
 if (args.Contains("--location-only"))
 {
     RepositoryDiscoveryTests.Run(root, Test);
