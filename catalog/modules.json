@@ -74,6 +74,25 @@
           "channel": "test"
         }
       ]
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-CentralClone",
+      "branch": "main",
+      "role": "button",
+      "packages": [
+        {
+          "id": "robim-central-clone",
+          "name": "중앙파일 복제·워크셋 수정",
+          "host": "revit",
+          "path": "RoBIM.Feature.CentralClone.bundle",
+          "folder": "RoBIM.Feature.CentralClone.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Feature.CentralClone-Revit2026.zip",
+          "description": "중앙파일 복제·워크셋 수정 · 독립 Add-in",
+          "channel": "test"
+        }
+      ],
+      "recognition": "RoBIM 중앙 등록"
     }
   ],
   "commands": [
@@ -131,6 +150,13 @@
       "packageId": "robim-revit-parameter-bulk-edit",
       "moduleId": "parameter-bulk-edit",
       "commandId": "bulk-edit",
+      "host": "revit"
+    },
+    {
+      "repository": "gagaggan/RoBIM-Revit-CentralClone",
+      "packageId": "robim-central-clone",
+      "moduleId": "central-clone",
+      "commandId": "run",
       "host": "revit"
     }
   ],
