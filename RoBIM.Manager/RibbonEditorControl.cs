@@ -171,7 +171,7 @@ internal sealed partial class RibbonEditorControl : UserControl
     {
         tools = values.ToList(); bank.Items.Clear(); foreach (var tool in tools) bank.Items.Add(new BankTool(tool));
         var saved = example || !File.Exists(store.FilePath("Revit")) ? RibbonLayouts.Defaults("Revit", tools) : store.Read("Revit");
-        LoadLayout(saved); status.Text = tools.Count(x => x.Installed) + "개 설치됨 · 회색 버튼은 설치 전 배치 미리보기입니다.";
+        LoadLayout(RibbonLayouts.IncludeMissingManagement(saved, tools)); status.Text = tools.Count(x => x.Installed && !x.Id.StartsWith("manager:")) + "개 설치됨 · 관리 버튼도 이동·이름·묶음을 편집할 수 있습니다.";
     }
     internal void LoadLayout(RibbonLayout layout)
     {

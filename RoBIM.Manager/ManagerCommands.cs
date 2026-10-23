@@ -274,8 +274,7 @@ public sealed partial class ManagerForm
                     var installed = new RibbonTool("native:" + module.Id + ":" + command.Id, ToolNames.Display(command.Title), command.Tab, command.Panel, true);
                     var existing = CommandInventory().Where(c => c.Selected && c.Kind is ButtonKind.Native or ButtonKind.PyRevit).Select(c =>
                     {
-                        var group = c.Group.Split(" / ", StringSplitOptions.TrimEntries);
-                        return new RibbonTool(c.Id, c.Title, group.Length > 1 ? group[0] : "RoBIM 도구", group.Length > 1 ? group[1] : "도구", true);
+                        return RibbonLayouts.FromGroup(c.Id, c.Title, c.Group, true);
                     });
                     new RibbonLayouts(paths).EnsureInstalled(installed, existing,
                         () => manager.ToggleWithMigration(card.Owner.Status.Tool, source.Path, commandId, true));

@@ -251,7 +251,10 @@ def apply_layout(uiapp):
     planned = []
     destinations = {}
     for key, binding in bindings.items():
-        tab, panel, title, size, stack, rows = assigned.get(key, (binding[2], binding[3], binding[4], "Large", None, 0))
+        default_tab, default_panel = binding[2] or u"RoBIM 도구", binding[3] or u"도구"
+        if not key.startswith("manager:") and (default_tab == u"RoBIM 관리" or default_panel == u"관리"):
+            default_tab, default_panel = u"RoBIM 도구", u"도구"
+        tab, panel, title, size, stack, rows = assigned.get(key, (default_tab, default_panel, binding[4], "Large", None, 0))
         if not tab or not panel or size not in ("Large", "Small"):
             raise ValueError("Invalid ribbon destination")
         destinations[(tab, panel)] = _panel(uiapp, tab, panel)

@@ -122,9 +122,11 @@ public sealed partial class ManagerForm
             CheckBounds(card);
         }
         Navigate("Ribbon"); Require(ribbonPage.Visible && !productsPage.Visible, "Ribbon editor navigation");
-        Require(ribbonEditor!.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 2, "Ribbon editor defaults contain installed tools only");
+        var managementCount = ribbonEditor!.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count(b => b.Id.StartsWith("manager:"));
+        Require(managementCount > 0, "Installed tools expose editable management controls");
+        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 2 + managementCount, "Ribbon editor defaults contain installed tools and management only");
         ribbonEditor.AddTool("native:sheets:create-sheets");
-        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 3, "Uninstalled tool can be placed without installation");
+        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 3 + managementCount, "Uninstalled tool can be placed without installation");
         var editable = ribbonEditor.Snapshot();
         var moved = editable.Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).First();
         var secondId = CommandInventory().First(x => x.Kind is ButtonKind.PyRevit or ButtonKind.Native && x.Id != moved.Id).Id;

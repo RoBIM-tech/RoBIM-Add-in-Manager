@@ -299,6 +299,22 @@ Test("ProfileBlockedWhenHostRunning", () =>
     var service = new RevitProfiles(Paths("activate-host"), () => throw new IOException("host running"), (_, _) => { called = true; return Task.CompletedTask; }, _ => true);
     Reject(() => service.Apply(true).GetAwaiter().GetResult()); Require(!called, "Profile modified while host running");
 });
+Test("EditableManagementAndFeatureFallback", () =>
+{
+    var native = new RibbonTool("native:tool:run", "기능", "RoBIM 관리", "", true);
+    var tools = RibbonLayouts.WithManagementTools([native, new("robim-revit:legacy", "기존", "", "", true)]);
+    Require(tools.Length == 5 && tools[0].Tab == "RoBIM 도구" && tools[0].Panel == "도구", "Missing feature panel fell into Management");
+    Require(RibbonLayouts.DefaultLocation(native with { Panel = "독립 Add-in" }).Tab == "RoBIM 도구", "Feature default occupied reserved management tab");
+    Require(RibbonLayouts.FromGroup("native:x:run", "X", "RoBIM 관리 / ", true).Panel == "도구", "Empty grouped panel not normalized");
+    Require(RibbonLayouts.WithManagementTools([native with { Installed = false }]).Length == 1, "Management appeared without installed tools");
+    var user = new RibbonLayout(1, "Revit", [new("사용자", [new("운영", [new("manager:RoBIM.Native.Reload", "다시 적용", "Small", "management", 2), new("manager:RoBIM.Native.Manager", "도구 관리", "Small", "management", 2)])])]);
+    var merged = RibbonLayouts.IncludeMissingManagement(user, tools);
+    Require(merged.Tabs[0] == user.Tabs[0] && merged.Tabs.SelectMany(t=>t.Panels).SelectMany(p=>p.Buttons).Count(b=>b.Id.StartsWith("manager:")) == 3, "Existing Management layout changed or missing control not added");
+    var store = new RibbonLayouts(Paths("management-layout")); store.Save(merged); var reread = store.Read("Revit");
+    Require(reread.Tabs[0].Panels[0].Buttons[0].Title == "다시 적용" && reread.Tabs[0].Panels[0].Buttons[1].StackRows == 2, "Management edit did not persist");
+    store.EnsureInstalled(native, []);
+    Require(store.Read("Revit").Tabs.Any(t=>t.Name == "RoBIM 도구" && t.Panels.Any(p=>p.Name == "도구" && p.Buttons.Any(b=>b.Id == native.Id))), "Auto placement used Management fallback");
+});
 Test("RibbonLayoutRoundTripAndInstallationIndependence", () =>
 {
     var target = Paths("ribbon-config"); var store = new RibbonLayouts(target);

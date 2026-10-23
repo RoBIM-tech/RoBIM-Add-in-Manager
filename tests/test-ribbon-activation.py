@@ -24,7 +24,9 @@ class ApiButton:
     @Enabled.setter
     def Enabled(self, value): self.item.IsEnabled = value
 
-class Row: pass
+class Row:
+    def __init__(self): self.Items = Collection()
+    def GetType(self): return N(FullName='Autodesk.Windows.RibbonRowPanel')
 class Separator: pass
 class Break: pass
 
@@ -65,3 +67,31 @@ state = next(v for k,v in written.items() if k.endswith('revit-ui-state.json'))
 assert all(not b['EnabledBeforeRestore'] and b['Enabled'] and b['UiEnabled'] and b['PanelEnabled'] for b in state['Buttons'])
 assert scope['apply_layout'](Ui()) == 2 and len(controls.Source.Items) == 3, 'Repeated apply duplicates controls'
 print('PASS shared-tab cleanup recovery: buttons and parents enabled; foreign/removed controls preserved; repeated apply stable')
+
+# Management controls use the same saved destination, caption and column policy as tools.
+destination = panel('My Controls')
+owned_tab.Panels.Add(destination)
+for entry in layout['Tabs'][0]['Panels'][0]['Buttons']:
+    entry.update(Title='Edited ' + entry['Id'], Size='Small', Stack='controls', StackRows=2)
+layout['Tabs'][0]['Panels'][0]['Name'] = destination.Source.Title
+scope['Guid'] = N(NewGuid=lambda: N(ToString=lambda fmt: 'test-column'))
+assert scope['apply_layout'](Ui()) == 2
+assert len(destination.Source.Items) == 1 and isinstance(destination.Source.Items[0], Row)
+column = destination.Source.Items[0]
+assert len(column.Items) == 3 and column.Items[0] is reload and column.Items[2] is manager
+assert reload.Size == 0 and manager.Size == 0
+assert all(b[0].ItemText.startswith('Edited ') for b in bindings.values())
+assert not controls.IsVisible and destination.IsVisible
+assert scope['apply_layout'](Ui()) == 2 and len(destination.Source.Items) == 1
+print('PASS management editing: moved panel, custom captions, stacked two-row controls, repeated apply without duplicates')
+
+feature = button('Feature')
+controls.Source.Items.Add(feature)
+fallback_tab = tab('RoBIM 도구', [panel('도구')])
+ribbon.Tabs.Add(fallback_tab)
+scope['_owned_tabs'].add(fallback_tab.Title)
+bindings['native:no-panel:run'] = (ApiButton(feature), feature, 'RoBIM 관리', '독립 Add-in', 'Feature')
+assert scope['apply_layout'](Ui()) == 3
+assert feature in fallback_tab.Panels[0].Source.Items, 'Unplaced feature entered Management'
+assert feature not in controls.Source.Items
+print('PASS unplaced feature fallback: management remains reserved for connection controls')
