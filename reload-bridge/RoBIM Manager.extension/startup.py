@@ -2,8 +2,15 @@
 """RoBIM-owned UI bridge. Standard Idling and pyRevit Reload; no model changes."""
 import io
 import os
+import sys
 import traceback
 try:
+    if "robim_ribbon" in sys.modules:
+        try:
+            from importlib import reload as reload_module
+        except ImportError:
+            reload_module = reload
+        reload_module(sys.modules["robim_ribbon"])
     from robim_ribbon import start
     start(__revit__)
 except Exception as error:

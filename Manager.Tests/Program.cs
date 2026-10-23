@@ -61,6 +61,12 @@ if (args.Contains("--discovery-only"))
     RepositoryDiscoveryTests.Run(root, Test);
     Console.WriteLine($"{results.Count-failures}/{results.Count} discovery checks passed"); return failures==0?0:1;
 }
+if (args.Contains("--bridge-only"))
+{
+    ReloadBridgeTests.Run(root,Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} bridge checks passed"); return failures==0?0:1;
+}
 if (args.Contains("--buttons-only"))
 {
     ButtonTests.Run(Test, Paths, Require, root);
@@ -746,6 +752,7 @@ if (args.Contains("--online"))
     catch (Exception ex) { failures++; results.Add(new { Name = "PrivateGitHubCadAndRevitDownloadInstall", Passed = false, Error = ex.ToString() }); Console.WriteLine(ex.Message); }
 }
 RepositoryDiscoveryTests.Run(root, Test);
+ReloadBridgeTests.Run(root, Test);
 PyRevitLocationTests.Run(Test, Paths, Require, root);
 NativeReleasePolicyTests.Run(Test, Require);
 NativeRevitTests.Run(Test, Paths, Require, root);
