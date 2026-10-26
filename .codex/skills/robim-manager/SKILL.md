@@ -109,3 +109,8 @@ Preview 39는 pyRevit이 선택된 단독 stack 버튼 자체를 생성하지 �
 
 
 Preview 40은 Python 쪽 unique name과 네이티브 pyRevit 파서가 만든 클래스명에서 MINUS/minus 같은 토큰 대소문자가 다른 경우를 CLR의 모호성 검사로 안전하게 처리합니다. 실제 타입의 FullName을 리본과 availability에 사용합니다. 성공한 적용은 이전 오류 진단도 resolved로 갱신합니다. 실제 Revit에서 Relink Paths를 RoBIM → Insert에 복구하고 누락 0개/14개 버튼 applied 응답을 확인했습니다. 기능 실행이나 모델 쓰기 검증과는 구분합니다.
+
+
+## 제작·수정 공통 확인
+
+신규 버튼과 기존 수정 모두 [명명 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md)과 [전달 완료 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md)를 먼저 읽는다. 화면 이름은 기능명, 공용 패키지는 RoBIM. 전체 이름을 사용하고 기존 설치/모듈/명령 ID는 유지한다. 사용 가능한 버튼 전달 요청은 로컬 코드 작성에서 멈추지 않고 요청 범위의 저장소 게시·TEST 배포·Manager 검색/설치·호스트 적용까지 진행한다. 신규 검색은 robim-addon 토픽·기본 브랜치 descriptor(moduleId/commandId)·Release·검색 대상/권한으로 확인하며 중앙 등록 PR/Manager 재배포는 필수가 아니다. 이 절차가 오래된 중앙 등록 필수 문구보다 우선한다. README·사용자/개발자 문서·스킬·UI_ADOPTION을 실제 변경에 맞춰 갱신하고 소스/기본 브랜치/Release/Manager 카드/설치/호스트 결과를 구분해 보고한다. 게시·병합·설치는 현재 요청 범위를 따르며 미수행 단계를 완료라고 기록하지 않는다.

@@ -52,6 +52,9 @@ def validate_source(catalog, source, host, repository):
             v=maturity.get('validation',{})
             if '-' in maturity['version'].split('+')[0] or not all(v.get(k) for k in ('by','hostBuild','evidence')) or not v['evidence'].startswith('https://'): raise ValueError('Stable needs host verification evidence')
         descriptor=read(source/'robim-package.json')
+        for name in [p.get('name', '') for p in descriptor['packages']] + [c.get('title', '') for c in module['commands']]:
+            if re.match(r'^robim(?:\b|[._-])', name.strip(), re.I):
+                raise ValueError('Display names must use the feature name without a RoBIM prefix')
         packageIds={p['id'] for p in descriptor['packages'] if p['host']=='revit' and p['distribution']=='release'}
         if len(descriptor['packages'])!=1 or len(packageIds)!=1: raise ValueError('One native package per button repository required')
         central=[r for r in catalog['repositories'] if r['repository']==repository]

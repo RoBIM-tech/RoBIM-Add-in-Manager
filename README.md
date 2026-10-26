@@ -26,7 +26,7 @@ Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리�
 
 신규 Revit 버튼은 **버튼 하나 = Git 저장소 하나 = Native 모듈 하나 = 설치 패키지 하나**로 운영합니다. 다른 버튼은 새 저장소에서 만들며 버튼별 장기 브랜치로 나누지 않습니다. codex/ 브랜치는 해당 저장소 안의 수정 작업용입니다. 공유 구현은 RoBIM-Libraries의 역할별 NuGet으로 제공하고 소비 버전을 정확히 고정합니다. 공용 Host/Loader/Manager를 버튼마다 복제하지 않습니다.
 
-모든 새 버튼은 Manager 중앙 목록과 Workspace 소유권 목록에 함께 등록하고 TEST부터 시작합니다. README에는 일반 사용자/개발자 설명서와 전용 스킬을 연결합니다. 기존 CAD 묶음·기존 pyRevit은 호환성을 유지하는 레거시이며 새 Native 버튼을 추가하는 장소가 아닙니다.
+모든 새 버튼은 자체 검색 표시 정보와 Workspace 소유권 목록을 기록하고 TEST부터 시작합니다. README에는 일반 사용자/개발자 설명서와 전용 스킬을 연결합니다. 기존 CAD 묶음·기존 pyRevit은 호환성을 유지하는 레거시이며 새 Native 버튼을 추가하는 장소가 아닙니다.
 
 [확정 운영 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)
 
@@ -77,3 +77,6 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 
 
 신규 버튼 제작은 [Workspace START_HERE](https://github.com/gagaggan/RoBIM-Workspace/blob/main/START_HERE.md)를 먼저 읽습니다. Preview 37+는 여러 제작자·조직을 등록하고 새로고침에서 새 저장소를 검색합니다. 중앙 등록 PR은 신규 표시의 필수 조건이 아닙니다.
+
+
+[명명·전달 확인](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md) · [패키지/표시 이름 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md): 새 제작·기존 수정의 공통 기준입니다. 코드 작성·GitHub 게시·Manager 표시/설치·호스트 적용 상태를 구분합니다.

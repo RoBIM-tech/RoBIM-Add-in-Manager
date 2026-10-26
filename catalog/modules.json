@@ -26,7 +26,7 @@
       "packages": [
         {
           "id": "robim-revit-sheets",
-          "name": "RoBIM 시트 생성",
+          "name": "시트 생성",
           "host": "revit",
           "path": "RoBIM.Revit.Sheets.bundle",
           "folder": "RoBIM.Revit.Sheets.bundle",
@@ -45,7 +45,7 @@
       "packages": [
         {
           "id": "robim-revit-parameter-copy",
-          "name": "RoBIM 파라미터 복사",
+          "name": "파라미터 복사",
           "host": "revit",
           "path": "RoBIM.Revit.ParameterCopy.bundle",
           "folder": "RoBIM.Revit.ParameterCopy.bundle",
@@ -64,7 +64,7 @@
       "packages": [
         {
           "id": "robim-revit-parameter-bulk-edit",
-          "name": "RoBIM 파라미터 일괄 수정",
+          "name": "파라미터 일괄 수정",
           "host": "revit",
           "path": "RoBIM.Revit.ParameterBulkEdit.bundle",
           "folder": "RoBIM.Revit.ParameterBulkEdit.bundle",
