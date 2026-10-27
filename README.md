@@ -117,3 +117,6 @@ RoBIM-tech / robim 팀의 활성 구성원만 사용할 수 있습니다. 자동
 2026-10-27 RoBIM 전체 15개 저장소 이전과 현재 PC의 Manager preview.47 연결 검증을 완료했습니다. 기존 설치 ID를 유지합니다. [이전 현황·보존 기록·남은 조직 앱 승인](docs/developer/ORGANIZATION_TRANSFER.md)
 
 preview.48은 [계정 설정](docs/user/README.md#계정-설정-preview48)의 중복 로그인·연결 작업을 정리합니다. 계정 변경과 고급 설정은 필요할 때 펼칩니다.
+
+[preview.48 TEST 배포와 검증 기록](docs/developer/PREVIEW48_RELEASE.md): 소스 PR·설치 파일·공용 인증/Host/CAD 패키지와 남은 검증 범위.
+
