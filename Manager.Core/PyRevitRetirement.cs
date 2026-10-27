@@ -114,7 +114,7 @@ public sealed class PyRevitRetirement(ManagerPaths paths, string configFile)
         var file = SafeFiles.Child(state.Path, "Contents/2026/RoBIM.Revit.Host.dll");
         var version = FileVersionInfo.GetVersionInfo(file).ProductVersion ?? "";
         var preview = Regex.Match(version, @"^1\.0\.0-preview\.(\d+)");
-        return preview.Success && int.Parse(preview.Groups[1].Value) >= 3;
+        return preview.Success && int.Parse(preview.Groups[1].Value) >= 4;
     }
     private static void Atomic(string file, byte[] bytes)
     {
