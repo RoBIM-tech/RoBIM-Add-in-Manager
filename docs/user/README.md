@@ -172,3 +172,8 @@ Manager 선택 설치는 선택하지 않은 pyRevit 명령과 탭·패널·버�
 
 
 Preview 40에서는 선택된 기존 pyRevit 묶음 버튼이 생성되지 않은 경우 현재 로드된 명령으로 리본 버튼을 복구합니다. Relink Paths 연결과 적용 결과를 실제 Revit에서 확인했습니다. 이전에 출력된 오류창 내용은 기록이므로 닫아도 됩니다. 새 적용이 성공하면 마지막 오류 상태도 해제됩니다.
+
+
+## pyRevit 제거 후 예전 버튼 잔상
+
+Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 독립 Add-in과 같은 패널에 남는 경우를 처리합니다. 선택되지 않은 예전 제어는 원래 내부 ID로 식별해 현재 세션에서 비활성·숨김 처리합니다. 파일 제거를 숨김으로 대신하지 않으며 선택된 pyRevit·독립 Add-in·다른 제품의 버튼은 유지합니다. RetiredPythonControls와 BridgeRevision=retirement-1을 적용 기록에 남깁니다. 연결 스크립트만 변경되므로 기존 백업·해시·세션 검증을 통과하면 Revit 실행 중 연결 업데이트와 표준 pyRevit Reload를 사용합니다. 실제 적용 완료는 새 세션 일치 응답과 기록을 확인합니다.

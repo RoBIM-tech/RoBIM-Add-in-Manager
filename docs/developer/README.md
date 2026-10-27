@@ -165,3 +165,12 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 | 정식 | 더 새 정식 | 업데이트 · 해당 정식 패키지 설치 |
 
 정식에서 TEST를 선택 설치하면 같은 명령 ID의 설치 채널이 TEST로 바뀌며 내 도구와 TEST 목록에 반영됩니다. 정식 승격을 설치하면 다시 정식으로 표시합니다. 낮은 기존 정식으로 되돌리려면 ···의 저장소 정식 버전 설치를 명시적으로 선택합니다. 기본 업데이트 동작은 버전을 낮추지 않습니다. 새로고침 자체는 설치/채널/리본을 변경하지 않습니다.
+
+
+## pyRevit 제거 후 예전 버튼 잔상
+
+Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 독립 Add-in과 같은 패널에 남는 경우를 처리합니다. 선택되지 않은 예전 제어는 원래 내부 ID로 식별해 현재 세션에서 비활성·숨김 처리합니다. 파일 제거를 숨김으로 대신하지 않으며 선택된 pyRevit·독립 Add-in·다른 제품의 버튼은 유지합니다. RetiredPythonControls와 BridgeRevision=retirement-1을 적용 기록에 남깁니다. 연결 스크립트만 변경되므로 기존 백업·해시·세션 검증을 통과하면 Revit 실행 중 연결 업데이트와 표준 pyRevit Reload를 사용합니다. 실제 적용 완료는 새 세션 일치 응답과 기록을 확인합니다.
+
+### 실제 적용 확인 — 2026-10-27
+
+Revit 2026.5 실행 중 연결 1.0.0-preview.41을 설치하고 표준 pyRevit Reload 후 동일 세션의 applied 응답과 BridgeRevision=retirement-1을 확인했습니다. RetiredPythonControls에는 AutoJoin, WorksetDeleteAsCentral, Relink Paths, DuplicateViews, ViewRotation의 기존 내부 ID 5개가 기록됐습니다. 현재 선택된 pyRevit·Native 버튼은 유지했습니다. 실제 모델 수정 명령은 실행하지 않았습니다. 전체 핵심 검사 199개와 Python 리본 회귀 검사를 통과했습니다. 로컬 연결 적용과 전체 Manager 설치 프로그램 배포는 별도입니다.

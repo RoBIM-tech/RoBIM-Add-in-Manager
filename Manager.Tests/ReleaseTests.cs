@@ -13,7 +13,7 @@ internal static class ReleaseTests
             require(c.Commands.Any(x => x.Host == "revit") && c.Commands.Any(x => x.Host == "autocad"), "Missing central tools");
             var paths = new ManagerPaths(Path.Combine(root,"central-catalog"), Path.Combine(root,"cad"), Path.Combine(root,"revit"));
             var native = new ExtensionCatalog(paths).Registered().Where(r => r.Packages.Any(p => p.Host == "revit")).ToArray();
-            require(native.Length == 3 && native.All(r => r.Packages.Length == 1) && native.Any(r => r.Repository == "gagaggan/RoBIM-Revit-Sheets"), "Missing independent button repositories");
+            require(native.All(r => r.Packages.Length == 1) && new[] { "RoBIM-Revit-Sheets", "RoBIM-Revit-ParameterCopy", "RoBIM-Revit-ParameterBulkEdit" }.All(name => native.Any(r => r.Repository == "gagaggan/" + name)), "Missing independent button repositories");
             require(Catalog.RevitHost.Repository == "gagaggan/RoBIM-Revit-Addin", "Host was moved into a feature repository");
         });
         test("RepositoryMovePreservesRegistryAndSheetInstallationIdentity", () => {

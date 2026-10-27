@@ -80,3 +80,8 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 
 
 [명명·전달 확인](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md) · [패키지/표시 이름 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md): 새 제작·기존 수정의 공통 기준입니다. 코드 작성·GitHub 게시·Manager 표시/설치·호스트 적용 상태를 구분합니다.
+
+
+## pyRevit 제거 후 예전 버튼 잔상
+
+Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 독립 Add-in과 같은 패널에 남는 경우를 처리합니다. 선택되지 않은 예전 제어는 원래 내부 ID로 식별해 현재 세션에서 비활성·숨김 처리합니다. 파일 제거를 숨김으로 대신하지 않으며 선택된 pyRevit·독립 Add-in·다른 제품의 버튼은 유지합니다. RetiredPythonControls와 BridgeRevision=retirement-1을 적용 기록에 남깁니다. 연결 스크립트만 변경되므로 기존 백업·해시·세션 검증을 통과하면 Revit 실행 중 연결 업데이트와 표준 pyRevit Reload를 사용합니다. 실제 적용 완료는 새 세션 일치 응답과 기록을 확인합니다.

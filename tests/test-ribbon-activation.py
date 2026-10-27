@@ -6,7 +6,7 @@ from types import SimpleNamespace as N
 
 source = Path(__file__).resolve().parents[1] / 'reload-bridge' / 'RoBIM Manager.extension' / 'lib' / 'robim_ribbon.py'
 tree = ast.parse(source.read_text(encoding='utf-8-sig'))
-functions = {'_items', '_owner', '_tab', '_panel', 'apply_layout'}
+functions = {'_items', '_owner', '_tab', '_panel', '_retire_unselected_python', 'apply_layout'}
 code = compile(ast.Module(body=[n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in functions], type_ignores=[]), str(source), 'exec')
 
 class Collection(list):

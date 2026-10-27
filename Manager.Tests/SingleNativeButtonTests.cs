@@ -8,6 +8,7 @@ internal static class SingleNativeButtonTests
     {
         var repo = BundledCatalog.Read().Repositories.Single(r => r.Repository.EndsWith("/RoBIM-Revit-ParameterCopy"));
         var package = repo.Packages.Single();
+        var originalPackageName = package.Name;
         var registration = SingleNativeButton.Registration(repo, package)!;
         SourcePackage Fixture(string name, string moduleId = "parameter-copy", string commandId = "copy", bool two = false)
         {
@@ -17,7 +18,7 @@ internal static class SingleNativeButtonTests
             NativeProtocol.Save(Path.Combine(dir, NativeProtocol.ManifestName), new NativeModule(1, moduleId, "0.1.0-test.2", "command-only", two ? [command, command with { Id = "extra" }] : [command]));
             return new(dir,"0.1.0-test.2");
         }
-        void Reject(Action action) { bool rejected=false; try {action();} catch(IOException) {rejected=true;} require(rejected,"Invalid package accepted"); }
+        void Reject(Action action) { bool rejected=false; try {action();} catch(Exception ex) when (ex is IOException or UnauthorizedAccessException) {rejected=true;} require(rejected,"Invalid package accepted"); }
         test("AutomaticApplyRequestsOnlyExplicitPreparedSelection", () => {
             var target = paths("auto-apply-explicit"); var manager = new NativeRevitCommands(target, () => new(123,456));
             var source = manager.Cache(Fixture("auto-apply-first")); manager.Toggle(source.Path, "copy", true);
@@ -31,7 +32,7 @@ internal static class SingleNativeButtonTests
         });
         test("SingleNativeNamesAreDisplayOnly",()=> {
             require(ToolNames.Display("RoBIM 파라미터 복사") == "파라미터 복사" && ToolNames.Display("RoBIMatic") == "RoBIMatic", "Prefix handling changed tool names incorrectly");
-            require(ExtensionCatalog.Tool(repo,package).Name == "파라미터 복사" && package.Name.StartsWith("RoBIM "), "Display cleanup mutated source descriptor");
+            require(ExtensionCatalog.Tool(repo,package).Name == "파라미터 복사" && package.Name == originalPackageName, "Display cleanup mutated source descriptor");
         });
         test("SingleNativeRejectsWrongIdentityOrMultipleCommands",()=> {
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("wrong-module","wrong")));

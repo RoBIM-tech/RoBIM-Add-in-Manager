@@ -402,6 +402,31 @@ def _visible(collection):
     return False
 
 
+def _retire_unselected_python(bindings, assigned):
+    # pyRevit cannot remove controls it no longer owns after Manager moved them.
+    # Use immutable source IDs, never the caption or the destination panel name.
+    source_tabs = set([u"RoBIM 기본", u"RoBIM 도면", u"RoBIM 관리", u"RoBIM TEST"])
+    for key in list(bindings) + list(assigned):
+        if key.startswith("robim-revit:"):
+            source_tabs.add(key.split(":", 1)[1].split("/")[0].rsplit(".", 1)[0])
+    live = [binding[1] for binding in bindings.values()]
+    retired = []
+    for tab in AW.ComponentManager.Ribbon.Tabs:
+        for panel in tab.Panels:
+            for collection, item in _items(panel.Source.Items):
+                identity = getattr(item, "Id", None) or ""
+                tokens = identity.split("%")
+                if (len(tokens) < 3 or not hasattr(item, "CommandHandler") or
+                        tokens[-1].startswith("RoBIM.Native.") or
+                        not any(name in tokens[:-1] for name in source_tabs) or
+                        any(Object.ReferenceEquals(item, button) for button in live)):
+                    continue
+                item.IsVisible = False
+                item.IsEnabled = False
+                retired.append(identity)
+    return retired
+
+
 def apply_layout(uiapp):
     bindings = _bindings(uiapp)
     layout = read(os.path.join(BASE, "ribbon-layout-revit.json"), {"SchemaVersion": 1, "Host": "Revit", "Tabs": []})
@@ -443,6 +468,7 @@ def apply_layout(uiapp):
             raise ValueError("Invalid ribbon destination")
         destinations[(tab, panel)] = _panel(uiapp, tab, panel)
         planned.append((key, binding, tab, panel, title, size, stack, rows))
+    retired = _retire_unselected_python(bindings, assigned)
     # Profile order controls button ordering; unconfigured buttons retain their defaults.
     order = [b["Id"] for t in layout.get("Tabs", []) for p in t.get("Panels", []) for b in p.get("Buttons", [])]
     planned.sort(key=lambda x: order.index(x[0]) if x[0] in order else len(order))
@@ -547,7 +573,7 @@ def apply_layout(uiapp):
                 "ButtonCount": sum(1 for item in column.Items if any(Object.ReferenceEquals(item, button) for button in functional)),
                 "RowBreakCount": sum(1 for item in column.Items if isinstance(item, AW.RibbonRowBreak))}
                for group, column in stacks.items()]
-    write(os.path.join(BASE, "revit-ui-state.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Buttons": applied, "Columns": columns, "Separators": separators, "OwnedTabs": list(_owned_tabs), "VisibleTabs": [t.Title for t in AW.ComponentManager.Ribbon.Tabs if t.Title in _owned_tabs and t.IsVisible]})
+    write(os.path.join(BASE, "revit-ui-state.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Buttons": applied, "RetiredPythonControls": retired, "BridgeRevision": "retirement-1", "Columns": columns, "Separators": separators, "OwnedTabs": list(_owned_tabs), "VisibleTabs": [t.Title for t in AW.ComponentManager.Ribbon.Tabs if t.Title in _owned_tabs and t.IsVisible]})
     capture = os.path.join(BASE, "capture-ribbon-preview.request")
     if os.path.isfile(capture):
         os.remove(capture)

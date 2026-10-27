@@ -34,7 +34,7 @@ internal static class ReloadBridgeTests
             var paths=Paths("bridge-hot");var service=Installed(paths);var checks=0;var requests=0;
             ReloadBridge.Install(paths,Archive(Source("bridge-hot-new","new")),()=>session,_=>checks++,()=>requests++);
             Require(checks>=3 && requests==1,"Session checks or standard reload request missing");
-            Require(service.Status(Catalog.ReloadBridge) is {Managed:true,Modified:false,Version:"1.0.0-preview.40"},"Updated bridge ownership mismatch");
+            Require(service.Status(Catalog.ReloadBridge) is {Managed:true,Modified:false,Version:"1.0.0-preview.41"},"Updated bridge ownership mismatch");
             Require(service.Backups(Catalog.ReloadBridge).Count==1 && File.ReadAllText(Path.Combine(paths.Target(Catalog.ReloadBridge),"lib/robim_ribbon.py"))=="new","Backup/delta missing");
         });
         test("BridgeHotUpdateRejectsPreparedChoicesWithoutConsumingThem", () =>
@@ -64,7 +64,7 @@ internal static class ReloadBridgeTests
         {
             var paths=Paths("bridge-request");var service=Installed(paths);
             Reject(()=>ReloadBridge.Install(paths,Archive(Source("bridge-request-new","new")),()=>session,_=>{},()=>throw new IOException("No bridge session")));
-            Require(service.Status(Catalog.ReloadBridge) is {Managed:true,Modified:false,Version:"1.0.0-preview.40"},"Prepared files not tracked after request failure");
+            Require(service.Status(Catalog.ReloadBridge) is {Managed:true,Modified:false,Version:"1.0.0-preview.41"},"Prepared files not tracked after request failure");
         });
     }
 }

@@ -14,3 +14,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Ribbon activation regression failed.' }
 
 & python (Join-Path $root 'scripts/validate_registration.py')
 if ($LASTEXITCODE -ne 0) { throw 'Central catalog regression failed.' }
+
+& python (Join-Path $PSScriptRoot 'test-ribbon-retirement.py')
+if ($LASTEXITCODE -ne 0) { throw 'Removed pyRevit ribbon regression failed.' }
