@@ -8,8 +8,8 @@ AppId=RoBIM.AddinManager.Test
 AppId=RoBIM.AddinManager
 #endif
 AppName=RoBIM Add-in Manager
-AppVersion=1.0.0-preview.40
-AppVerName=RoBIM Add-in Manager 1.0.0-preview.40
+AppVersion=1.0.0-preview.42
+AppVerName=RoBIM Add-in Manager 1.0.0-preview.42
 AppPublisher=RoBIM
 AppPublisherURL=https://github.com/gagaggan/RoBIM-Add-in-Manager
 DefaultDirName={localappdata}\Programs\RoBIM Manager
