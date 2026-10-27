@@ -1,10 +1,12 @@
 # RoBIM Add-in Manager
 
-**새 버튼 제작은 [START_HERE](https://github.com/gagaggan/RoBIM-Workspace/blob/main/START_HERE.md)에서 시작합니다.**
+**새 버튼 제작은 [START_HERE](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/START_HERE.md)에서 시작합니다.**
 
-> 신규 Revit 기능은 독립 Add-in으로 개발합니다. 기존 pyRevit은 유지보수하며, 신규 명령은 Manager 등록과 TEST/실사용 구분을 포함해야 합니다. [개발 시작 안내](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)
+> 신규 Revit 기능은 독립 Add-in으로 개발합니다. 기존 pyRevit은 유지보수하며, 신규 명령은 Manager 등록과 TEST/실사용 구분을 포함해야 합니다. [개발 시작 안내](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)
 
 Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리본 배치를 관리하는 Windows 앱입니다.
+
+preview.44 작업본부터 Windows 제거에서 관리 도구·연결 모듈·캐시·복구 백업을 함께 정리하고 개인 설정은 삭제/유지를 선택합니다. 실행 중인 프로그램은 재시도/취소 창에서 종료를 기다립니다. 배포·실제 적용 여부는 [제거 검증 기록](docs/developer/UNINSTALL.md)을 확인하십시오.
 
 | 독자 | 시작할 문서 | 설명하는 내용 |
 | --- | --- | --- |
@@ -19,7 +21,7 @@ Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리�
 
 ## 스킬과 연동
 
-전용 스킬 원본은 [`.codex/skills/robim-manager`](.codex/skills/robim-manager/SKILL.md)입니다. 제품 간 계약과 스킬 설치본 동기화는 [RoBIM-Workspace](https://github.com/gagaggan/RoBIM-Workspace)에서 관리합니다. 사용자 리본 표시·설치 선택과 기능 코드의 기본 배치를 구분합니다.
+전용 스킬 원본은 [`.codex/skills/robim-manager`](.codex/skills/robim-manager/SKILL.md)입니다. 제품 간 계약과 스킬 설치본 동기화는 [RoBIM-Workspace](https://github.com/RoBIM-tech/RoBIM-Workspace)에서 관리합니다. 사용자 리본 표시·설치 선택과 기능 코드의 기본 배치를 구분합니다.
 
 
 ## 버튼별 저장소 운영
@@ -28,7 +30,7 @@ Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리�
 
 모든 새 버튼은 자체 검색 표시 정보와 Workspace 소유권 목록을 기록하고 TEST부터 시작합니다. README에는 일반 사용자/개발자 설명서와 전용 스킬을 연결합니다. 기존 CAD 묶음·기존 pyRevit은 호환성을 유지하는 레거시이며 새 Native 버튼을 추가하는 장소가 아닙니다.
 
-[확정 운영 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)
+[확정 운영 기준](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)
 
 ## 단일 버튼 설치 UI
 
@@ -40,7 +42,7 @@ Revit·AutoCAD의 기능 버튼을 설치·제거하고 Reload와 사용자 리�
 
 ## 버튼 제작과 기여
 
-[신규 버튼 제작 순서](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)와 [매니페스트·의존성·배포 계약](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_CONTRACT.md)을 따릅니다. 새 버튼은 전용 저장소에서 만들고 Manager 중앙 목록과 Workspace 소유권 맵에 함께 등록합니다. 화면 이름에는 RoBIM 접두어를 반복할 필요가 없습니다. 내부 ID는 이름·버전·저장소 이동 때문에 바꾸지 않습니다.
+[신규 버튼 제작 순서](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)와 [매니페스트·의존성·배포 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_CONTRACT.md)을 따릅니다. 새 버튼은 전용 저장소에서 만들고 Manager 중앙 목록과 Workspace 소유권 맵에 함께 등록합니다. 화면 이름에는 RoBIM 접두어를 반복할 필요가 없습니다. 내부 ID는 이름·버전·저장소 이동 때문에 바꾸지 않습니다.
 
 설치는 카드의 설치하기에서 다운로드·검증·준비로 이어지며 기본 리본 위치를 자동 추가합니다. 기존 사용자 배치는 보존합니다. TEST → 정식은 새 배포와 검증 기록이 필요하고, 소스 병합·Release 게시·PC 설치·호스트 applied 응답은 각각 별도로 확인합니다.
 
@@ -76,10 +78,10 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 정식에서 TEST를 선택 설치하면 같은 명령 ID의 설치 채널이 TEST로 바뀌며 내 도구와 TEST 목록에 반영됩니다. 정식 승격을 설치하면 다시 정식으로 표시합니다. 낮은 기존 정식으로 되돌리려면 ···의 저장소 정식 버전 설치를 명시적으로 선택합니다. 기본 업데이트 동작은 버전을 낮추지 않습니다. 새로고침 자체는 설치/채널/리본을 변경하지 않습니다.
 
 
-신규 버튼 제작은 [Workspace START_HERE](https://github.com/gagaggan/RoBIM-Workspace/blob/main/START_HERE.md)를 먼저 읽습니다. Preview 37+는 여러 제작자·조직을 등록하고 새로고침에서 새 저장소를 검색합니다. 중앙 등록 PR은 신규 표시의 필수 조건이 아닙니다.
+신규 버튼 제작은 [Workspace START_HERE](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/START_HERE.md)를 먼저 읽습니다. Preview 37+는 여러 제작자·조직을 등록하고 새로고침에서 새 저장소를 검색합니다. 중앙 등록 PR은 신규 표시의 필수 조건이 아닙니다.
 
 
-[명명·전달 확인](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md) · [패키지/표시 이름 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md): 새 제작·기존 수정의 공통 기준입니다. 코드 작성·GitHub 게시·Manager 표시/설치·호스트 적용 상태를 구분합니다.
+[명명·전달 확인](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md) · [패키지/표시 이름 기준](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NAMING.md): 새 제작·기존 수정의 공통 기준입니다. 코드 작성·GitHub 게시·Manager 표시/설치·호스트 적용 상태를 구분합니다.
 
 
 ## pyRevit 제거 후 예전 버튼 잔상
@@ -89,7 +91,7 @@ Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 �
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
 
 
 ## NativeOnly 연결 호환성 — Manager 1.0.0-preview.43
@@ -98,3 +100,20 @@ RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리
 
 
 2026-10-27 실제 PC 적용: 정상 Windows Setup으로 Manager 1.0.0-preview.43 및 Host 1.0.0-preview.4를 설치했습니다. Revit 재시작 후 Native Provider, 독립 기능 8개·관리 버튼 2개를 확인했습니다. Manager.Core의 RequestRevit(false)가 생성한 요청 ID와 Host의 applied 응답이 일치했고, 응답 시각이 안정적으로 유지되어 반복 적용이 없음을 확인했습니다. RoBIM Python 확장 0개·다른 확장 9개 및 기존 Native 선택을 보존했습니다. 모델을 열거나 모델 명령을 실행하는 검증은 수행하지 않았으며 TEST 배포입니다. 기본 브랜치 병합은 수행하지 않았습니다.
+
+
+## GitHub 팀 인증 (preview.45 작업본)
+
+RoBIM-tech / robim 팀의 활성 구성원만 사용할 수 있습니다. 자동 로그인·Windows 로그인 시 알림 영역 자동 시작과 로그아웃 후 도구 잠금을 제공합니다. Host/Loader 업데이트와 재시작이 필요합니다. [구조·검증 범위](docs/developer/TEAM_ACCESS.md)
+
+
+## 로그인 전용 첫 화면 — preview.46
+
+로그인 전에는 메뉴·도구 목록을 숨기는 전용 화면을 표시합니다. 인증 후 도구 홈으로 이동하며 로그아웃하면 첫 화면으로 돌아갑니다. Reload와 Manager 열기는 로그인 없이 허용하고 실제 기능 실행은 계속 팀 인증을 확인합니다. 동봉 Host preview.6 / CAD Loader 1.0.1-test.2는 재시작 후 적용됩니다.
+
+
+## RoBIM-tech 조직 이전
+
+2026-10-27 RoBIM 전체 15개 저장소 이전과 현재 PC의 Manager preview.47 연결 검증을 완료했습니다. 기존 설치 ID를 유지합니다. [이전 현황·보존 기록·남은 조직 앱 승인](docs/developer/ORGANIZATION_TRANSFER.md)
+
+preview.48은 [계정 설정](docs/user/README.md#계정-설정-preview48)의 중복 로그인·연결 작업을 정리합니다. 계정 변경과 고급 설정은 필요할 때 펼칩니다.

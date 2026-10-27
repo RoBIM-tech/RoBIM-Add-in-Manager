@@ -135,7 +135,7 @@ internal static class SingleNativeButtonTests
         Directory.CreateDirectory(root);
         var paths = new ManagerPaths(Path.Combine(root, "data"), Path.Combine(root, "cad"), Path.Combine(root, "revit"));
         var catalog = new ExtensionCatalog(paths);
-        var repository = await catalog.Inspect("https://github.com/gagaggan/RoBIM-Revit-Sheets");
+        var repository = await catalog.Inspect("https://github.com/RoBIM-tech/RoBIM-Revit-Sheets");
         var package = repository.Packages.Single();
         catalog.Register(repository);
         var registered = File.ReadAllBytes(Path.Combine(paths.Data, "extension-repositories.json"));

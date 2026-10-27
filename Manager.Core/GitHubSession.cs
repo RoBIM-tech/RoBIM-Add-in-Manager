@@ -56,6 +56,7 @@ public static class GitHubSession
     {
         // A relative API path only. Credentials cannot be forwarded to arbitrary hosts.
         if (!relative.StartsWith('/') || relative.StartsWith("//") || relative.Contains('\\') || relative.Contains("..")) throw new ArgumentException("GitHub API 경로 오류");
+        relative = RepositoryOwnership.ApiRoute(relative);
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com" + relative);
         request.Headers.UserAgent.ParseAdd("RoBIM-Manager/1.0"); request.Headers.Accept.ParseAdd(accept);
         request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
@@ -103,4 +104,5 @@ public static class GitHubSession
         var auth = Current(); if (auth.Mode != "Token") return;
         WindowsTokenStore.Remove(auth.Login); Save(new());
     }
+    public static void Disconnect() => Save(new());
 }

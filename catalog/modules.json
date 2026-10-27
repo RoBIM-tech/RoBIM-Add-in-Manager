@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "repositories": [
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "branch": "main",
       "recognition": "RoBIM 중앙 등록",
       "packages": [
@@ -19,7 +19,7 @@
       ]
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-Sheets",
+      "repository": "RoBIM-tech/RoBIM-Revit-Sheets",
       "branch": "main",
       "role": "button",
       "recognition": "RoBIM 중앙 등록",
@@ -38,7 +38,7 @@
       ]
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-ParameterCopy",
+      "repository": "RoBIM-tech/RoBIM-Revit-ParameterCopy",
       "branch": "main",
       "role": "button",
       "recognition": "RoBIM 중앙 등록",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-ParameterBulkEdit",
+      "repository": "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit",
       "branch": "main",
       "role": "button",
       "recognition": "RoBIM 중앙 등록",
@@ -78,56 +78,56 @@
   ],
   "commands": [
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "packageId": "delhidden",
       "moduleId": "delhidden",
       "commandId": "cleanup",
       "host": "autocad"
     },
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "packageId": "delhidden",
       "moduleId": "delhidden",
       "commandId": "preview",
       "host": "autocad"
     },
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "packageId": "delhidden",
       "moduleId": "ezsplit",
       "commandId": "split",
       "host": "autocad"
     },
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "packageId": "delhidden",
       "moduleId": "exbx",
       "commandId": "explode",
       "host": "autocad"
     },
     {
-      "repository": "gagaggan/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD",
       "packageId": "delhidden",
       "moduleId": "xclip",
       "commandId": "cut",
       "host": "autocad"
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-Sheets",
+      "repository": "RoBIM-tech/RoBIM-Revit-Sheets",
       "packageId": "robim-revit-sheets",
       "moduleId": "sheets",
       "commandId": "create-sheets",
       "host": "revit"
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-ParameterCopy",
+      "repository": "RoBIM-tech/RoBIM-Revit-ParameterCopy",
       "packageId": "robim-revit-parameter-copy",
       "moduleId": "parameter-copy",
       "commandId": "copy",
       "host": "revit"
     },
     {
-      "repository": "gagaggan/RoBIM-Revit-ParameterBulkEdit",
+      "repository": "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit",
       "packageId": "robim-revit-parameter-bulk-edit",
       "moduleId": "parameter-bulk-edit",
       "commandId": "bulk-edit",
@@ -137,7 +137,7 @@
   "repositoryPolicy": {
     "default": "one-button-per-repository",
     "legacyAggregates": [
-      "gagaggan/RoBIM-CAD"
+      "RoBIM-tech/RoBIM-CAD"
     ]
   },
   "repositoryMoves": [
@@ -145,15 +145,50 @@
       "fromRepository": "gagaggan/RoBIM-Revit-Addin",
       "packageId": "robim-revit-sheets",
       "toRepositories": [
-        "gagaggan/RoBIM-Revit-Sheets"
+        "RoBIM-tech/RoBIM-Revit-Sheets"
       ]
     },
     {
       "fromRepository": "gagaggan/RoBIM-Revit-Addin",
       "packageId": "robim-revit-parameters",
       "toRepositories": [
-        "gagaggan/RoBIM-Revit-ParameterCopy",
-        "gagaggan/RoBIM-Revit-ParameterBulkEdit"
+        "RoBIM-tech/RoBIM-Revit-ParameterCopy",
+        "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-CAD",
+      "packageId": "delhidden",
+      "toRepositories": [
+        "RoBIM-tech/RoBIM-CAD"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-Sheets",
+      "packageId": "robim-revit-sheets",
+      "toRepositories": [
+        "RoBIM-tech/RoBIM-Revit-Sheets"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-ParameterCopy",
+      "packageId": "robim-revit-parameter-copy",
+      "toRepositories": [
+        "RoBIM-tech/RoBIM-Revit-ParameterCopy"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-ParameterBulkEdit",
+      "packageId": "robim-revit-parameter-bulk-edit",
+      "toRepositories": [
+        "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit"
+      ]
+    },
+    {
+      "fromRepository": "gagaggan/RoBIM-Revit-CentralClone",
+      "packageId": "robim-central-clone",
+      "toRepositories": [
+        "RoBIM-tech/RoBIM-Revit-CentralClone"
       ]
     }
   ]

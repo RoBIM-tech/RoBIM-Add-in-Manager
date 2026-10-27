@@ -138,7 +138,7 @@
 
 **이전 Preview 5 기록**
 
-매니저를 gagaggan/RoBIM-Add-in-Manager 저장소로 분리했습니다. RoBIM-CAD는 CAD 도구 소스와 CAD 패키지만 관리합니다.
+매니저를 RoBIM-tech/RoBIM-Add-in-Manager 저장소로 분리했습니다. RoBIM-CAD는 CAD 도구 소스와 CAD 패키지만 관리합니다.
 
 - Revit / AutoCAD 화면을 분리하고 해당 제품 도구만 표시
 - 도구 선택 후 기본 작업 버튼 하나로 설치·업데이트 안내
@@ -154,4 +154,4 @@
 
 설치 엔진·온라인 연동 검증과 Setup 검증 결과는 docs/MANAGER_VALIDATION.md를 참고하십시오. 실제 Revit 모델 내 Reload와 신규 유효 PAT 입력은 사용자 환경 확인 범위입니다.
 
-[간단 사용설명서](https://github.com/gagaggan/RoBIM-Add-in-Manager/blob/main/docs/USER_GUIDE_KO.md) · [저장소 분리 기록](https://github.com/gagaggan/RoBIM-Add-in-Manager/blob/main/docs/REPOSITORY_SPLIT.md)
+[간단 사용설명서](https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/blob/main/docs/USER_GUIDE_KO.md) · [저장소 분리 기록](https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/blob/main/docs/REPOSITORY_SPLIT.md)

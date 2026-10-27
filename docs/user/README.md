@@ -4,7 +4,7 @@
 
 ## 처음 실행하기
 
-1. [배포 페이지](https://github.com/gagaggan/RoBIM-Add-in-Manager/releases)에서 관리자가 안내한 버전의 Setup을 받아 설치합니다. Windows 시작 메뉴의 **RoBIM Add-in Manager**로 실행합니다.
+1. [배포 페이지](https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/releases)에서 관리자가 안내한 버전의 Setup을 받아 설치합니다. Windows 시작 메뉴의 **RoBIM Add-in Manager**로 실행합니다.
 2. 사용할 제품이 요구하는 버전을 확인합니다. 현재 독립 Revit 모듈은 Revit 2026.5 이상, CAD 모듈은 AutoCAD 2026.1.2 이상을 대상으로 합니다. Python 도구는 Revit에 연결된 pyRevit이 필요합니다.
 3. **Revit 독립 Add-in / Revit · pyRevit / AutoCAD** 중 사용할 목록을 선택합니다.
 4. 카드의 이름·기능 설명과 설치 상태를 확인합니다. 검색으로 도구를 찾을 수 있습니다. 카드 수는 창 너비에 따라 달라집니다.
@@ -26,7 +26,13 @@
 
 Manager의 해당 Reload 작업을 사용할 수도 있습니다. 진행 중인 명령과 열린 RoBIM 도구 창을 마치고 적용합니다. 고정 연결 모듈 교체 등으로 종료 안내가 나오면 모델/도면을 저장하고 안내한 호스트를 종료한 뒤 진행합니다.
 
-버튼 제거와 공용 연결 모듈 전체 제거는 다릅니다. 버튼 하나를 제거했다고 다른 버튼의 공용 파일까지 삭제되지는 않습니다. Manager 앱을 제거하는 작업도 설치된 도구 제거와 별개입니다.
+버튼 제거와 공용 연결 모듈 전체 제거는 다릅니다. 버튼 하나를 제거했다고 다른 버튼의 공용 파일까지 삭제되지는 않습니다.
+
+preview.44부터 Windows 설정 → 설치된 앱 → RoBIM Add-in Manager → 제거에서 Manager가 설치한 도구·Host/Loader·검색 기록·다운로드 캐시·복구 백업을 함께 정리합니다. 이전 버전의 제거 프로그램에는 적용되지 않습니다.
+
+제거 중 **개인 설정 삭제 / 개인 설정 유지 / 취소**를 선택합니다. 유지하면 계정 연결·검색 대상·리본 배치·설치 위치·실행 방식 설정을 남깁니다. 삭제하면 이 설정과 Manager 전용 인증 정보를 정리합니다. 이전 저장소 검색 결과·수동 등록 목록·설치 선택·다운로드 기록은 두 경우 모두 정리합니다. 깨끗한 재설치 시험에는 **개인 설정 삭제**를 선택하십시오.
+
+Revit·AutoCAD·Manager가 실행 중이면 **재시도 / 취소** 창을 표시합니다. 작업을 저장하고 프로그램을 종료한 다음 **재시도**를 누르면 이어서 제거합니다. 강제 종료하거나 실행 상태를 무시하지 않습니다. 외부 도구·다른 제품·pyRevit 본체·GitHub 공용 로그인·개발 저장소·모델 파일은 유지합니다. 관리 도구의 사용자 변경이나 다른 설치의 등록 파일이 확인되면 제거를 중단하고 안내합니다. 정리 실패 시 Manager 실행 파일과 남은 복구 자료를 유지합니다.
 
 ## 상태 읽는 방법
 
@@ -91,7 +97,7 @@ Manager의 해당 Reload 작업을 사용할 수도 있습니다. 진행 중인 
 | LocalCache/실제 경로 오류 | Manager를 정상 종료하고 Windows 시작 메뉴에서 다시 실행. 기존 데이터 폴더를 임의로 삭제하지 않음 |
 | Reload 후 오류 | 오류 메시지·도구 버전·호스트 버전·누른 순서 기록. 준비/적용 상태를 확인하고 제공되는 복원 사용 |
 
-기능 자체의 조작은 [pyRevit](https://github.com/gagaggan/RoBIM-pyrevit/blob/main/docs/user/README.md), [시트 생성](https://github.com/gagaggan/RoBIM-Revit-Sheets/blob/main/docs/user/README.md), [CAD](https://github.com/gagaggan/RoBIM-CAD/blob/main/docs/user/README.md) 설명서를 사용합니다.
+기능 자체의 조작은 [pyRevit](https://github.com/RoBIM-tech/RoBIM-pyrevit/blob/main/docs/user/README.md), [시트 생성](https://github.com/RoBIM-tech/RoBIM-Revit-Sheets/blob/main/docs/user/README.md), [CAD](https://github.com/RoBIM-tech/RoBIM-CAD/blob/main/docs/user/README.md) 설명서를 사용합니다.
 
 [문서 목록](../README.md) · [개발자 설명서](../developer/README.md)
 
@@ -181,7 +187,7 @@ Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 �
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
 
 
 ## NativeOnly 연결 호환성 — Manager 1.0.0-preview.43
@@ -190,3 +196,19 @@ RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리
 
 
 2026-10-27 실제 PC 적용: 정상 Windows Setup으로 Manager 1.0.0-preview.43 및 Host 1.0.0-preview.4를 설치했습니다. Revit 재시작 후 Native Provider, 독립 기능 8개·관리 버튼 2개를 확인했습니다. Manager.Core의 RequestRevit(false)가 생성한 요청 ID와 Host의 applied 응답이 일치했고, 응답 시각이 안정적으로 유지되어 반복 적용이 없음을 확인했습니다. RoBIM Python 확장 0개·다른 확장 9개 및 기존 Native 선택을 보존했습니다. 모델을 열거나 모델 명령을 실행하는 검증은 수행하지 않았으며 TEST 배포입니다. 기본 브랜치 병합은 수행하지 않았습니다.
+
+
+## GitHub 로그인과 자동 시작
+
+GitHub 로그인 후 RoBIM-tech 조직의 robim 팀 소속을 확인합니다. 초대만 받은 상태라면 먼저 초대를 수락하십시오. 로그인/팀 확인 전에는 Manager 기능과 새 Host/Loader의 도구 버튼이 잠깁니다. 설정에서 자동 로그인과 Windows 로그인 시 자동 시작을 선택합니다. 첫 로그인은 브라우저에서 진행하고 다음 실행은 저장된 인증을 사용합니다. 창 닫기는 알림 영역으로 숨기며, 알림 영역 메뉴의 종료/로그아웃은 도구 사용을 잠급니다. 인터넷 연결·조직 접근 권한을 확인할 수 없으면 잠깁니다. 기존 Host/Loader는 업데이트 후 Revit·AutoCAD를 재시작해야 적용됩니다. 다른 제품의 버튼은 제한하지 않습니다.
+
+
+## 로그인 첫 화면과 Reload — preview.46
+
+처음 실행하면 GitHub 로그인 전용 화면이 나옵니다. GitHub로 로그인 또는 저장된 계정으로 로그인을 선택하십시오. 자동 로그인에 성공하면 도구 화면으로 바로 들어갑니다. 로그인하지 않아도 Revit/CAD의 Reload와 Manager 열기는 사용할 수 있습니다. 로그인한 다음 Reload로 준비된 도구와 리본을 다시 적용할 수 있습니다. 실제 기능 실행은 팀 인증 후에만 가능합니다. 이 정책은 이전 preview.45의 Reload 잠금을 대체합니다.
+
+## 계정 설정 (preview.48)
+
+설정 / GitHub에는 현재 연결 계정, 자동 로그인, Windows 로그인 시 자동 시작, 계정 변경과 로그아웃이 표시됩니다. 계정 변경을 누르면 저장 계정 선택과 다른 GitHub 계정으로 로그인할 수 있습니다. 연결 확인은 자동으로 수행하므로 별도의 저장된 연결 확인 버튼은 제공하지 않습니다.
+
+고급 설정은 브라우저 로그인 대신 PAT를 사용하거나 작업 기록을 볼 때만 펼칩니다. 고급 설정을 닫으면 입력 중인 토큰을 지웁니다. Native 전용 전환이 끝난 PC에서는 기존 pyRevit 연결 관리 버튼을 숨깁니다.

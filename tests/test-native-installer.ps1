@@ -3,11 +3,12 @@ $root = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $root ('artifacts\native-tests-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot | Out-Null
 $compiler = & (Join-Path $root 'installer\Get-InnoCompiler.ps1')
-& $compiler '/DTestBuild' ('/O' + $testRoot) (Join-Path $root 'installer\Manager.iss')
+$testAppId = 'RoBIM.AddinManager.Test.' + [guid]::NewGuid().ToString('N')
+& $compiler '/DTestBuild' ('/DTestAppId=' + $testAppId) ('/O' + $testRoot) (Join-Path $root 'installer\Manager.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Test installer compilation failed' }
 $setup = Join-Path $testRoot 'RoBIM-Manager-Setup.exe'
 $destination = Join-Path $testRoot 'installed'
-$key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIM.AddinManager.Test_is1'
+$key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\' + $testAppId + '_is1'
 if (Test-Path $key) { throw 'Another native installer test is registered; refusing to replace it' }
 function Install-Test([string]$Target) {
     $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $Target + '"'),('/LOG="' + (Join-Path $testRoot 'install.log') + '"')) -PassThru -WindowStyle Hidden -Wait

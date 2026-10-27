@@ -9,6 +9,8 @@ description: RoBIM Add-in Manager의 버튼 카드·선택 설치·설치 위치
 
 ## 기능과 설치 정책
 
+- preview.44 제거는 확인 후 ManagerUninstall을 오프라인 실행하여 관리 도구·Host 등록·검색 캐시·백업을 정리하고 실행 파일을 제거한다. 개인 설정 삭제/유지를 선택하며 유지 시 계정 연결·검색 대상·리본·설치 위치·모드를 보존한다. 이전 검색 결과/설치 기록은 남기지 않는다. 실행 중 호스트는 재시도/취소로 대기하며 강제 종료/무시를 제공하지 않는다. 실패 시 Manager를 남긴다. 외부 도구·공용 GitHub 로그인은 삭제하지 않는다. 무인 제거 기본은 설정 삭제이고 /KEEPSETTINGS=1은 유지다. 테스트 Setup은 실제 사용자 데이터 정리를 호출하지 않는다. docs/developer/UNINSTALL.md와 ManagerUninstallTests를 확인한다.
+
 - 독립 Revit Add-in, Revit · pyRevit, AutoCAD 목록을 분리한다. 카드 단위는 실제 명령이며 같은 패키지의 다른 명령 선택·의존성을 보존한다.
 - 미설치/준비됨/실제 적용됨을 구분한다. Native Host와 CAD Loader의 세션 PID·시작 시각·applied 응답을 확인한다. Revit 리본 API의 숨김과 실제 설치 명령 파일 제거를 같은 의미로 설명하지 않는다.
 - 외부 설치·사용자 변경은 소유권과 해시 검증 없이 덮어쓰거나 삭제하지 않는다. 일반 설치·고정 로더 교체는 호스트 종료, 호환되는 기능/스크립트 변경은 준비 후 해당 Reload 정책을 따른다.
@@ -49,7 +51,7 @@ description: RoBIM Add-in Manager의 버튼 카드·선택 설치·설치 위치
 
 ## 버튼 제작 기여 확인
 
-새 버튼 또는 배포/등록 변경 시 [버튼 제작 계약](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_CONTRACT.md)을 읽는다. 표시 이름과 안정된 ID, 패키지와 자체 배포 표시 정보의 일치(중앙 목록에 기여할 때는 그 항목도 일치), 고정 NuGet 버전별 공급원, 일반 사용자/개발자 설명서, TEST Release와 정식 승격 후 PC 적용을 함께 확인한다. 병합을 새 Release 게시나 사용자 설치 허가로 해석하지 않는다. 기존 기능 유지보수 저장소에 새 버튼을 넣지 않는다.
+새 버튼 또는 배포/등록 변경 시 [버튼 제작 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_CONTRACT.md)을 읽는다. 표시 이름과 안정된 ID, 패키지와 자체 배포 표시 정보의 일치(중앙 목록에 기여할 때는 그 항목도 일치), 고정 NuGet 버전별 공급원, 일반 사용자/개발자 설명서, TEST Release와 정식 승격 후 PC 적용을 함께 확인한다. 병합을 새 Release 게시나 사용자 설치 허가로 해석하지 않는다. 기존 기능 유지보수 저장소에 새 버튼을 넣지 않는다.
 
 ## 새로고침과 업데이트 표시
 
@@ -113,7 +115,7 @@ Preview 40은 Python 쪽 unique name과 네이티브 pyRevit 파서가 만든 �
 
 ## 제작·수정 공통 확인
 
-신규 버튼과 기존 수정 모두 [명명 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md)과 [전달 완료 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md)를 먼저 읽는다. 화면 이름은 기능명, 공용 패키지는 RoBIM. 전체 이름을 사용하고 기존 설치/모듈/명령 ID는 유지한다. 사용 가능한 버튼 전달 요청은 로컬 코드 작성에서 멈추지 않고 요청 범위의 저장소 게시·TEST 배포·Manager 검색/설치·호스트 적용까지 진행한다. 신규 검색은 robim-addon 토픽·기본 브랜치 descriptor(moduleId/commandId)·Release·검색 대상/권한으로 확인하며 중앙 등록 PR/Manager 재배포는 필수가 아니다. 이 절차가 오래된 중앙 등록 필수 문구보다 우선한다. README·사용자/개발자 문서·스킬·UI_ADOPTION을 실제 변경에 맞춰 갱신하고 소스/기본 브랜치/Release/Manager 카드/설치/호스트 결과를 구분해 보고한다. 게시·병합·설치는 현재 요청 범위를 따르며 미수행 단계를 완료라고 기록하지 않는다.
+신규 버튼과 기존 수정 모두 [명명 기준](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NAMING.md)과 [전달 완료 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md)를 먼저 읽는다. 화면 이름은 기능명, 공용 패키지는 RoBIM. 전체 이름을 사용하고 기존 설치/모듈/명령 ID는 유지한다. 사용 가능한 버튼 전달 요청은 로컬 코드 작성에서 멈추지 않고 요청 범위의 저장소 게시·TEST 배포·Manager 검색/설치·호스트 적용까지 진행한다. 신규 검색은 robim-addon 토픽·기본 브랜치 descriptor(moduleId/commandId)·Release·검색 대상/권한으로 확인하며 중앙 등록 PR/Manager 재배포는 필수가 아니다. 이 절차가 오래된 중앙 등록 필수 문구보다 우선한다. README·사용자/개발자 문서·스킬·UI_ADOPTION을 실제 변경에 맞춰 갱신하고 소스/기본 브랜치/Release/Manager 카드/설치/호스트 결과를 구분해 보고한다. 게시·병합·설치는 현재 요청 범위를 따르며 미수행 단계를 완료라고 기록하지 않는다.
 
 
 ## pyRevit 제거 후 예전 버튼 잔상
@@ -123,9 +125,28 @@ Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 �
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
 
 
 ## NativeOnly 연결 호환성 — Manager 1.0.0-preview.43
 
 동봉 Native Host는 1.0.0-preview.4입니다. preview.3에서 발견한 UI JSON 키 대소문자 문제를 수정한 Host부터 RoBIM pyRevit 제거의 필수 조건을 충족합니다. 기존 Manager UI 연결 계약은 유지합니다. 종료 후 정상 Setup 설치와 재시작 세션의 실제 applied 응답을 별도로 검증합니다. 이전 TEST 배포 파일은 교체하지 않습니다.
+
+
+## GitHub 팀 인증
+
+preview.45: TEAM_ACCESS.md를 읽는다. RoBIM-tech/robim active 구성원만 허용하며 TeamAccess의 주기 검증과 만료를 우회하지 않는다. RoBIM.Access.Core [0.1.0-test.3]을 고정한다. 로그인/로그아웃/자동 시작·알림 영역은 Manager 소유이며 Host/CAD 실행 검사는 각 저장소 소유다. GitHub 토큰을 호스트·로그·설정 파일에 전달하지 않는다. 로그인 진입/종료/제거는 잠그지 않고 다른 제품은 제한하지 않는다. 고정 Host/Loader는 종료 후 새 TEST 패키지와 재시작 검증이 필요하다.
+
+
+## preview.46 로그인/Reload 예외
+
+로그인 전에는 전용 첫 화면만 표시하고 메뉴·도구 목록을 숨긴다. 인증 성공은 도구 홈, 로그아웃/실패는 로그인 화면으로 전환한다. Host6/CAD Loader test.2의 정확한 Reload/Manager 버튼만 로그인 전 허용한다. 실제 기능 실행의 인증 검사를 제거하거나 관리 버튼 전체를 풀지 않는다. 기존 preview.45의 Reload 잠금 설명보다 이 정책을 우선한다.
+
+
+## 조직 이전 — preview.47
+
+ORGANIZATION_TRANSFER.md를 읽는다. 현재 소유자는 RoBIM-tech이며 15개 이전 저장소만 RepositoryOwnership로 정규화한다. 도구 레코드 ID는 이전 gagaggan namespace와 기존 기능 분리 alias를 유지한다. 원격 리포지토리 주소와 인증 계정명을 혼동하지 않는다. 과거 소유자 계정명은 인증 ID/이전 호환 키로 보존한다. 새 조직 검색·현재 설치·원격 main/Release/연결 앱 승인을 별개로 검증한다. 미커밋 작업을 일괄 게시하거나 과거 Release 파일을 교체하지 않는다.
+
+## preview.48 계정 설정
+
+기본 화면에는 현재 계정과 자동 로그인/시작, 계정 변경/로그아웃만 제공합니다. 저장 계정·브라우저 계정 변경은 접힌 계정 변경 영역, PAT·작업 기록·이전 pyRevit 관리는 접힌 고급 설정에서만 표시합니다. NativeOnly에서는 기존 pyRevit 관리를 숨깁니다. 인증/주기 확인 정책을 바꾸지 않으며 --verify-account-ui와 --verify-team-ui로 화면 전환을 검증합니다.

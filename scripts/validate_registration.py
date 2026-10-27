@@ -23,7 +23,7 @@ def validate_catalog(catalog):
         declared=[c for c in catalog['commands'] if c['repository'].lower()==name]
         if any(p['host']=='revit' for p in repo['packages']):
             if len(repo['packages'])!=1 or len(declared)!=1: raise ValueError('One native button/package per repository required: '+repo['repository'])
-        elif name!='gagaggan/robim-cad' and (len(repo['packages'])!=1 or len(declared)!=1):
+        elif name!='robim-tech/robim-cad' and (len(repo['packages'])!=1 or len(declared)!=1):
             raise ValueError('New button repositories must own one command')
     for command in catalog['commands']:
         key=(command['host'],command['moduleId'],command['commandId'])

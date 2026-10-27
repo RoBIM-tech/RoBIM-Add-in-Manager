@@ -123,7 +123,7 @@ public static class EnvironmentProbe
         if (!Path.GetFullPath(top).Equals(Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase))
             throw new IOException("기존 설치의 Git 루트가 일치하지 않습니다.");
         var remote = await ProcessRunner.GitRequired(path, "remote", "get-url", "origin");
-        if (!remote.Equals("https://github.com/gagaggan/RoBIM-pyrevit.git", StringComparison.OrdinalIgnoreCase))
+        if (!RepositoryOwnership.Canonical(ExtensionCatalog.Repository(remote)).Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase))
             throw new IOException("기존 설치의 저장소 주소가 RoBIM 저장소와 다릅니다.");
     }
 

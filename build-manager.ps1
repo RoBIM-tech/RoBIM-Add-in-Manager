@@ -1,4 +1,4 @@
-param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath)
+param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath, [string]$LibraryFeed)
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
@@ -17,7 +17,9 @@ $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
-& dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true --source https://api.nuget.org/v3/index.json -o $output --nologo
+$libraryArgs = @('--source', 'https://api.nuget.org/v3/index.json')
+if ($LibraryFeed) { $libraryArgs = @('--source', [IO.Path]::GetFullPath($LibraryFeed), '--source', (Join-Path $env:USERPROFILE '.nuget/packages'), '--source', (Join-Path $PSScriptRoot '.dotnet-home/.nuget/packages'), ('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false') }
+& dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true @libraryArgs -o $output --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Manager publish failed.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/licenses/YamlDotNet-LICENSE.txt') -Destination (Join-Path $output 'YamlDotNet-LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/THIRD_PARTY_NOTICES.md') -Destination (Join-Path $output 'THIRD_PARTY_NOTICES.md') -Force

@@ -65,4 +65,4 @@ RoBIM 기본 두 도구는 Revit / AutoCAD 화면으로 연결하여 기존 외�
 
 참고: [GitHub 저장소 REST API](https://docs.github.com/en/rest/repos/repos), [Windows CredWrite](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew).
 
-독립 시트 생성 예제: https://github.com/gagaggan/RoBIM-Revit-Sheets (`robim-package.json`).
+독립 시트 생성 예제: https://github.com/RoBIM-tech/RoBIM-Revit-Sheets (`robim-package.json`).

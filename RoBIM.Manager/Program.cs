@@ -8,7 +8,70 @@ internal static class Program
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
-        var readOnly = args.Any(a => a is "--render-preview" or "--render-cad-buttons" or "--verify-card-ui" or "--inspect-buttons" or "--close-existing" or "--show-existing");
+        if (args.Length is 1 or 2 && args[0] is "--uninstall-user-data" or "--uninstall-user-data-silent")
+        {
+            var silentCleanup = args[0] == "--uninstall-user-data-silent";
+            var keepSettings = args.Contains("--keep-settings");
+            try
+            {
+                if (args.Length == 2 && args[1] != "--keep-settings") return 1;
+                if (!silentCleanup && !keepSettings)
+                {
+                    var delete = new TaskDialogButton("개인 설정 삭제");
+                    var keep = new TaskDialogButton("개인 설정 유지");
+                    var cancel = TaskDialogButton.Cancel;
+                    var choice = TaskDialog.ShowDialog(new TaskDialogPage
+                    {
+                        Caption = "RoBIM 제거", Heading = "개인 설정을 어떻게 할까요?",
+                        Text = "설치한 도구·연결 모듈·검색 기록·다운로드 캐시·복구 백업은 제거합니다.\n\n유지를 선택하면 계정 연결·검색 대상·리본 배치·설치 위치 설정을 남겨 재설치할 때 사용합니다.",
+                        Buttons = { delete, keep, cancel }, DefaultButton = keep,
+                        AllowCancel = true
+                    });
+                    if (choice != delete && choice != keep) return 1;
+                    keepSettings = choice == keep;
+                }
+                var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                void WaitForHosts()
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var managers = System.Diagnostics.Process.GetProcessesByName("RoBIM.Manager");
+                            try
+                            {
+                                if (managers.Any(process => process.Id != Environment.ProcessId))
+                                    throw new InvalidOperationException("RoBIM Manager가 실행 중입니다. 열린 Manager 창을 종료하십시오.");
+                            }
+                            finally { foreach (var manager in managers) manager.Dispose(); }
+                            Core.EnvironmentProbe.EnsureHostClosed(Core.Catalog.RevitHost);
+                            Core.EnvironmentProbe.EnsureHostClosed(Core.Catalog.Cad);
+                            return;
+                        }
+                        catch (InvalidOperationException error)
+                        {
+                            if (silentCleanup) throw;
+                            if (MessageBox.Show(error.Message + "\n\n종료한 뒤 재시도를 누르면 제거를 계속합니다.",
+                                "RoBIM 제거 — 실행 중인 프로그램", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning) != DialogResult.Retry)
+                                throw new OperationCanceledException();
+                        }
+                    }
+                }
+                new Core.ManagerUninstall(Core.ManagerPaths.CurrentUser(),
+                    Path.Combine(roaming, "Autodesk", "Revit", "Addins"),
+                    Path.Combine(roaming, "pyRevit", "pyRevit_config.ini"), WaitForHosts).Run(keepSettings);
+                if (Core.StartupRegistration.Enabled(Environment.ProcessPath!)) Core.StartupRegistration.Set(Environment.ProcessPath!, false);
+                return 0;
+            }
+            catch (OperationCanceledException) { return 1; }
+            catch (Exception error)
+            {
+                if (!silentCleanup) MessageBox.Show("RoBIM 전체 제거를 완료하지 못했습니다. Manager는 유지합니다.\n\n" + error.Message,
+                    "RoBIM 제거", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return 1;
+            }
+        }
+        var readOnly = args.Any(a => a is "--render-preview" or "--render-cad-buttons" or "--verify-card-ui" or "--verify-team-ui" or "--verify-account-ui" or "--inspect-buttons" or "--close-existing" or "--show-existing");
         if (!readOnly)
         {
             try { Core.WindowsDataPath.EnsureDirectory(Core.ManagerPaths.CurrentUser().Data); }
@@ -52,6 +115,16 @@ internal static class Program
         {
             try { using var check = new ManagerForm(true); check.VerifyCardUi(args[1]); return 0; }
             catch (Exception error) { File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(new { Passed = false, Error = error.ToString() })); return 1; }
+        }
+        if (args.Length == 2 && args[0] == "--verify-account-ui")
+        {
+            using var check = new ManagerForm(preview: true);
+            check.VerifyAccountSettingsUi(args[1]); Application.Run(check); return 0;
+        }
+        if (args.Length == 2 && args[0] == "--verify-team-ui")
+        {
+            using var check = new ManagerForm(inspect: true);
+            check.VerifyTeamAccessUi(args[1]); Application.Run(check); return 0;
         }
         if (args.Length == 3 && args[0] == "--inspect-buttons")
         {
@@ -143,7 +216,7 @@ internal static class Program
                 MessageBox.Show("기존 RoBIM Manager가 시작 중입니다. 잠시 후 다시 실행하십시오.", "RoBIM Manager");
             return 0;
         }
-        DesktopInstance.Run(new ManagerForm());
+        DesktopInstance.Run(new ManagerForm(), args.Contains("--background"));
         return 0;
     }
 }

@@ -65,8 +65,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
-        "gagaggan/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
-        "gagaggan/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
+        "robim-tech/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
+        "robim-tech/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
@@ -123,14 +123,17 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         // Only superseded, centrally owned package entries are redirected. Reading
         // the registry never rewrites it, installs tools or drops unrelated entries.
         repos = CurrentSources(repos);
-        return CurrentSources(defaults.Concat(RepositoryDiscovery.Cached(paths)).Concat(repos).GroupBy(r => r.Repository, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()));
+        return CurrentSources(defaults.Concat(RepositoryDiscovery.Cached(paths)).Concat(repos));
     }
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
         var moves = BundledCatalog.Read().RepositoryMoves ?? [];
         return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
-            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))).ToArray() })
-            .Where(repo => repo.Packages.Length > 0).ToArray();
+            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) &&
+            !(move.ToRepositories.Length == 1 && RepositoryOwnership.Canonical(move.FromRepository).Equals(move.ToRepositories[0], StringComparison.OrdinalIgnoreCase)))).ToArray() })
+            .Where(repo => repo.Packages.Length > 0)
+            .Select(repo => repo with { Repository = RepositoryOwnership.Canonical(repo.Repository) })
+            .GroupBy(repo => repo.Repository, StringComparer.OrdinalIgnoreCase).Select(group => group.Last()).ToArray();
     }
     public void Register(ExtensionRepository repository)
     {
@@ -173,14 +176,18 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     public static ToolSpec Tool(ExtensionRepository repository, ExtensionPackage package)
     {
+        var moves = BundledCatalog.Read().RepositoryMoves ?? [];
+        var moved = moves.FirstOrDefault(move => move.FromRepository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase)
+            && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) && move.ToRepositories.Length == 1);
+        repository = repository with { Repository = RepositoryOwnership.Canonical(moved?.ToRepositories[0] ?? repository.Repository) };
         if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Cad.FolderName) return Catalog.Cad;
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
         if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
         // A one-to-one repository move keeps the legacy installation record key.
         // Module/command IDs continue to identify Native selections and ribbon state.
-        var identity = (BundledCatalog.Read().RepositoryMoves ?? []).FirstOrDefault(move => move.ToRepositories.Length == 1 &&
-            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? repository.Repository;
+        var identity = moves.FirstOrDefault(move => move.ToRepositories.Length == 1 &&
+            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? RepositoryOwnership.LegacyIdentity(repository.Repository);
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
         return new("ext-" + digest, ToolNames.Display(package.Name), package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);

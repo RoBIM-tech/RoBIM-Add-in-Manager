@@ -1,5 +1,7 @@
 # Manager 개발자 설명서
 
+[Manager 전체 제거와 개인 설정 선택](UNINSTALL.md): preview.44의 설치 제거 경로·안전 검사·검증 범위.
+
 Manager의 카드·선택 설치·Reload·사용자 리본이 어떤 순서로 동작하는지 설명합니다. 사용자 조작은 [일반 사용자 설명서](../user/README.md), 패키지 형식의 상세는 [기존 패키지 규격](../EXTENSION_PACKAGES.md)을 참고합니다.
 
 ## 프로젝트와 진입점
@@ -60,7 +62,7 @@ Release 다운로드를 준비할 때 `runtime/<package.Folder>`를 사용해 bu
 
 `NativeRevitCommands`는 가져온 기능 패키지의 모듈·버전·해시와 원하는 선택을 관리합니다. 여러 모듈을 업데이트할 때 모든 입력을 확인한 뒤 요청을 게시합니다. 고정 Host ZIP은 별도입니다.
 
-Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행 복사본·격리 로드 컨텍스트·dispatch를 교체합니다. Manager는 요청 ID와 PID/시작 시각이 맞는 응답으로 실제 적용을 확인합니다. 상세 실행 주체는 [Native 개발 문서](https://github.com/gagaggan/RoBIM-Revit-Addin/blob/main/docs/developer/README.md)입니다.
+Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행 복사본·격리 로드 컨텍스트·dispatch를 교체합니다. Manager는 요청 ID와 PID/시작 시각이 맞는 응답으로 실제 적용을 확인합니다. 상세 실행 주체는 [Native 개발 문서](https://github.com/RoBIM-tech/RoBIM-Revit-Addin/blob/main/docs/developer/README.md)입니다.
 
 일반 .addin 직접 등록 패키지와 `robim-module.json`의 command-only 모듈은 경로가 다릅니다. 파일이 DLL이라는 이유만으로 모든 패키지가 실행 중 Reload 가능하다고 설명하지 않습니다. 이미 로드된 Host 변경과 초기 전환은 해당 종료 정책을 따릅니다.
 
@@ -68,7 +70,7 @@ Host가 Revit API 컨텍스트에서 요청을 다시 검증하고 고유 실행
 
 Manager는 고정 Loader·설치 해시·선택 액션과 상대 경로를 검사하고 CAD 데이터 영역에 스냅샷과 요청을 준비합니다. `ROBIMRELOAD`가 요청·세션·Loader 호환성·파일 해시를 확인해 활성 구성과 응답을 기록합니다. 준비 파일 생성만으로 적용 완료를 표시하지 않습니다.
 
-현재 공급 방식은 CAD bundle ZIP입니다. 카탈로그에 모듈별 버전이 있어도 임의 저장소의 feature ZIP들을 자동 조합하는 일반 해결기가 구현됐다는 뜻은 아닙니다. 상세는 [CAD 개발 문서](https://github.com/gagaggan/RoBIM-CAD/blob/main/docs/developer/README.md)와 [저장소 분리 검토](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)를 확인합니다.
+현재 공급 방식은 CAD bundle ZIP입니다. 카탈로그에 모듈별 버전이 있어도 임의 저장소의 feature ZIP들을 자동 조합하는 일반 해결기가 구현됐다는 뜻은 아닙니다. 상세는 [CAD 개발 문서](https://github.com/RoBIM-tech/RoBIM-CAD/blob/main/docs/developer/README.md)와 [저장소 분리 검토](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_REPOSITORY_REVIEW.md)를 확인합니다.
 
 ## 리본 배치
 
@@ -177,7 +179,7 @@ Revit 2026.5 실행 중 연결 1.0.0-preview.41을 설치하고 표준 pyRevit R
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
 
 
 ## NativeOnly 연결 호환성 — Manager 1.0.0-preview.43
@@ -186,3 +188,12 @@ RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리
 
 
 2026-10-27 실제 PC 적용: 정상 Windows Setup으로 Manager 1.0.0-preview.43 및 Host 1.0.0-preview.4를 설치했습니다. Revit 재시작 후 Native Provider, 독립 기능 8개·관리 버튼 2개를 확인했습니다. Manager.Core의 RequestRevit(false)가 생성한 요청 ID와 Host의 applied 응답이 일치했고, 응답 시각이 안정적으로 유지되어 반복 적용이 없음을 확인했습니다. RoBIM Python 확장 0개·다른 확장 9개 및 기존 Native 선택을 보존했습니다. 모델을 열거나 모델 명령을 실행하는 검증은 수행하지 않았으며 TEST 배포입니다. 기본 브랜치 병합은 수행하지 않았습니다.
+
+
+## GitHub 팀 인증
+
+[TEAM_ACCESS.md](TEAM_ACCESS.md): 고정 팀 정책, 자동 로그인, 알림 영역/Windows 자동 시작, Host/CAD 실행 차단 및 검증.
+
+## preview.48 계정 설정
+
+ManagerAccountSettings.cs의 두 접이식 영역으로 계정 변경과 고급 설정을 분리합니다. GitHubSession/TeamAccess 인증·자동 확인·자격 증명 저장 정책은 유지합니다. 기본 화면의 저장된 연결 확인 버튼과 이전 pyRevit Reload 안내를 제거했습니다. --verify-account-ui는 기본 숨김, 계정 변경 열기/닫기, 고급 설정, 닫을 때 토큰 입력 지우기 6개를 검사하며 --verify-team-ui 7개 회귀 검사도 통과했습니다. 실제 설치 여부는 적용 기록을 확인합니다.

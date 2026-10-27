@@ -34,7 +34,7 @@ public sealed class Sources(ManagerPaths paths)
 
     public static async Task CheckConnection()
     {
-        using var response = await Request("https://api.github.com/repos/gagaggan/RoBIM-CAD", "application/vnd.github+json");
+        using var response = await Request("https://api.github.com/repos/RoBIM-tech/RoBIM-CAD", "application/vnd.github+json");
     }
 
     public async Task<SourcePackage> OfflineCad(string archive)
@@ -68,7 +68,7 @@ public sealed class Sources(ManagerPaths paths)
         var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
         var assetId = offer.AssetId; var digest = offer.Digest; var version = offer.Version;
         var archive = Path.Combine(NewCache(), "package.zip");
-        using (var download = await Request($"https://api.github.com/repos/gagaggan/RoBIM-CAD/releases/assets/{assetId}", "application/octet-stream", true))
+        using (var download = await Request($"https://api.github.com/repos/RoBIM-tech/RoBIM-CAD/releases/assets/{assetId}", "application/octet-stream", true))
         using (var input = await download.Content.ReadAsStreamAsync())
         using (var output = File.Create(archive))
         {

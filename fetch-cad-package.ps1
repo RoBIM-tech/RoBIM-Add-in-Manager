@@ -5,7 +5,7 @@ $secretLine = $credentialLines | Where-Object { $_.StartsWith('password=') } | S
 if (!$secretLine) { throw 'Git Credential Manager login is required to fetch the private CAD release.' }
 $env:GH_TOKEN = $secretLine.Substring(9)
 try {
-    $releases = gh api 'repos/gagaggan/RoBIM-CAD/releases?per_page=100' | ConvertFrom-Json
+    $releases = gh api 'repos/RoBIM-tech/RoBIM-CAD/releases?per_page=100' | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'CAD release lookup failed' }
     $selected = $null; $releaseTag = ''
     foreach ($release in $releases) {
@@ -18,7 +18,7 @@ try {
     New-Item -ItemType Directory -Path $cache -Force | Out-Null
     $target = Join-Path $cache 'DelHiddenNet-AutoCAD2026.zip'
     if (!(Test-Path -LiteralPath $target) -or (Get-FileHash -LiteralPath $target).Hash -ne $selected.digest.Substring(7)) {
-        gh release download $releaseTag --repo gagaggan/RoBIM-CAD --pattern 'DelHiddenNet-AutoCAD2026.zip' --dir $cache --clobber
+        gh release download $releaseTag --repo RoBIM-tech/RoBIM-CAD --pattern 'DelHiddenNet-AutoCAD2026.zip' --dir $cache --clobber
         if ($LASTEXITCODE -ne 0) { throw 'CAD release download failed' }
     }
     if ((Get-FileHash -LiteralPath $target).Hash -ne $selected.digest.Substring(7)) { throw 'CAD release SHA-256 mismatch' }

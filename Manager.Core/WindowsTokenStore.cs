@@ -25,6 +25,27 @@ public static class WindowsTokenStore
     [DllImport("advapi32.dll")] private static extern void CredFree(nint credential);
     [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool Delete(string target, uint type, uint flags);
+    [DllImport("advapi32.dll", EntryPoint = "CredEnumerateW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool Enumerate(string filter, uint flags, out uint count, out nint credentials);
+    public static void RemoveAllManagerTokens()
+    {
+        if (!Enumerate("RoBIM.Manager/GitHub/*", 0, out var count, out var list))
+        {
+            if (Marshal.GetLastWin32Error() == 1168) return;
+            throw new IOException("Manager 전용 자격 증명 목록 확인 실패");
+        }
+        try
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var credential = Marshal.PtrToStructure<Credential>(Marshal.ReadIntPtr(list, i * IntPtr.Size));
+                if (credential.Type != 1 || !credential.TargetName.StartsWith("RoBIM.Manager/GitHub/", StringComparison.Ordinal)) continue;
+                if (!Delete(credential.TargetName, 1, 0) && Marshal.GetLastWin32Error() != 1168)
+                    throw new IOException("Manager 전용 자격 증명 삭제 실패");
+            }
+        }
+        finally { CredFree(list); }
+    }
     private static string Target(string login)
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(login, "^[A-Za-z0-9-]{1,39}$")) throw new ArgumentException("GitHub 계정명 오류");

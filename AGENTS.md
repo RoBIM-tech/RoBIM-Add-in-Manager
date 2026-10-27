@@ -1,6 +1,6 @@
 # RoBIM Add-in Manager
 
-- 이 저장소는 매니저·설치 프로그램·Reload 연결·사용설명서만 관리한다. CAD 애드인 소스는 gagaggan/RoBIM-CAD, pyRevit 도구 소스는 gagaggan/RoBIM-pyrevit, 고정 Revit Host는 gagaggan/RoBIM-Revit-Addin, 기능 버튼은 각 전용 저장소에서 관리한다.
+- 이 저장소는 매니저·설치 프로그램·Reload 연결·사용설명서만 관리한다. CAD 애드인 소스는 RoBIM-tech/RoBIM-CAD, pyRevit 도구 소스는 RoBIM-tech/RoBIM-pyrevit, 고정 Revit Host는 RoBIM-tech/RoBIM-Revit-Addin, 기능 버튼은 각 전용 저장소에서 관리한다.
 - Windows x64 / .NET 10. 빌드: build-manager.ps1. CAD는 별도 Releases의 ZIP/SHA-256을 받아 동봉하며 Autodesk SDK나 CAD 소스를 참조하지 않는다.
 - 첫 화면은 Revit / AutoCAD로 분리하고 기본 작업 버튼은 하나만 제공한다. Git URL·계정/PAT·개발자는 보조 기능이다.
 - 일반 설치·삭제·복원은 해당 호스트 종료를 요구한다. 기존 설치·로컬 변경·백업·해시·경로 검증을 유지한다.
@@ -14,7 +14,7 @@
 ## Manager workspace ownership
 
 - Read `.codex/skills/robim-manager/SKILL.md` for this repository. The global Codex copy is installed from this source.
-- Shared contracts and compatibility are managed by `gagaggan/RoBIM-Workspace`; do not copy product implementation into that repository.
+- Shared contracts and compatibility are managed by `RoBIM-tech/RoBIM-Workspace`; do not copy product implementation into that repository.
 - Keep user ribbon choices and command IDs stable. Use the Manager workflow in README.md rather than old direct-install instructions.
 
 ## Documentation audiences
@@ -26,10 +26,10 @@
 ## 신규 기능 정책
 
 - 신규 Revit 버튼은 pyRevit에 추가하지 않고 독립 Native Add-in으로 제작합니다. 기존 pyRevit 버튼과 Manager 연결은 유지보수합니다.
-- 공용 코드는 [RoBIM-Libraries](https://github.com/gagaggan/RoBIM-Libraries)의 역할별 패키지로 관리하고 정확한 버전을 고정합니다. 실행 중 모든 DLL을 공용 폴더 하나에 덮어쓰지 않습니다.
+- 공용 코드는 [RoBIM-Libraries](https://github.com/RoBIM-tech/RoBIM-Libraries)의 역할별 패키지로 관리하고 정확한 버전을 고정합니다. 실행 중 모든 DLL을 공용 폴더 하나에 덮어쓰지 않습니다.
 - 신규 명령은 robim-addon 토픽·기본 브랜치의 자체 표시 정보·TEST Release로 검색됩니다. 중앙 목록은 기본 추천/이전 호환용이며 신규 표시의 필수 조건이 아닙니다. 실제 Manager 새로고침 결과를 검증합니다.
 - 새 버전은 TEST로 시작합니다. 실사용 승격은 실제 호스트 빌드·검증자·검증 기록을 명시한 별도 배포입니다. 설치 성공·main 병합·빌드 성공은 실사용 검증을 대신하지 않습니다.
-- [신규 버튼 제작 설명서](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)에서 clone부터 생성·패키징·등록·검증까지 진행합니다.
+- [신규 버튼 제작 설명서](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NEW_BUTTON.md)에서 clone부터 생성·패키징·등록·검증까지 진행합니다.
 
 
 ## 버튼별 저장소 운영
@@ -48,9 +48,9 @@
 
 ## 제작·수정 공통 확인
 
-신규 버튼과 기존 수정 모두 [명명 기준](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/NAMING.md)과 [전달 완료 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md)를 먼저 읽는다. 화면 이름은 기능명, 공용 패키지는 RoBIM. 전체 이름을 사용하고 기존 설치/모듈/명령 ID는 유지한다. 사용 가능한 버튼 전달 요청은 로컬 코드 작성에서 멈추지 않고 요청 범위의 저장소 게시·TEST 배포·Manager 검색/설치·호스트 적용까지 진행한다. 신규 검색은 robim-addon 토픽·기본 브랜치 descriptor(moduleId/commandId)·Release·검색 대상/권한으로 확인하며 중앙 등록 PR/Manager 재배포는 필수가 아니다. 이 절차가 오래된 중앙 등록 필수 문구보다 우선한다. README·사용자/개발자 문서·스킬·UI_ADOPTION을 실제 변경에 맞춰 갱신하고 소스/기본 브랜치/Release/Manager 카드/설치/호스트 결과를 구분해 보고한다. 게시·병합·설치는 현재 요청 범위를 따르며 미수행 단계를 완료라고 기록하지 않는다.
+신규 버튼과 기존 수정 모두 [명명 기준](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/NAMING.md)과 [전달 완료 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/BUTTON_DELIVERY.md)를 먼저 읽는다. 화면 이름은 기능명, 공용 패키지는 RoBIM. 전체 이름을 사용하고 기존 설치/모듈/명령 ID는 유지한다. 사용 가능한 버튼 전달 요청은 로컬 코드 작성에서 멈추지 않고 요청 범위의 저장소 게시·TEST 배포·Manager 검색/설치·호스트 적용까지 진행한다. 신규 검색은 robim-addon 토픽·기본 브랜치 descriptor(moduleId/commandId)·Release·검색 대상/권한으로 확인하며 중앙 등록 PR/Manager 재배포는 필수가 아니다. 이 절차가 오래된 중앙 등록 필수 문구보다 우선한다. README·사용자/개발자 문서·스킬·UI_ADOPTION을 실제 변경에 맞춰 갱신하고 소스/기본 브랜치/Release/Manager 카드/설치/호스트 결과를 구분해 보고한다. 게시·병합·설치는 현재 요청 범위를 따르며 미수행 단계를 완료라고 기록하지 않는다.
 
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.

@@ -73,6 +73,7 @@ public sealed partial class ManagerForm
     private async Task RefreshAccountAndCatalog()
     {
         await RefreshAccount();
+        if (!Allowed) return;
         try { await RefreshExtensionCatalog(); }
         catch (Exception ex) { catalogInfo.Text = "저장된 목록 유지 · 저장소 조회 실패: " + ex.Message; WriteLog(catalogInfo.Text); }
     }

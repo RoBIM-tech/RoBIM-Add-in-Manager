@@ -56,7 +56,7 @@ internal static class DesktopInstance
         return found;
     }
 
-    public static void Run(ManagerForm form)
+    public static void Run(ManagerForm form, bool background = false)
     {
         using var signal = new EventWaitHandle(false, EventResetMode.AutoReset, EventName);
         using var timer = new System.Windows.Forms.Timer { Interval = 200 };
@@ -67,7 +67,8 @@ internal static class DesktopInstance
             ShowWindowAsync(form.Handle, 9); form.BringToFront(); form.Activate(); SetForegroundWindow(form.Handle);
         }
         timer.Tick += (_, _) => { if (signal.WaitOne(0)) Activate(); };
-        form.Shown += (_, _) => { Activate(); timer.Start(); };
+        if (background) { form.Opacity = 0; form.ShowInTaskbar = false; }
+        form.Shown += (_, _) => { if (background) { form.Hide(); form.Opacity = 1; } else Activate(); timer.Start(); };
         Application.Run(form);
     }
 }

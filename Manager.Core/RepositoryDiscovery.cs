@@ -26,9 +26,15 @@ public sealed class RepositoryDiscovery(ManagerPaths paths,
             throw new ArgumentException("제작자·조직 이름 또는 https://github.com/이름을 입력하세요.");
         return value;
     }
-    public RepositorySearchSettings Settings() => File.Exists(SettingsPath)
-        ? Validate(JsonSerializer.Deserialize<RepositorySearchSettings>(File.ReadAllText(SettingsPath), Json) ?? throw new IOException("검색 대상 설정이 비어 있습니다."))
-        : new(1, true, [new("gagaggan")]);
+    public RepositorySearchSettings Settings()
+    {
+        var settings = File.Exists(SettingsPath)
+            ? Validate(JsonSerializer.Deserialize<RepositorySearchSettings>(File.ReadAllText(SettingsPath), Json) ?? throw new IOException("검색 대상 설정이 비어 있습니다."))
+            : new RepositorySearchSettings(1, true, [new("RoBIM-tech")]);
+        if (settings.Publishers.Any(p => p.Name.Equals("RoBIM-tech", StringComparison.OrdinalIgnoreCase))) return settings;
+        return settings with { Publishers = settings.Publishers.Select(p => p.Name.Equals("gagaggan", StringComparison.OrdinalIgnoreCase)
+            ? p with { Name = "RoBIM-tech", Kind = "organization" } : p).ToArray() };
+    }
     private static RepositorySearchSettings Validate(RepositorySearchSettings value)
     {
         if (value.SchemaVersion != 1 || value.Publishers is null || value.Publishers.Length > 50) throw new IOException("검색 대상 설정 형식 오류");

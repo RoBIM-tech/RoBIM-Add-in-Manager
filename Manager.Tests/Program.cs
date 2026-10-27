@@ -2,6 +2,11 @@ using System.IO.Compression;
 using System.Text.Json;
 using RoBIM.Manager.Core;
 
+if (args.Length == 2 && args[0] == "--check-organization-transfer")
+{
+    await RepositoryOwnershipTests.Live(Path.GetFullPath(args[1])); return 0;
+}
+
 if (args.Length == 2 && args[0] == "--check-native-downloads")
 {
     await SingleNativeButtonTests.Downloads(Path.GetFullPath(args[1])); return 0;
@@ -61,6 +66,24 @@ if (args.Contains("--discovery-only"))
     RepositoryDiscoveryTests.Run(root, Test);
     Console.WriteLine($"{results.Count-failures}/{results.Count} discovery checks passed"); return failures==0?0:1;
 }
+if (args.Contains("--uninstall-only"))
+{
+    ManagerUninstallTests.Run(root, Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} uninstall checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--team-only"))
+{
+    TeamAccessTests.Run(Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} team checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--ownership-only"))
+{
+    RepositoryOwnershipTests.Run(root, Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} ownership checks passed"); return failures==0?0:1;
+}
 if (args.Contains("--bridge-only"))
 {
     ReloadBridgeTests.Run(root,Test);
@@ -86,6 +109,9 @@ if (args.Contains("--native-single-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
+ManagerUninstallTests.Run(root, Test);
+TeamAccessTests.Run(Test);
+RepositoryOwnershipTests.Run(root, Test);
 ReleaseTests.Run(Test, Require, root);
 ReleaseUpdateTests.Run(Test, Require, root);
 SingleNativeButtonTests.Run(Test, Paths, Require, root);

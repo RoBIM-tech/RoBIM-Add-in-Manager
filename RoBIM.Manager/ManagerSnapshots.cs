@@ -44,6 +44,7 @@ public sealed partial class ManagerForm
         try
         {
             refreshingSnapshot = true;
+            UpdateLoginPage();
             var cached = await Task.Run(() =>
             {
                 try
@@ -79,7 +80,7 @@ public sealed partial class ManagerForm
             if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 새로 고침에서 최신 업데이트도 확인합니다."; }
         }
         catch (Exception ex) { if (!IsDisposed) { WriteLog("로컬 목록 확인 실패: " + ex.Message); footer.Text = "설치 상태 확인 실패 · 새로 고침으로 다시 확인하세요."; } }
-        finally { refreshingSnapshot = false; if (!IsDisposed) RefreshCardActions(); }
+        finally { refreshingSnapshot = false; if (!IsDisposed) { RefreshCardActions(); UpdateLoginPage(); } }
     }
 
     internal void InspectPerformance(string destination)

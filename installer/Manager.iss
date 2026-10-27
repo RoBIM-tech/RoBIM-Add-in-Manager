@@ -3,15 +3,19 @@
 #endif
 [Setup]
 #ifdef TestBuild
+#ifdef TestAppId
+AppId={#TestAppId}
+#else
 AppId=RoBIM.AddinManager.Test
+#endif
 #else
 AppId=RoBIM.AddinManager
 #endif
 AppName=RoBIM Add-in Manager
-AppVersion=1.0.0-preview.43
-AppVerName=RoBIM Add-in Manager 1.0.0-preview.43
+AppVersion=1.0.0-preview.48
+AppVerName=RoBIM Add-in Manager 1.0.0-preview.48
 AppPublisher=RoBIM
-AppPublisherURL=https://github.com/gagaggan/RoBIM-Add-in-Manager
+AppPublisherURL=https://github.com/RoBIM-tech/RoBIM-Add-in-Manager
 DefaultDirName={localappdata}\Programs\RoBIM Manager
 DefaultGroupName=RoBIM Add-in Manager
 PrivilegesRequired=lowest
@@ -30,11 +34,15 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.0.0.40
+VersionInfoVersion=1.0.0.48
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Messages]
+korean.ConfirmUninstall=RoBIM Manager와 이 Manager가 설치한 Revit·CAD 도구, 연결 모듈, 검색 기록, 캐시 및 복구 백업을 제거하시겠습니까?%n%n개인 설정은 다음 화면에서 삭제/유지를 선택합니다. 다른 제품·pyRevit 본체·GitHub 공용 로그인은 유지합니다.
+english.ConfirmUninstall=Remove RoBIM Manager and its managed Revit/CAD tools, host, discovery history, caches and backups?%n%nChoose whether to keep personal settings on the next screen. Other products, pyRevit itself and shared GitHub sign-in are preserved.
 
 [Files]
 Source: "{#RepoRoot}\artifacts\RoBIM-Manager\*"; DestDir: "{app}"; Flags: ignoreversion
@@ -47,12 +55,18 @@ Name: "{group}\RoBIM Add-in Manager"; Filename: "{app}\RoBIM.Manager.exe"; Worki
 Name: "{userdesktop}\RoBIM Add-in Manager"; Filename: "{app}\RoBIM.Manager.exe"; WorkingDir: "{app}"
 #endif
 
+[Tasks]
+#ifndef TestBuild
+Name: "startup"; Description: "Windows 로그인 시 RoBIM Manager 자동 시작"; Flags: checkedonce
+#endif
+
 [INI]
 Filename: "{app}\.robim-manager-native.ini"; Section: "Install"; Key: "Product"; String: "RoBIM.Manager"
 Filename: "{app}\.robim-manager-native.ini"; Section: "Install"; Key: "Path"; String: "{app}"
 
 [Registry]
 #ifndef TestBuild
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "RoBIMManager"; ValueData: """{app}\RoBIM.Manager.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMManager"; Flags: deletekey; Check: LegacyRegistrationOwned
 #endif
 
@@ -85,6 +99,31 @@ end;
 
 function InitializeUninstall: Boolean;
 begin
-  Result := RunGuard(ExpandConstant('{app}\Guard.ps1'), True);
-  if not Result then MsgBox('RoBIM Manager를 종료하고 설치 경로와 설치 기록을 확인하십시오.', mbError, MB_OK);
+  while not RunGuard(ExpandConstant('{app}\Guard.ps1'), True) do begin
+    if UninstallSilent then begin
+      Result := False;
+      exit;
+    end;
+    if MsgBox('RoBIM Manager를 종료하십시오. 설치 경로 또는 설치 기록에 문제가 있다면 먼저 확인하십시오.' + #13#10 + '종료한 뒤 재시도를 누르면 제거를 계속합니다.', mbError, MB_RETRYCANCEL) <> IDRETRY then begin
+      Result := False;
+      exit;
+    end;
+  end;
+  Result := True;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+#ifndef TestBuild
+var Code: Integer; Args: String;
+#endif
+begin
+#ifndef TestBuild
+  if CurUninstallStep = usUninstall then begin
+    Args := '--uninstall-user-data';
+    if UninstallSilent then Args := '--uninstall-user-data-silent';
+    if ExpandConstant('{param:KEEPSETTINGS|0}') = '1' then Args := Args + ' --keep-settings';
+    if not Exec(ExpandConstant('{app}\RoBIM.Manager.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code) then Abort;
+    if Code <> 0 then Abort;
+  end;
+#endif
 end;
