@@ -183,13 +183,6 @@
       "toRepositories": [
         "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit"
       ]
-    },
-    {
-      "fromRepository": "gagaggan/RoBIM-Revit-CentralClone",
-      "packageId": "robim-central-clone",
-      "toRepositories": [
-        "RoBIM-tech/RoBIM-Revit-CentralClone"
-      ]
     }
   ]
 }
