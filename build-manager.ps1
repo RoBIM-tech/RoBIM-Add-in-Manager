@@ -17,14 +17,19 @@ $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
-$libraryArgs = @('--source', 'https://api.nuget.org/v3/index.json')
+$packageSources = @('https://api.nuget.org/v3/index.json')
 if ($LibraryFeed) {
-    $libraryArgs = @('--source', [IO.Path]::GetFullPath($LibraryFeed), '--source', 'https://api.nuget.org/v3/index.json')
+    $packageSources += [IO.Path]::GetFullPath($LibraryFeed)
     foreach ($cache in @((Join-Path $env:USERPROFILE '.nuget/packages'), (Join-Path $PSScriptRoot '.dotnet-home/.nuget/packages'))) {
-        if (Test-Path -LiteralPath $cache -PathType Container) { $libraryArgs += @('--source', $cache) }
+        if (Test-Path -LiteralPath $cache -PathType Container) { $packageSources += $cache }
     }
-    $libraryArgs += @(('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false')
 }
+# Keep HTTPS sources as URIs even with SDKs that normalize --source arguments as paths.
+$restoreConfig = Join-Path $PSScriptRoot 'artifacts/manager-restore.config'
+$entries = for ($i = 0; $i -lt $packageSources.Count; $i++) { '<add key="source' + $i + '" value="' + [Security.SecurityElement]::Escape($packageSources[$i]) + '" />' }
+[IO.File]::WriteAllText($restoreConfig, ('<configuration><packageSources><clear />' + ($entries -join '') + '</packageSources></configuration>'), [Text.UTF8Encoding]::new($false))
+$libraryArgs = @('-p:RestoreConfigFile=' + $restoreConfig)
+if ($LibraryFeed) { $libraryArgs += @(('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false') }
 & dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true @libraryArgs -o $output --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Manager publish failed.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/licenses/YamlDotNet-LICENSE.txt') -Destination (Join-Path $output 'YamlDotNet-LICENSE.txt') -Force
