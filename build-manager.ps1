@@ -18,7 +18,13 @@ if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
 $libraryArgs = @('--source', 'https://api.nuget.org/v3/index.json')
-if ($LibraryFeed) { $libraryArgs = @('--source', [IO.Path]::GetFullPath($LibraryFeed), '--source', (Join-Path $env:USERPROFILE '.nuget/packages'), '--source', (Join-Path $PSScriptRoot '.dotnet-home/.nuget/packages'), ('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false') }
+if ($LibraryFeed) {
+    $libraryArgs = @('--source', [IO.Path]::GetFullPath($LibraryFeed), '--source', 'https://api.nuget.org/v3/index.json')
+    foreach ($cache in @((Join-Path $env:USERPROFILE '.nuget/packages'), (Join-Path $PSScriptRoot '.dotnet-home/.nuget/packages'))) {
+        if (Test-Path -LiteralPath $cache -PathType Container) { $libraryArgs += @('--source', $cache) }
+    }
+    $libraryArgs += @(('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false')
+}
 & dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true @libraryArgs -o $output --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Manager publish failed.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/licenses/YamlDotNet-LICENSE.txt') -Destination (Join-Path $output 'YamlDotNet-LICENSE.txt') -Force
