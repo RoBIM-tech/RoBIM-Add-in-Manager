@@ -174,3 +174,7 @@ Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 �
 ### 실제 적용 확인 — 2026-10-27
 
 Revit 2026.5 실행 중 연결 1.0.0-preview.41을 설치하고 표준 pyRevit Reload 후 동일 세션의 applied 응답과 BridgeRevision=retirement-1을 확인했습니다. RetiredPythonControls에는 AutoJoin, WorksetDeleteAsCentral, Relink Paths, DuplicateViews, ViewRotation의 기존 내부 ID 5개가 기록됐습니다. 현재 선택된 pyRevit·Native 버튼은 유지했습니다. 실제 모델 수정 명령은 실행하지 않았습니다. 전체 핵심 검사 199개와 Python 리본 회귀 검사를 통과했습니다. 로컬 연결 적용과 전체 Manager 설치 프로그램 배포는 별도입니다.
+
+## RoBIM pyRevit 사용 종료
+
+RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/gagaggan/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.

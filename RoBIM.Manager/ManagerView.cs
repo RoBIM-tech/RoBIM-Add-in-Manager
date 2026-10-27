@@ -41,6 +41,7 @@ public sealed partial class ManagerForm
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
             button.FlatAppearance.BorderSize = 0;
             button.Click += (_, _) => SwitchPage(id);
+            if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") button.Visible = false;
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
@@ -223,6 +224,30 @@ public sealed partial class ManagerForm
             await Task.Run(() => ReloadBridge.Install(paths, Path.Combine(AppContext.BaseDirectory, "RoBIM-ReloadBridge.zip")));
             MessageBox.Show(this, "Reload 연결을 설치했습니다. Revit에서 pyRevit Reload를 한 번 누르십시오.\nRoBIM TEST → RoBIM 연결 TEST → 적용 및 Reload 버튼이 표시됩니다.", Text);
         });
+        var retirePython = MakeButton("기존 RoBIM pyRevit 연결 제거");
+        retirePython.Enabled = !preview && !RevitRuntimePolicy.NativeOnly(paths);
+        retirePython.Click += async (_, _) =>
+        {
+            if (!Confirm("기존 RoBIM pyRevit 버튼과 Manager용 pyRevit 연결을 백업 후 제거합니까?\n독립 Add-in과 다른 pyRevit 확장은 유지합니다. Revit을 저장하고 종료한 상태에서 실행하십시오.")) return;
+            await Run("RoBIM Native 전용 전환", async () =>
+            {
+                var backup = await Task.Run(() =>
+                {
+                    EnvironmentProbe.EnsureHostClosed(Catalog.Revit);
+                    var retirement = new PyRevitRetirement(paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini"));
+                    var plan = retirement.Prepare();
+                    new NativeRevitCommands(paths).InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+                    retirement.Apply(plan);
+                    return Path.Combine(paths.Data, "Backups", "PyRevitRetirement", plan.Id);
+                });
+                foreach (var navigationItem in navigation.Where(x => x.Tag is string page && page is "PyRevit" or "Developer" or "Locations")) navigationItem.Visible = false;
+                retirePython.Enabled = false; bridge.Visible = false;
+                WriteLog("RoBIM pyRevit 연결 제거 완료 · 복구 백업: " + backup);
+            });
+            SwitchPage("Revit");
+        };
+        panel.Controls.Add(retirePython);
+        bridge.Visible = preview || !RevitRuntimePolicy.NativeOnly(paths);
         panel.Controls.Add(bridge);
         panel.Controls.Add(Note("Revit을 켜 둔 채 파일을 준비한 뒤, Revit 안의 적용 및 Reload 버튼에서 반영합니다. DLL 변경은 재시작이 필요합니다."));
         login.Click += async (_, _) => await Run("GitHub 로그인", async () => { await GitHubAccount.LoginAndSave(); await RefreshAccountAndCatalog(); });
@@ -231,6 +256,7 @@ public sealed partial class ManagerForm
 
     private void SwitchPage(string id)
     {
+        if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") id = "Revit";
         if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
         currentPage = id;
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";

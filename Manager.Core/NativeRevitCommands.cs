@@ -207,7 +207,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var generated = xml.ToString();
         SafeFiles.NoLinks(addin);
         if (File.Exists(addin) && File.ReadAllText(addin) != generated) throw new IOException("같은 이름의 Revit 등록 파일이 있어 보존합니다: " + addin);
-        if (!status.Managed || !SafeFiles.Same(SafeFiles.Hashes(package), SafeFiles.Hashes(target))) installer.Install(Catalog.RevitHost, new(package, "1.0.0-preview.1"));
+        if (!status.Managed || !SafeFiles.Same(SafeFiles.Hashes(package), SafeFiles.Hashes(target))) installer.Install(Catalog.RevitHost, new(package, FileVersionInfo.GetVersionInfo(Path.Combine(package, "Contents", "2026", "RoBIM.Revit.Host.dll")).ProductVersion?.Split('+')[0] is { Length: > 0 } version ? version : "1.0.0-preview.1"));
         Directory.CreateDirectory(addinDirectory);
         if (!File.Exists(addin)) { using var stream = new FileStream(addin, FileMode.CreateNew, FileAccess.Write, FileShare.None); using var writer = new StreamWriter(stream); writer.Write(generated); }
     }

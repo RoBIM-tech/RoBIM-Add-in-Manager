@@ -11,6 +11,7 @@ public static class ReloadBridge
     public static void Install(ManagerPaths paths, string archive,
         Func<RevitSession?>? currentSession = null, Action<RevitSession>? ensureSession = null, Action? requestReload = null)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, Catalog.ReloadBridge);
         var digest = archive + ".sha256";
         if (!File.Exists(digest) || !SafeFiles.Hash(archive).Equals(File.ReadAllText(digest).Trim(), StringComparison.OrdinalIgnoreCase))
             throw new IOException("Reload 연결 패키지 해시가 일치하지 않습니다.");

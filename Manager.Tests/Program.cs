@@ -753,6 +753,7 @@ if (args.Contains("--online"))
 }
 RepositoryDiscoveryTests.Run(root, Test);
 ReloadBridgeTests.Run(root, Test);
+PyRevitRetirementTests.Run(root, Test);
 PyRevitLocationTests.Run(Test, Paths, Require, root);
 NativeReleasePolicyTests.Run(Test, Require);
 NativeRevitTests.Run(Test, Paths, Require, root);

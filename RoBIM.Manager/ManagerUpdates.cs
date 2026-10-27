@@ -31,12 +31,12 @@ public sealed partial class ManagerForm
     private PackageRow[] UpdateTargets()
     {
         var registered = availablePackages.ToList();
-        if (!registered.Any(p => ExtensionCatalog.Tool(p.Repository, p.Package).Id == Catalog.Revit.Id))
+        if (!RevitRuntimePolicy.NativeOnly(paths) && !registered.Any(p => ExtensionCatalog.Tool(p.Repository, p.Package).Id == Catalog.Revit.Id))
         {
             var package = new ExtensionPackage("robim-revit", "RoBIM for Revit", "pyrevit", ".", Catalog.Revit.FolderName);
             registered.Add(new(new(Catalog.Revit.Repository, Catalog.Revit.Branch, [package], "기본 pyRevit"), package));
         }
-        return registered.ToArray();
+        return registered.Where(p => !RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(ExtensionCatalog.Tool(p.Repository, p.Package))).ToArray();
     }
 
     private sealed record UpdateCheck(string Id, ReleaseOffer? Offer, string? Error,

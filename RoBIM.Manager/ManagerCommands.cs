@@ -29,7 +29,7 @@ public sealed partial class ManagerForm
         var inventory = RevitButtonInventory.Read(paths, owner.Status, revitButtonPackage);
         return (inventory.Root, inventory.Buttons, inventory.Selected, inventory.Pending);
     }
-    private IEnumerable<ButtonCard> CommandInventory() => preview ? PreviewCommands() : commandSnapshot;
+    private IEnumerable<ButtonCard> CommandInventory() => preview ? PreviewCommands() : commandSnapshot.Where(x => !RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(x.Owner.Status.Tool));
     private IEnumerable<ButtonCard> ReadCommandInventory(IEnumerable<ProductRow> owners)
     {
         if (preview)
@@ -38,7 +38,7 @@ public sealed partial class ManagerForm
             yield break;
         }
         inventoryScanCount++;
-        foreach (var owner in owners.Where(x => x.Status.Tool.Kind != ToolKind.NativeRevitHost))
+        foreach (var owner in owners.Where(x => x.Status.Tool.Kind != ToolKind.NativeRevitHost && (!RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(x.Status.Tool))))
         {
             var cards = new List<ButtonCard>();
             try

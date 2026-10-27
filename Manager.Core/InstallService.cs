@@ -82,6 +82,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
 
     public void Install(ToolSpec tool, SourcePackage package)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, tool);
         using var operation = Lock();
         ensureHostClosed?.Invoke(tool);
         var target = paths.Target(tool);
@@ -132,6 +133,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     // and identical binaries in place; replace only the verified reloadable file delta.
     public void InstallReload(ToolSpec tool, SourcePackage package)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, tool);
         if (tool.Kind != ToolKind.PyRevit) throw new IOException("pyRevit 파일만 실행 중 교체할 수 있습니다.");
         using var operation = Lock();
         ensureHostClosed?.Invoke(tool);

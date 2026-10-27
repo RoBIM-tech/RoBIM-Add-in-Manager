@@ -4,6 +4,7 @@ public sealed record RevitButtonInventory(string? Root, RevitButton[] Buttons, s
 {
     public static RevitButtonInventory Read(ManagerPaths paths, ToolStatus owner, SourcePackage? available = null, Func<string, bool>? isEnabled = null)
     {
+        if (RevitRuntimePolicy.NativeOnly(paths) && RevitRuntimePolicy.LegacyRoBIM(owner.Tool)) return new(null, [], [], false);
         var enabled = isEnabled ?? RevitProfiles.EnabledFromUserIni;
         var pending = new RevitReload(paths).PendingSelection();
         var selected = new InstallService(paths).Status(Catalog.RevitSelected);
