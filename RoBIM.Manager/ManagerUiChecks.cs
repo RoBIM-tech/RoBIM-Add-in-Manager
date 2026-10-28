@@ -67,6 +67,7 @@ public sealed partial class ManagerForm
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
+        Require(navigation.First().Parent is ScrollableControl nav && !nav.HorizontalScroll.Visible, "Program ribbon navigation fits without horizontal scrolling");
         Navigate("Revit"); Require(cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Independent Revit excludes pyRevit and CAD actions");
         Require(nativeReload.Visible, "Native Revit Reload available on Revit page");
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");

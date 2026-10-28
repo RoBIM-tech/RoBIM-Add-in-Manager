@@ -50,6 +50,11 @@ public sealed partial class ManagerForm
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
+        nav.ClientSizeChanged += (_, _) =>
+        {
+            var width=Math.Max(110,nav.ClientSize.Width-(nav.VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0)-2);
+            foreach (var item in navigation) item.Width=width;
+        };
         sidebar.Controls.Add(new Label { Text = "RoBIM Manager\n" + Application.ProductVersion.Split('+')[0], ForeColor = Color.FromArgb(112, 123, 140), AutoSize = true, Dock = DockStyle.Bottom, Padding = new(8) });
         var brand = new Panel { Dock = DockStyle.Top, Height = 62, BackColor = Color.White, Padding = new(24, 12, 24, 12) };
         brand.Controls.Add(new Label { Text = "RoBIM", Font = new Font(Font.FontFamily, 18, FontStyle.Bold), ForeColor = Color.FromArgb(49, 92, 164), AutoSize = true, Location = new(24, 12) });
