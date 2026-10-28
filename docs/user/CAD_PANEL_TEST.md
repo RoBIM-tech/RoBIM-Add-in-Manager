@@ -4,7 +4,7 @@
 
 ## Manager 패널 미리보기
 
-Windows x64, .NET 10 SDK, Python 3.12+, 인증된 GitHub CLI(`gh auth login`), RoBIM-tech 비공개 저장소 접근이 필요합니다.
+Windows x64, .NET 10 SDK, Python 3.12+, RoBIM-tech 저장소 읽기 권한이 필요합니다. GitHub CLI(`gh auth login`)를 사용하면 패키지를 자동으로 다운로드하지만, **수동으로 내려받은 ZIP 및 `.sha256` 파일과 NuGet 폴더를 지정하면 GitHub CLI 없이도 실행할 수 있습니다.**
 
 ```powershell
 git clone https://github.com/RoBIM-tech/RoBIM-Add-in-Manager.git
@@ -13,6 +13,15 @@ pwsh ./scripts/Build-ManagerTestLocal.ps1
 ```
 
 스크립트는 Libraries 0.1.0 및 CAD 1.0.1 정식 ZIP, Revit Host preview.8을 읽기 전용으로 다운로드하고 SHA-256으로 검사합니다. Manager 현재 소스를 빌드해 `artifacts/RoBIM-Manager/RoBIM.Manager.exe`를 만듭니다. GUI 미리보기는 `artifacts/cad-ribbon-preview.png`입니다.
+
+GitHub CLI를 사용하지 않는 경우:
+```powershell
+pwsh ./scripts/Build-ManagerTestLocal.ps1 `
+  -LibraryFeed "C:\TestPackages\NuGet" `
+  -RevitHostZip "C:\TestPackages\RoBIM-Host-Revit2026.zip" `
+  -StableCadZip "C:\TestPackages\DelHiddenNet-AutoCAD2026.zip"
+```
+각 ZIP 옆에 같은 이름의 `.sha256` 파일이 필요합니다.
 
 실제 앱 창에서 **AutoCAD**, **AutoCAD 리본 편집**을 각각 열어 재현합니다. 오류가 나면 Manager 데이터 폴더의 `cad-panel-errors.log`를 확인하세요.
 
