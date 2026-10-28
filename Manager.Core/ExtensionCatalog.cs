@@ -96,25 +96,9 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             return new(canonical, branch, parsed.Where(x => x.Host != "pyrevit").ToArray(), "robim-package.json");
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
-        // No implicit .extension fallback: pyRevit is retired.
-        throw new NoInstallablePackagesException("독립 Revit/CAD robim-package.json이 없습니다. pyRevit 확장은 검색하지 않습니다.");
-        // Existing pyRevit repositories may use native root/nested .extension bundles.
-        using var rootResponse = await GitHubSession.Request("/repos/" + canonical + "/contents?ref=" + Uri.EscapeDataString(branch));
-        if (!rootResponse.IsSuccessStatusCode) throw new IOException("저장소 구조를 확인하지 못했습니다.");
-        using var root = JsonDocument.Parse(await rootResponse.Content.ReadAsStringAsync());
-        var directories = root.RootElement.EnumerateArray().Where(x => x.GetProperty("type").GetString() == "dir").Select(x => x.GetProperty("name").GetString()!).ToArray();
-        var nested = directories.Where(x => x.EndsWith(".extension", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var folder = canonical.Split('/')[1];
-        var hasRootTab = directories.Any(x => x.EndsWith(".tab", StringComparison.OrdinalIgnoreCase));
-        if (hasRootTab || nested.Length == 1)
-        {
-            var path = hasRootTab ? "." : nested[0];
-            folder = hasRootTab ? folder.EndsWith(".extension", StringComparison.OrdinalIgnoreCase) ? folder : folder + ".extension" : nested[0];
-            var entry = new ExtensionPackage("extension", canonical.Split('/')[1], "pyrevit", path, folder);
-            ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, [entry])));
-            return new(canonical, branch, [entry], "pyRevit .tab / .extension 구조");
-        }
-        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD / 독립 Revit .bundle");
+        // Preserve legacy repositories on GitHub but never infer .extension packages.
+        throw new NoInstallablePackagesException("이 저장소에는 지원되는 독립 Revit/CAD 패키지가 없습니다.");
+
     }
     public ExtensionRepository[] Registered()
     {
