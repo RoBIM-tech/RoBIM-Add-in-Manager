@@ -241,8 +241,7 @@ public sealed partial class ManagerForm : Form
         var sheetPackage = new ExtensionPackage("sheets", "RoBIM 시트 생성", "revit", ".", "RoBIM.Sheets.bundle", "release", "RoBIM-Sheets-Revit2026.zip", "CAD · PDF 도면목록에서 도면번호와 도면명을 읽어 Revit 시트를 생성합니다.");
         availablePackages.Add(new PackageRow(new ExtensionRepository("RoBIM-tech/RoBIM-Revit-Addin", "main", [sheetPackage], "화면 확인용 예시"), sheetPackage));
         var cad = new ToolStatus(Catalog.Cad, paths.Target(Catalog.Cad), "v1.0.0-preview.1", true, false, false, "관리 중");
-        var revit = new ToolStatus(Catalog.Revit, @"C:\RoBIM\RoBIM.extension", "main@82b51a7e0d42", false, true, false, "기존 설치 연결 · 브랜치 유지");
-        foreach (var row in new[] { cad, revit })
+        foreach (var row in new[] { cad })
         {
             statuses[row.Tool.Id] = row;
             var index = grid.Rows.Add(row.Tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : "Revit", row.Tool.Name, row.Version, "확인 전", row.Detail);

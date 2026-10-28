@@ -262,3 +262,13 @@ preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으
 리본 편집 위의 **Revit 연결 설치 / 업데이트**는 독립 Revit 연결을 설치하거나 Manager에 동봉된 검증 버전으로 갱신합니다. Revit에서 작업을 저장하고 종료한 뒤 실행하고, 다시 Revit을 시작하면 저장한 배치를 자동 적용합니다. 연결을 갱신해도 도구 선택과 리본 배치는 유지합니다.
 
 독립 모드의 Revit 적용은 설치된 연결과 동봉 패키지의 실제 파일 해시를 비교합니다. 연결이 오래된 채로 Revit이 실행 중이면 적용 완료로 표시하지 않고 연결 업데이트 절차를 안내합니다. Revit이 종료되어 있으면 적용 요청 과정에서 연결을 먼저 설치/갱신합니다. 실행 중 Revit의 연결 DLL을 교체하거나 Revit을 강제 종료하지 않습니다.
+
+## Preview 54: Native 전용 Manager 업데이트
+
+Revit 도구·검색·새 설치·리본은 독립 C# Add-in만 사용합니다. pyRevit 메뉴와 연결 신규 설치는 제공하지 않으며, 기존 소유 잔여 설치가 있으면 설정의 고급 항목에서 백업 후 제거할 수 있습니다. 업데이트 자체는 이전 pyRevit 파일이나 사용자 리본을 자동 삭제하지 않습니다. Revit 리본 연결 업데이트와 Manager 업데이트 확인 버튼을 유지합니다.
+
+AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 cad-panel-errors.log에 기록합니다. Navisworks는 빈 도구/리본 안내를 유지합니다. Manager의 미리보기 예시도 Native 도구로 바꾸어 제거된 pyRevit 제품을 찾다가 실패하지 않게 했습니다.
+
+### Native 전용 검사 범위
+
+Manager.Tests는 Native/CAD·인증·Manager 업데이트·설치 보존·리본·잔여 설치 제거를 검사합니다. retired-pyrevit-tests.json의 과거 pyRevit 신규 설치/프로필/Reload 성공 시나리오는 현재 운영에서 종료되어 기본 실행에서 제외하며 통과 수에 포함하지 않습니다. 별도 retired-tests.json에 이름과 이유를 기록합니다. 과거 동작을 조사할 때만 --include-retired-pyrevit을 사용하며 현재 정책에서 실패하는 것이 정상입니다. 기존 설치의 제거/백업/동시 변경 방지 검사는 구형 설치 기록을 직접 준비하여 계속 실행합니다. NativeOnlyPolicyTests는 실제 Manager.Core를 대상으로 신규 pyRevit 설치/등록 차단 및 기존 파일 보존을 검사합니다.
