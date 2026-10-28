@@ -74,7 +74,7 @@ public sealed partial class ManagerForm
         var workspace = new Panel { Dock = DockStyle.Fill };
         workspace.Controls.Add(content); workspace.Controls.Add(sidebar);
         Controls.Add(workspace); Controls.Add(brand);
-        BuildUserPage(); BuildDeveloperPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildHostRibbonPages(); BuildLocationsPage();
+        BuildUserPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildHostRibbonPages();
         try
         {
             var file = Path.Combine(paths.Data, "ui-preferences.json");
@@ -306,7 +306,7 @@ public sealed partial class ManagerForm
     {
         if (!CanUseTest && id == "Test") id = "Revit";
         if (id is "PyRevit" or "Developer" or "Locations") id = "Revit";
-        if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
+        if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", _ => "Revit" };
         currentPage = id;
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";
         extensionsPage.Visible = id == "Extensions";
@@ -314,7 +314,7 @@ public sealed partial class ManagerForm
         cadRibbonPage.Visible = id == "CadRibbon";
         navisworksRibbonPage.Visible = id == "NavisworksRibbon";
         locationsPage.Visible = id == "Locations";
-        if (id == "Locations") ShowLocation();
+
         if (id == "Ribbon") RefreshRibbonEditor();
         if (id == "CadRibbon") RefreshCadRibbonPage();
         productsPage.Visible = IsProductPage;

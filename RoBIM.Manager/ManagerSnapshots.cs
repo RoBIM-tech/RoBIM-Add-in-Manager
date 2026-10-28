@@ -167,7 +167,7 @@ public sealed partial class ManagerForm
     private string ReadStateStamp()
     {
         // Metadata only: no package traversal, hashing, Git or network in the timer.
-        var files = new[] { "installed.json", "extension-repositories.json", "pyrevit-location.json", "reload-pending.json", "reload-result.json", "reload-profile.json",
+        var files = new[] { "installed.json", "extension-repositories.json",
             "NativeRevit/pending.json", "NativeRevit/active.json", "NativeRevit/Results", "Cad/pending.json", "Cad/active.json", "Cad/Results" };
         var stamp = string.Join("|", files.Select(relative =>
         {

@@ -45,7 +45,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (package is null || string.IsNullOrWhiteSpace(package.Name) || package.Name.Length > 120 ||
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
             if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
-            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
+            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: autocad, revit (기존 pyRevit 기록은 읽기 호환만 제공)");
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             if (package.ModuleId is null || package.CommandId is null ||
                 (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&

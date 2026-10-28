@@ -126,6 +126,7 @@ public sealed partial class ManagerForm
     {
         var row = selected ?? SelectedPackage(); if (row is null) return;
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
+        if (tool.Kind == ToolKind.PyRevit) return;
         if (tool.Kind == ToolKind.NativeRevit)
         {
             var owner = new ProductRow(installer.Status(tool), row);
