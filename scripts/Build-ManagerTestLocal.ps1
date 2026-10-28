@@ -1,13 +1,18 @@
 param(
     [string]$CadHotfixZip,
     [string]$LibraryFeed,
+    [string]$RevitHostZip,
+    [string]$StableCadZip,
     [switch]$SkipPreview
 )
 $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Windows x64 is required.' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-foreach ($tool in @('dotnet', 'python', 'gh')) {
+foreach ($tool in @('dotnet', 'python')) {
     if (!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing ${tool}: install and configure it first." }
+}
+if ((!$LibraryFeed -or !$RevitHostZip -or (!$CadHotfixZip -and !$StableCadZip)) -and !(Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw 'Install/log in using gh CLI, or provide -LibraryFeed -RevitHostZip and -CadHotfixZip / -StableCadZip.'
 }
 if (!$LibraryFeed) {
     $LibraryFeed = Join-Path $root 'artifacts/verified-stable-nuget'
@@ -24,16 +29,24 @@ $LibraryFeed = [IO.Path]::GetFullPath($LibraryFeed)
 $assets = Join-Path $root 'artifacts/manual-preview-assets'
 New-Item -ItemType Directory -Path $assets -Force | Out-Null
 $hostName = 'RoBIM-Host-Revit2026.zip'
-& gh release download host-v1.0.0-preview.8 --repo RoBIM-tech/RoBIM-Revit-Addin --pattern "$hostName*" --dir $assets --clobber
-if ($LASTEXITCODE -ne 0) { throw 'Revit Host preview.8 assets unavailable. Verify GitHub access.' }
-$hostZip = Join-Path $assets $hostName
+if ($RevitHostZip) {
+    $hostZip = [IO.Path]::GetFullPath($RevitHostZip)
+} else {
+    & gh release download host-v1.0.0-preview.8 --repo RoBIM-tech/RoBIM-Revit-Addin --pattern "$hostName*" --dir $assets --clobber
+    if ($LASTEXITCODE -ne 0) { throw 'Revit Host preview.8 assets unavailable. Verify GitHub access.' }
+    $hostZip = Join-Path $assets $hostName
+}
 if ($CadHotfixZip) {
     $cadZip = [IO.Path]::GetFullPath($CadHotfixZip)
     if (!(Test-Path ($cadZip + '.sha256'))) { throw 'CAD hotfix ZIP requires its .sha256 sidecar.' }
 } else {
-    & gh release download v1.0.1 --repo RoBIM-tech/RoBIM-CAD --pattern 'DelHiddenNet-AutoCAD2026.zip*' --dir $assets --clobber
-    if ($LASTEXITCODE -ne 0) { throw 'Stable CAD package unavailable. Verify GitHub access.' }
-    $cadZip = Join-Path $assets 'DelHiddenNet-AutoCAD2026.zip'
+    if ($StableCadZip) {
+        $cadZip = [IO.Path]::GetFullPath($StableCadZip)
+    } else {
+        & gh release download v1.0.1 --repo RoBIM-tech/RoBIM-CAD --pattern 'DelHiddenNet-AutoCAD2026.zip*' --dir $assets --clobber
+        if ($LASTEXITCODE -ne 0) { throw 'Stable CAD package unavailable. Verify GitHub access.' }
+        $cadZip = Join-Path $assets 'DelHiddenNet-AutoCAD2026.zip'
+    }
     Write-Warning 'No -CadHotfixZip was passed: only the Manager CAD panel is updated. AutoCAD Loader is still v1.0.1.'
 }
 foreach ($zip in @($cadZip, $hostZip)) {
