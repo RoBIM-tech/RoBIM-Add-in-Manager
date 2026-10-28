@@ -28,7 +28,7 @@ try {
     $running = Get-Process -Name 'RoBIM.Manager' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -eq $expectedExecutable } catch { $true } }
     if ($running) { throw 'RoBIM Manager를 종료한 뒤 설치하십시오.' }
     $files = Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in '.exe','.dll','.json','.zip','.sha256','.ps1','.md','.ico','.txt' -and $_.Name -ne 'RoBIM-Manager-Setup.exe' }
-    $required = @('RoBIM.Manager.exe','Uninstall.ps1','DelHiddenNet-AutoCAD2026.zip','DelHiddenNet-AutoCAD2026.zip.sha256','RoBIM-ReloadBridge.zip','RoBIM-ReloadBridge.zip.sha256','RoBIM-Host-Revit2026.zip','RoBIM-Host-Revit2026.zip.sha256')
+    $required = @('RoBIM.Manager.exe','Uninstall.ps1','DelHiddenNet-AutoCAD2026.zip','DelHiddenNet-AutoCAD2026.zip.sha256','RoBIM-Host-Revit2026.zip','RoBIM-Host-Revit2026.zip.sha256')
     foreach ($name in $required) { if ($files.Name -notcontains $name) { throw "설치 파일 누락: $name" } }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     $backupPath = Join-Path ([IO.Path]::GetDirectoryName($Destination)) ('RoBIM-Manager-backup-' + [guid]::NewGuid().ToString('N'))

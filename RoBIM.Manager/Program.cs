@@ -4,10 +4,41 @@ namespace RoBIM.Manager;
 
 internal static class Program
 {
+    private static void RecordUiFailure(string source, Exception error)
+    {
+        // Crash diagnostics remain on the local computer, never uploaded by CI.
+        try
+        {
+            var root = Core.ManagerPaths.CurrentUser().Data;
+            Directory.CreateDirectory(root);
+            var log = Path.Combine(root, "cad-panel-errors.log");
+            if (File.Exists(log) && new FileInfo(log).Length > 1024 * 1024)
+                File.Move(log, log + ".old", true);
+            File.AppendAllText(log, $"[{DateTimeOffset.Now:O}] {source}: {error}{Environment.NewLine}");
+        }
+        catch (Exception) { /* Crash handling must not cause another failure. */ }
+    }
     [STAThread]
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        // Keep a local stack trace for UI exceptions that otherwise terminate
+        // the Manager when switching to AutoCAD panels.
+        Application.ThreadException += (_, e) =>
+        {
+            RecordUiFailure("winforms", e.Exception);
+            try { MessageBox.Show("RoBIM Manager 화면 오류가 발생했습니다. Manager 데이터 폴더의 cad-panel-errors.log를 확인하세요.\n\n" + e.Exception.Message, "RoBIM Manager"); }
+            catch (Exception) { }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            RecordUiFailure("unhandled", e.ExceptionObject as Exception ?? new Exception(Convert.ToString(e.ExceptionObject)));
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            RecordUiFailure("task", e.Exception);
+            e.SetObserved();
+        };
         if (args.Length == 2 && args[0] == "--apply-manager-update") return Core.ManagerUpdates.Apply(args[1]);
         if (args.Length == 2 && args[0] == "--verify-setup-runtime")
         {
@@ -193,6 +224,7 @@ internal static class Program
             if (args.Contains("--account")) preview.PreviewPage("Account");
             if (args.Contains("--extensions")) preview.PreviewPage("Extensions");
             if (args.Contains("--cad")) preview.PreviewPage("Cad");
+            if (args.Contains("--cad-ribbon")) preview.PreviewPage("CadRibbon");
 
             if (args.Contains("--all")) preview.PreviewPage("All");
             if (args.Contains("--test")) preview.PreviewPage("Test");

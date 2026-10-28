@@ -1,0 +1,16 @@
+name: Native-only no-SDK regression
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compile production policy and verify pyRevit is disabled
+        run: dotnet run -c Release --project tests/NativeOnlyPolicy/NativeOnlyPolicy.csproj
