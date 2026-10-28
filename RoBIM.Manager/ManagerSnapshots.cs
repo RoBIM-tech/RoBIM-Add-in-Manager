@@ -191,7 +191,7 @@ public sealed partial class ManagerForm
         foreach (var feature in commands)
         {
             var enabled = true; var update = false; var legacy = false; var message = feature.Message;
-            var instruction = feature.Kind == ButtonKind.Native ? "Manager 변경 후 자동 적용 · Revit 처리 대기 시 Reload로 재시도" : feature.Kind == ButtonKind.Cad ? "AutoCAD → RoBIM → 관리 → Reload" : "Manager 변경 후 자동 적용 · pyRevit 연결 필요";
+            var instruction = feature.Kind == ButtonKind.Native ? "Manager 변경 후 자동 적용 · Revit 처리 대기 시 Reload로 재시도" : "AutoCAD → RoBIM → 관리 → Reload";
             try
             {
                 if (feature.Kind == ButtonKind.Native)

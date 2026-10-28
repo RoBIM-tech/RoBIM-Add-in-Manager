@@ -38,7 +38,7 @@ public sealed partial class ManagerForm
             var page = currentPage;
             await Run("Revit Reload 적용 요청", async () =>
             {
-                if (page != "PyRevit") NativeCommands().RequestReload();
+                NativeCommands().RequestReload();
                 if (page is not ("Revit" or "Test"))
                 {
                     if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
@@ -74,7 +74,7 @@ public sealed partial class ManagerForm
         {
             "Test" => x.CollectionChannel == "test",
             "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
-            "PyRevit" => x.Kind == ButtonKind.PyRevit,
+            
             "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
             "Navisworks" => false,
             "Mine" => x.Selected || x.Pending,
@@ -224,7 +224,7 @@ public sealed partial class ManagerForm
     private void RefreshCardActions()
     {
         nativeReload.Visible = IsProductPage && currentPage is not ("Cad" or "Navisworks");
-        nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
+        nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : "Revit 전체 Reload";
         var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;
         foreach (var binding in cardBindings.Values)

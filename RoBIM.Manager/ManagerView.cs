@@ -318,7 +318,7 @@ public sealed partial class ManagerForm
         if (id == "Ribbon") RefreshRibbonEditor();
         if (id == "CadRibbon") RefreshCadRibbonPage();
         productsPage.Visible = IsProductPage;
-        profileLabel.Visible = id is "Revit" or "PyRevit" or "Cad" or "Developer";
+        profileLabel.Visible = id is "Revit" or "Cad";
         _ = RefreshProfileLabel();
         pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "Revit 리본 편집" : id == "CadRibbon" ? "AutoCAD 리본 편집" : id == "NavisworksRibbon" ? "Navisworks 리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
         pageSubtitle.Text = id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
