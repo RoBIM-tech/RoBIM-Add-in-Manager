@@ -8,9 +8,46 @@ public sealed partial class ManagerForm
 {
     private readonly CheckBox managerAutoUpdate = new() { Text = "Manager 자동 업데이트", AutoSize = true };
     private readonly Label managerUpdateStatus = new() { Text = "", AutoSize = true, MaximumSize = new Size(660,0) };
+    private readonly Button managerUpdateCheck = MakeButton("Manager 업데이트 확인");
+    private readonly Button managerUpdateNow = MakeButton("Manager 업데이트", true);
+    private ManagerUpdate? manuallyCheckedManagerUpdate;
     private DateTimeOffset managerUpdateChecked;
     private bool checkingManagerUpdate;
     private (ManagerUpdate Offer, string Installer)? pendingManagerUpdate;
+    private void BuildManagerUpdateActions(FlowLayoutPanel panel)
+    {
+        managerUpdateNow.Visible=false;
+        var row=Row(); row.Controls.Add(managerUpdateCheck); row.Controls.Add(managerUpdateNow); panel.Controls.Add(row);
+        managerUpdateCheck.Click += async (_, _) =>
+        {
+            if (preview) { managerUpdateStatus.Text="현재 버전 · "+Application.ProductVersion.Split('+')[0]+" · 미리보기"; return; }
+            if (teamAccess?.Allowed!=true || checkingManagerUpdate || busy) return;
+            managerUpdateCheck.Enabled=false;
+            try
+            {
+                manuallyCheckedManagerUpdate=await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0]);
+                managerUpdateNow.Visible=manuallyCheckedManagerUpdate is not null;
+                managerUpdateStatus.Text=manuallyCheckedManagerUpdate is { } update ? "Manager "+Application.ProductVersion.Split('+')[0]+" → "+update.Version+" 업데이트 가능" : "현재 Manager "+Application.ProductVersion.Split('+')[0]+" · 최신 버전입니다.";
+            }
+            catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 확인 실패 · "+error.Message; }
+            finally { if (!IsDisposed) managerUpdateCheck.Enabled=true; }
+        };
+        managerUpdateNow.Click += async (_, _) =>
+        {
+            if (preview || manuallyCheckedManagerUpdate is not { } update || teamAccess?.Allowed!=true || busy) return;
+            if (!ManagerUpdates.NativeInstallation(Path.GetDirectoryName(Environment.ProcessPath!)!))
+            { OpenUrl("https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/releases/tag/v"+update.Version); return; }
+            managerUpdateNow.Enabled=false;
+            try
+            {
+                var installer=await ManagerUpdates.Download(paths,update);
+                pendingManagerUpdate=(update,installer);
+                await CheckManagerUpdate(force:true);
+            }
+            catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 준비 실패 · "+error.Message; }
+            finally { if (!IsDisposed) managerUpdateNow.Enabled=true; }
+        };
+    }
     private async Task CheckManagerUpdate(bool force = false)
     {
         if (preview || teamAccess is null || !teamAccess.Allowed || busy || checkingManagerUpdate || IsDisposed ||

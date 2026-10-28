@@ -81,6 +81,7 @@ public sealed partial class ManagerForm
         try { startWithWindows.Checked = StartupRegistration.Enabled(Environment.ProcessPath!); } catch (Exception) { }
         try { managerAutoUpdate.Checked = AccountPreferences.Read(paths).AutoUpdate; } catch (Exception) { managerAutoUpdate.Checked = true; }
         panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows); panel.Controls.Add(managerAutoUpdate); panel.Controls.Add(managerUpdateStatus);
+        BuildManagerUpdateActions(panel);
         managerAutoUpdate.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
         automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
         startWithWindows.CheckedChanged += (_, _) =>
