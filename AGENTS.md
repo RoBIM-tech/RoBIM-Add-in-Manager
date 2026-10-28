@@ -54,3 +54,9 @@
 ## RoBIM pyRevit 사용 종료
 
 RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+
+## 신규 개발자 온보딩과 현재 계약 (2026-10-28)
+
+- 처음 참여하면 https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/START_HERE.md 에서 환경 준비부터 확인합니다.
+- 신규 Revit 버튼은 자체 robim-package.json(moduleId/commandId)·robim-addon 토픽·TEST Release·GitHub 접근 권한으로 검색합니다. Manager 중앙 카탈로그는 기존 등록/추천/이전 호환 경로이며 신규 버튼에 필수는 아닙니다.
+- 기존 영구 ID·설치·사용자 리본·정식/TEST 채널을 보존하고 검색, ZIP 검증, 설치 준비, 실제 Host applied 및 모델 실행을 각기 검증합니다.
