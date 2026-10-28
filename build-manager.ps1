@@ -1,4 +1,4 @@
-param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath)
+param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath, [string]$LibraryFeed)
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
@@ -17,7 +17,21 @@ $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
-& dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true --source https://api.nuget.org/v3/index.json -o $output --nologo
+New-Item -ItemType Directory -Path $output -Force | Out-Null
+$packageSources = @('https://api.nuget.org/v3/index.json')
+if ($LibraryFeed) {
+    $packageSources += [IO.Path]::GetFullPath($LibraryFeed)
+    foreach ($cache in @((Join-Path $env:USERPROFILE '.nuget/packages'), (Join-Path $PSScriptRoot '.dotnet-home/.nuget/packages'))) {
+        if (Test-Path -LiteralPath $cache -PathType Container) { $packageSources += $cache }
+    }
+}
+# Keep HTTPS sources as URIs even with SDKs that normalize --source arguments as paths.
+$restoreConfig = Join-Path $PSScriptRoot 'artifacts/manager-restore.config'
+$entries = for ($i = 0; $i -lt $packageSources.Count; $i++) { '<add key="source' + $i + '" value="' + [Security.SecurityElement]::Escape($packageSources[$i]) + '" />' }
+[IO.File]::WriteAllText($restoreConfig, ('<configuration><packageSources><clear />' + ($entries -join '') + '</packageSources></configuration>'), [Text.UTF8Encoding]::new($false))
+$libraryArgs = @('-p:RestoreConfigFile=' + $restoreConfig)
+if ($LibraryFeed) { $libraryArgs += @(('-p:RestorePackagesPath=' + (Join-Path $PSScriptRoot 'artifacts/access-packages')), '-p:NuGetAudit=false') }
+& dotnet publish (Join-Path $PSScriptRoot 'RoBIM.Manager\RoBIM.Manager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true @libraryArgs -o $output --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Manager publish failed.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/licenses/YamlDotNet-LICENSE.txt') -Destination (Join-Path $output 'YamlDotNet-LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/THIRD_PARTY_NOTICES.md') -Destination (Join-Path $output 'THIRD_PARTY_NOTICES.md') -Force

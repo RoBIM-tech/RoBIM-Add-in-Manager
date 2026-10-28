@@ -19,11 +19,8 @@ public sealed partial class ManagerForm
     }
     private void RefreshRibbonEditor()
     {
-        var tools = CommandInventory().Where(x => x.Kind is ButtonKind.PyRevit or ButtonKind.Native).Select(x =>
-        {
-            var group = x.Group.Split(" / ", StringSplitOptions.TrimEntries);
-            return new RibbonTool(x.Id, x.Title, group.Length > 1 ? group[0] : "RoBIM 도구", group.Length > 1 ? group[1] : "도구", x.Selected, x.Icon);
-        });
+        var tools = RibbonLayouts.WithManagementTools(CommandInventory().Where(x => x.Kind is ButtonKind.PyRevit or ButtonKind.Native)
+            .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon)));
         ribbonEditor?.LoadTools(tools);
     }
 }

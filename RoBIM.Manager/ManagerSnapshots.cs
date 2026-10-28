@@ -18,7 +18,7 @@ public sealed partial class ManagerForm
     private int repositoryLookupCount;
     private sealed record CardAppearance(bool Enabled, bool Update, bool Legacy, string Message, string Instruction);
     private sealed record DisplaySnapshot(int SchemaVersion, ProductRow[] Products, ButtonCard[] Commands,
-        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt, Dictionary<string, ReleaseOffer>? Offers = null);
+        Dictionary<string, CardAppearance> Appearance, PackageRow[] Available, DateTimeOffset CapturedAt, Dictionary<string, ReleaseOffer>? Offers = null, Dictionary<string, ReleaseOffer>? Tests = null, Dictionary<string, string>? TestErrors = null, Dictionary<string, ReleaseOffer>? Stables = null, Dictionary<string, string>? StableErrors = null);
     private string DisplayCachePath => SafeFiles.Child(paths.Data, "manager-display-cache.json");
 
     private string registeredCatalogStamp = "";
@@ -28,7 +28,7 @@ public sealed partial class ManagerForm
         var file = new FileInfo(SafeFiles.Child(paths.Data, "extension-repositories.json"));
         var stamp = file.Exists ? file.LastWriteTimeUtc.Ticks + ":" + file.Length : "missing";
         if (!force && stamp == registeredCatalogStamp) return;
-        var registered = await Task.Run(() => new ExtensionCatalog(paths).Registered()
+        var registered = await Task.Run(() => ExtensionSources().Registered()
             .SelectMany(repository => repository.Packages.Select(package => new PackageRow(repository, package))).ToArray());
         foreach (var entry in registered)
         {
@@ -44,6 +44,7 @@ public sealed partial class ManagerForm
         try
         {
             refreshingSnapshot = true;
+            UpdateLoginPage();
             var cached = await Task.Run(() =>
             {
                 try
@@ -51,7 +52,7 @@ public sealed partial class ManagerForm
                     var file = DisplayCachePath;
                     if (!File.Exists(file) || new FileInfo(file).Length > 4 * 1024 * 1024) return null;
                     var value = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(file));
-                    return value is { SchemaVersion: 5, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
+                    return value is { SchemaVersion: 5 or 6 or 7, Commands.Length: <= 2000, Products.Length: <= 500, Available.Length: <= 500 }
                         && value.Appearance is not null ? value : null;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
@@ -62,7 +63,7 @@ public sealed partial class ManagerForm
                 try
                 {
                     productRows.AddRange(cached.Products); commandSnapshot = cached.Commands;
-                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? [];
+                    appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? []; testOffers = cached.Tests ?? []; testOfferErrors = cached.TestErrors ?? []; stableOffers = cached.Stables ?? []; stableOfferErrors = cached.StableErrors ?? [];
                     RenderProductCards();
                     firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds; usedDisplayCache = true;
                 }
@@ -79,7 +80,7 @@ public sealed partial class ManagerForm
             if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 새로 고침에서 최신 업데이트도 확인합니다."; }
         }
         catch (Exception ex) { if (!IsDisposed) { WriteLog("로컬 목록 확인 실패: " + ex.Message); footer.Text = "설치 상태 확인 실패 · 새로 고침으로 다시 확인하세요."; } }
-        finally { refreshingSnapshot = false; if (!IsDisposed) RefreshCardActions(); }
+        finally { refreshingSnapshot = false; if (!IsDisposed) { RefreshCardActions(); UpdateLoginPage(); } }
     }
 
     internal void InspectPerformance(string destination)
@@ -126,7 +127,7 @@ public sealed partial class ManagerForm
             var owners = BuildProductRows(statusRows, packages);
             var commands = ReadCommandInventory(owners).ToArray();
             var appearance = BuildAppearances(commands);
-            return new DisplaySnapshot(5, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers));
+            return new DisplaySnapshot(7, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers), new(testOffers), new(testOfferErrors), new(stableOffers), new(stableOfferErrors));
         });
         if (IsDisposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;
@@ -197,8 +198,6 @@ public sealed partial class ManagerForm
                 {
                     legacy = new NativeLegacyPackages(paths).Present(feature.Owner.Status.Tool);
                     if (legacy) { message = "기존 직접 설치 · 전환 필요"; instruction = "최초 한 번 Revit 종료 후 Reload 방식으로 전환"; }
-                    else if (feature.Selected && (new NativeRevitCommands(paths).HasUpdate(feature.ModuleId) ||
-                        feature.HasChannelUpdate)) { update = true; message = "새 기능 패키지 · 업데이트 가능"; }
                 }
                 else if (feature.Kind == ButtonKind.Cad)
                 {
@@ -216,7 +215,7 @@ public sealed partial class ManagerForm
             if (feature.Selected && !legacy && RemoteUpdate(feature))
             {
                 update = true;
-                var offer = updateOffers[feature.Owner.Status.Tool.Id];
+                var offer = OfferFor(feature)!;
                 message = "업데이트 가능 · " + feature.SelectedVersion + " → " + offer.Version;
                 instruction = (feature.Kind == ButtonKind.Cad ? "업데이트를 눌러 새 버전을 준비한 뒤 AutoCAD에서 Reload하십시오. " : "업데이트를 누르면 새 버전을 준비하고 Revit에 자동 적용을 요청합니다. ") + instruction;
             }

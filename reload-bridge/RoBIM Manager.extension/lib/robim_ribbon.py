@@ -33,6 +33,59 @@ _session_ticks = 0
 _owned_tabs = set([u"RoBIM 기본", u"RoBIM 도면", u"RoBIM 관리", u"RoBIM TEST"])
 
 
+class _ApplyRetry(object):
+    def __init__(self):
+        self.key = None
+        self.attempts = 0
+        self.next_at = 0
+        self.last_error = None
+
+    def ready(self, key, now):
+        if self.key != key:
+            self.__init__()
+            self.key = key
+        return self.attempts < 4 and now >= self.next_at
+
+    def failed(self, key, now, message):
+        if self.key != key:
+            self.ready(key, now)
+        self.attempts += 1
+        self.next_at = now + min(30, 2 ** self.attempts)
+        changed = message != self.last_error
+        self.last_error = message
+        return changed
+
+    def succeeded(self):
+        self.attempts = 0
+        self.next_at = 0
+        self.last_error = None
+
+
+_retry = _ApplyRetry()
+
+
+class _AdButton(object):
+    """Selected pyRevit control omitted by RibbonPanel.GetItems (e.g. a stack)."""
+    def __init__(self, item):
+        self.item = item
+
+    @property
+    def ItemText(self):
+        return self.item.Text
+
+    @ItemText.setter
+    def ItemText(self, value):
+        self.item.Text = value
+
+    @property
+    def Enabled(self):
+        return self.item.IsEnabled
+
+    @Enabled.setter
+    def Enabled(self, value):
+        self.item.IsEnabled = value
+
+
 def read(path, default=None):
     if not os.path.isfile(path):
         return default
@@ -94,7 +147,127 @@ def _find_button(uiapp, tab, panel_name, name, prefix=False, panel_title=None):
                         found.append((item, ad))
         if len(found) > 1:
             raise ValueError("Ambiguous RoBIM command name: " + name)
+    if len(found) > 1 and not prefix:
+        raise ValueError("Ambiguous RoBIM command name: " + name)
     return found[-1] if found else None
+
+
+def _find_selected_ad(key, panel_title=None):
+    # Match internal control IDs, never mutable display captions. Stack segments can
+    # be flattened by Revit. Require the source tab, panel and exact command name.
+    stems = [part.rsplit(".", 1)[0] for part in key.split("/")]
+    tab = stems[0]
+    panel = next((part.rsplit(".", 1)[0] for part in key.split("/") if part.endswith(".panel")), None)
+    found = []
+    for ribbon_tab in AW.ComponentManager.Ribbon.Tabs:
+        for ribbon_panel in ribbon_tab.Panels:
+            for collection, item in _items(ribbon_panel.Source.Items):
+                tokens = (getattr(item, "Id", None) or "").split("%")
+                if len(tokens) >= 3 and tokens[-1] == stems[-1] and tab in tokens[:-1] and any(alias and alias in tokens[:-1] for alias in (panel, panel_title)) and hasattr(item, "CommandHandler"):
+                    found.append(item)
+    exact = [item for item in found if (item.Id or "").split("%")[-len(stems):] == stems]
+    found = exact or found
+    if len(found) > 1:
+        raise ValueError("Ambiguous selected RoBIM control ID: " + key)
+    return (_AdButton(found[0]), found[0]) if found else None
+
+
+def _selected_executor(root, key):
+    from pyrevit.extensions.genericcomps import GenericUIComponent
+    from pyrevit.loader import sessioninfo
+    from Autodesk.Revit.UI import IExternalCommand
+    parts = key.split("/")
+    if any(part in ("", ".", "..") or "\\" in part or ":" in part for part in parts):
+        raise ValueError("Invalid selected pyRevit command path")
+    directory = os.path.abspath(os.path.join(root, *parts))
+    if not directory.startswith(os.path.abspath(root) + os.sep) or not os.path.isfile(os.path.join(directory, "script.py")):
+        return None
+    unique = GenericUIComponent.make_unique_name(directory)
+    current = set(sessioninfo.get_loaded_pyrevit_assemblies())
+    interface = clr.GetClrType(IExternalCommand)
+    found = []
+    for assembly in AppDomain.CurrentDomain.GetAssemblies():
+        if assembly.GetName().Name not in current:
+            continue
+        # The native pyRevit parser keeps tokens such as MINUS uppercase while
+        # GenericUIComponent.make_unique_name lowercases them. CLR resolves the
+        # same selected identifier ignoring case and rejects ambiguous matches.
+        executor = assembly.GetType(unique, False, True)
+        if executor is not None and not executor.IsAbstract and interface.IsAssignableFrom(executor):
+            found.append((assembly, executor, executor.FullName))
+    if len(found) > 1:
+        raise ValueError("Ambiguous current pyRevit executor: " + key)
+    return found[0] if found else None
+
+
+def _restore_selected_button(uiapp, root, key, panel_title, button):
+    # A legacy .stack can fail to create its sole remaining button. Reuse only the
+    # current session's already loaded executor; do not load a DLL or run a script.
+    executor = _selected_executor(root, key)
+    if executor is None:
+        return None
+    pieces = key.split("/")
+    tab = pieces[0].rsplit(".", 1)[0]
+    panel_name = next((p.rsplit(".", 1)[0] for p in pieces if p.endswith(".panel")), None)
+    panels = [p for p in uiapp.GetRibbonPanels(tab) if p.Name in (panel_name, panel_title)]
+    if len(panels) != 1:
+        return None
+    name = pieces[-1].rsplit(".", 1)[0]
+    if any(item.Name == name for item in _api_items(panels[0].GetItems())):
+        return None  # Never create a duplicate if the API item exists but is unresolved.
+    from Autodesk.Revit.UI import PushButtonData
+    assembly, command, unique = executor
+    data = PushButtonData(name, button["Title"], assembly.Location, command.FullName)
+    availability = assembly.GetType(unique + "_avail", False, False)
+    if availability is not None:
+        data.AvailabilityClassName = availability.FullName
+    api = panels[0].AddItem(data)
+    api.ToolTip = button.get("Description") or ""
+    icon = button.get("Icon")
+    if icon:
+        icon_path = os.path.abspath(os.path.join(root, *icon.split("/")))
+        if icon_path.startswith(os.path.abspath(root) + os.sep) and os.path.isfile(icon_path):
+            try:
+                image = BitmapImage()
+                from System import Uri
+                from System.Windows.Media.Imaging import BitmapCacheOption
+                image.BeginInit()
+                image.CacheOption = BitmapCacheOption.OnLoad
+                image.UriSource = Uri(icon_path)
+                image.EndInit()
+                image.Freeze()
+                api.Image = image
+                api.LargeImage = image
+            except Exception:
+                pass  # An icon failure must not hide a valid selected command.
+    ad = _ad(api)
+    return (api, ad) if ad is not None else None
+
+
+def _binding_diagnostics(uiapp, tabs):
+    snapshot = []
+    for tab in tabs:
+        try:
+            for panel in uiapp.GetRibbonPanels(tab):
+                snapshot.append({"Tab": tab, "Panel": panel.Name, "Items": [
+                    {"Name": item.Name, "Text": getattr(item, "ItemText", None), "Class": getattr(item, "ClassName", None)}
+                    for item in _api_items(panel.GetItems())]})
+        except Exception:
+            pass
+    controls = []
+    for tab in AW.ComponentManager.Ribbon.Tabs:
+        if tab.Title not in tabs and tab.Title not in _owned_tabs:
+            continue
+        for panel in tab.Panels:
+            controls.extend({"Tab": tab.Title, "Panel": panel.Source.Title, "Id": getattr(item, "Id", None), "Text": getattr(item, "Text", None)}
+                            for collection, item in _items(panel.Source.Items) if getattr(item, "Id", None))
+    info = {"Api": snapshot, "Controls": controls}
+    try:
+        from pyrevit.loader import sessioninfo
+        info["CurrentPyRevitAssemblies"] = list(sessioninfo.get_loaded_pyrevit_assemblies())
+    except Exception:
+        pass
+    return info
 
 
 def _selected_root():
@@ -106,9 +279,11 @@ def _selected_root():
 def _bindings(uiapp):
     result = {}
     missing = []
+    restored = []
     root = _selected_root()
     data = read(os.path.join(root, "robim-button-selection.json"), {})
     selected = set(data.get("Selected", []))
+    source_tabs = set(key.split("/")[0].rsplit(".", 1)[0] for key in selected)
     for button in data.get("Buttons", []):
         key = button["Id"]
         if key not in selected:
@@ -119,6 +294,12 @@ def _bindings(uiapp):
         name = pieces[-1].rsplit(".", 1)[0]
         panel_title = button.get("Group", "").split(" / ")[-1]
         binding = _find_button(uiapp, tab, panel, name, panel_title=panel_title)
+        if binding is None:
+            binding = _find_selected_ad(key, panel_title)
+        if binding is None and key.endswith((".pushbutton", ".smartbutton")):
+            binding = _restore_selected_button(uiapp, root, key, panel_title, button)
+            if binding is not None:
+                restored.append(key)
         if binding is not None:
             result["robim-revit:" + key] = (binding[0], binding[1], tab, panel, button["Title"])
             _owned_tabs.add(tab)
@@ -161,7 +342,10 @@ def _bindings(uiapp):
                 binding = _find_button(uiapp, u"RoBIM 관리", u"독립 Add-in", name)
                 if binding is not None:
                     result["manager:" + name] = (binding[0], binding[1], u"RoBIM 관리", u"독립 Add-in", title)
-    write(os.path.join(BASE, "revit-ui-bindings.json"), {"Resolved": list(result.keys()), "Missing": missing})
+    info = {"Pid": _session_pid, "StartTicks": _session_ticks, "Resolved": list(result.keys()), "Missing": missing, "Restored": restored}
+    if missing:
+        info["Diagnostics"] = _binding_diagnostics(uiapp, source_tabs)
+    write(os.path.join(BASE, "revit-ui-bindings.json"), info)
     if missing:
         raise ValueError(u"설치된 버튼의 리본 연결을 찾지 못했습니다: " + u", ".join(missing))
     return result
@@ -218,6 +402,31 @@ def _visible(collection):
     return False
 
 
+def _retire_unselected_python(bindings, assigned):
+    # pyRevit cannot remove controls it no longer owns after Manager moved them.
+    # Use immutable source IDs, never the caption or the destination panel name.
+    source_tabs = set([u"RoBIM 기본", u"RoBIM 도면", u"RoBIM 관리", u"RoBIM TEST"])
+    for key in list(bindings) + list(assigned):
+        if key.startswith("robim-revit:"):
+            source_tabs.add(key.split(":", 1)[1].split("/")[0].rsplit(".", 1)[0])
+    live = [binding[1] for binding in bindings.values()]
+    retired = []
+    for tab in AW.ComponentManager.Ribbon.Tabs:
+        for panel in tab.Panels:
+            for collection, item in _items(panel.Source.Items):
+                identity = getattr(item, "Id", None) or ""
+                tokens = identity.split("%")
+                if (len(tokens) < 3 or not hasattr(item, "CommandHandler") or
+                        tokens[-1].startswith("RoBIM.Native.") or
+                        not any(name in tokens[:-1] for name in source_tabs) or
+                        any(Object.ReferenceEquals(item, button) for button in live)):
+                    continue
+                item.IsVisible = False
+                item.IsEnabled = False
+                retired.append(identity)
+    return retired
+
+
 def apply_layout(uiapp):
     bindings = _bindings(uiapp)
     layout = read(os.path.join(BASE, "ribbon-layout-revit.json"), {"SchemaVersion": 1, "Host": "Revit", "Tabs": []})
@@ -251,11 +460,15 @@ def apply_layout(uiapp):
     planned = []
     destinations = {}
     for key, binding in bindings.items():
-        tab, panel, title, size, stack, rows = assigned.get(key, (binding[2], binding[3], binding[4], "Large", None, 0))
+        default_tab, default_panel = binding[2] or u"RoBIM 도구", binding[3] or u"도구"
+        if not key.startswith("manager:") and (default_tab == u"RoBIM 관리" or default_panel == u"관리"):
+            default_tab, default_panel = u"RoBIM 도구", u"도구"
+        tab, panel, title, size, stack, rows = assigned.get(key, (default_tab, default_panel, binding[4], "Large", None, 0))
         if not tab or not panel or size not in ("Large", "Small"):
             raise ValueError("Invalid ribbon destination")
         destinations[(tab, panel)] = _panel(uiapp, tab, panel)
         planned.append((key, binding, tab, panel, title, size, stack, rows))
+    retired = _retire_unselected_python(bindings, assigned)
     # Profile order controls button ordering; unconfigured buttons retain their defaults.
     order = [b["Id"] for t in layout.get("Tabs", []) for p in t.get("Panels", []) for b in p.get("Buttons", [])]
     planned.sort(key=lambda x: order.index(x[0]) if x[0] in order else len(order))
@@ -360,7 +573,7 @@ def apply_layout(uiapp):
                 "ButtonCount": sum(1 for item in column.Items if any(Object.ReferenceEquals(item, button) for button in functional)),
                 "RowBreakCount": sum(1 for item in column.Items if isinstance(item, AW.RibbonRowBreak))}
                for group, column in stacks.items()]
-    write(os.path.join(BASE, "revit-ui-state.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Buttons": applied, "Columns": columns, "Separators": separators, "OwnedTabs": list(_owned_tabs), "VisibleTabs": [t.Title for t in AW.ComponentManager.Ribbon.Tabs if t.Title in _owned_tabs and t.IsVisible]})
+    write(os.path.join(BASE, "revit-ui-state.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Buttons": applied, "RetiredPythonControls": retired, "BridgeRevision": "retirement-1", "Columns": columns, "Separators": separators, "OwnedTabs": list(_owned_tabs), "VisibleTabs": [t.Title for t in AW.ComponentManager.Ribbon.Tabs if t.Title in _owned_tabs and t.IsVisible]})
     capture = os.path.join(BASE, "capture-ribbon-preview.request")
     if os.path.isfile(capture):
         os.remove(capture)
@@ -415,6 +628,7 @@ def _on_idle(sender, args):
     _last_time = now
     request = None
     matched_request = False
+    attempt_key = ("read",)
     try:
         while _retired_events:
             _retired_events.pop().Dispose()
@@ -454,15 +668,24 @@ def _on_idle(sender, args):
                  os.path.join(_selected_root(), "robim-button-selection.json")]
         fingerprint = tuple(os.path.getmtime(p) if os.path.isfile(p) else 0 for p in files)
         if pending or fingerprint != _fingerprint or _warmup < 4:
+            attempt_key = (request.get("Id") if matched_request else None, fingerprint)
+            if not _retry.ready(attempt_key, now):
+                return
             count = apply_layout(sender)
+            _retry.succeeded()
+            if os.path.isfile(os.path.join(BASE, "revit-ui-error.json")):
+                write(os.path.join(BASE, "revit-ui-error.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Status": "resolved", "Attempts": 0, "RetryPaused": False})
             _fingerprint = fingerprint
             _warmup += 1
-            if pending or (matched_request and result.get("Status") == "applied"):
+            if matched_request:
                 _receipt(request, "applied", u"리본 적용 완료 · 설치 버튼 {0}개 · 빈 탭 숨김".format(count))
     except Exception as error:
+        report = _retry.failed(attempt_key, now, str(error))
         if matched_request:
             _receipt(request, "failed", str(error))
-        script.get_logger().error("RoBIM ribbon apply failed: %s", error)
+        write(os.path.join(BASE, "revit-ui-error.json"), {"Pid": _session_pid, "StartTicks": _session_ticks, "Message": str(error), "Attempts": _retry.attempts, "RetryPaused": _retry.attempts >= 4})
+        if report:
+            script.get_logger().error("RoBIM ribbon apply failed: %s", error)
 
 
 def stop():
@@ -476,7 +699,7 @@ def stop():
 
 
 def start(uiapp):
-    global _handler, _application, _reload_event, _session_pid, _session_ticks, _fingerprint, _warmup
+    global _handler, _application, _reload_event, _session_pid, _session_ticks, _fingerprint, _warmup, _retry
     from System import EventHandler
     from Autodesk.Revit.UI.Events import IdlingEventArgs
     previous = AppDomain.CurrentDomain.GetData("RoBIM.Ribbon.Handler")
@@ -498,6 +721,7 @@ def start(uiapp):
     # Run after pyRevit UI cleanup, including repeated starts in a reused engine.
     _fingerprint = None
     _warmup = 0
+    _retry = _ApplyRetry()
     _application = uiapp
     previous_event = AppDomain.CurrentDomain.GetData("RoBIM.Ribbon.ReloadEvent")
     if previous_event is not None:

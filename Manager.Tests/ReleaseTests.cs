@@ -13,12 +13,12 @@ internal static class ReleaseTests
             require(c.Commands.Any(x => x.Host == "revit") && c.Commands.Any(x => x.Host == "autocad"), "Missing central tools");
             var paths = new ManagerPaths(Path.Combine(root,"central-catalog"), Path.Combine(root,"cad"), Path.Combine(root,"revit"));
             var native = new ExtensionCatalog(paths).Registered().Where(r => r.Packages.Any(p => p.Host == "revit")).ToArray();
-            require(native.Length == 3 && native.All(r => r.Packages.Length == 1) && native.Any(r => r.Repository == "gagaggan/RoBIM-Revit-Sheets"), "Missing independent button repositories");
-            require(Catalog.RevitHost.Repository == "gagaggan/RoBIM-Revit-Addin", "Host was moved into a feature repository");
+            require(native.All(r => r.Packages.Length == 1) && new[] { "RoBIM-Revit-Sheets", "RoBIM-Revit-ParameterCopy", "RoBIM-Revit-ParameterBulkEdit" }.All(name => native.Any(r => r.Repository == "RoBIM-tech/" + name)), "Missing independent button repositories");
+            require(Catalog.RevitHost.Repository == "RoBIM-tech/RoBIM-Revit-Addin", "Host was moved into a feature repository");
         });
         test("RepositoryMovePreservesRegistryAndSheetInstallationIdentity", () => {
             var defaults = BundledCatalog.Read();
-            var sheets = defaults.Repositories.Single(r => r.Repository == "gagaggan/RoBIM-Revit-Sheets");
+            var sheets = defaults.Repositories.Single(r => r.Repository == "RoBIM-tech/RoBIM-Revit-Sheets");
             var old = sheets with { Repository = "gagaggan/RoBIM-Revit-Addin" };
             var unknown = new ExtensionPackage("personal", "Personal", "revit", "Personal.bundle", "Personal.bundle", "release", "Personal.zip");
             var prototype = new ExtensionPackage("robim-revit-parameters", "Old prototype", "revit", "RoBIM.Revit.Parameters.bundle", "RoBIM.Revit.Parameters.bundle", "release", "Old.zip");
@@ -28,8 +28,8 @@ internal static class ReleaseTests
             File.WriteAllText(file, JsonSerializer.Serialize(new[]{old with { Packages = [sheets.Packages[0],prototype,unknown] }}));
             var before = File.ReadAllBytes(file);
             var registered = new ExtensionCatalog(paths).Registered();
-            require(registered.Single(r => r.Repository == old.Repository).Packages.Single().Id == "personal", "Unrelated registration removed or old buttons duplicated");
-            require(registered.Count(r => r.Repository == sheets.Repository) == 1 && registered.Any(r => r.Repository == "gagaggan/RoBIM-Revit-ParameterCopy") && registered.Any(r => r.Repository == "gagaggan/RoBIM-Revit-ParameterBulkEdit"), "New targets missing");
+            require(registered.Single(r => r.Repository == RepositoryOwnership.Canonical(old.Repository)).Packages.Single().Id == "personal", "Unrelated registration removed or old buttons duplicated");
+            require(registered.Count(r => r.Repository == sheets.Repository) == 1 && registered.Any(r => r.Repository == "RoBIM-tech/RoBIM-Revit-ParameterCopy") && registered.Any(r => r.Repository == "RoBIM-tech/RoBIM-Revit-ParameterBulkEdit"), "New targets missing");
             require(before.SequenceEqual(File.ReadAllBytes(file)), "Reading registry changed user data");
             require(ExtensionCatalog.Tool(old,sheets.Packages[0]).Id == ExtensionCatalog.Tool(sheets,sheets.Packages[0]).Id, "Sheet installation ID changed on repository move");
             require(!Directory.Exists(Path.Combine(paths.Data,"NativeRevit")), "Registry move installed or selected a feature");

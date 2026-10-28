@@ -6,14 +6,19 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    internal void InspectInstalledCards(string destination, string? snapshot = null, string page = "All")
+    internal void InspectInstalledCards(string destination, string? snapshot = null, string page = "All", bool refreshOffers = false)
     {
         ShowInTaskbar = false; Opacity = 0; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000);
         Shown += async (_, _) =>
         {
             try
             {
-                await StartLocalDisplay(); SwitchPage(page); RefreshCardActions();
+                var protectedFiles = new[] { "installed.json", "ribbon-layout-revit.json", "NativeRevit/active.json", "NativeRevit/pending.json" };
+                string[] SelectionProof() => protectedFiles.Select(f => Path.Combine(paths.Data,f)).Select(f => File.Exists(f) ? SafeFiles.Hash(f) : "ABSENT").ToArray();
+                var before = SelectionProof();
+                await StartLocalDisplay();
+                if (refreshOffers) await RefreshWithUpdates();
+                SwitchPage(page); RefreshCardActions();
                 if (snapshot is not null)
                 {
                     using var bitmap = new Bitmap(Width, Height); DrawToBitmap(bitmap, new Rectangle(Point.Empty, Size));
@@ -22,9 +27,12 @@ public sealed partial class ManagerForm
                 File.WriteAllText(destination, JsonSerializer.Serialize(new
                 {
                     Products = productRows.Select(x => new { x.Status.Tool.Id, x.Status.Path, x.Status.Managed, x.Status.External, x.Status.Modified, x.Status.Detail }),
-                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, Source = x.Row.Source,
+                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, x.Row.SelectedChannel, x.Row.SelectedVersion, x.Row.CollectionChannel, UpdateChannel = OfferFor(x.Row)?.Channel, Source = x.Row.Source,
                         Enabled = x.Action.Enabled, Action = x.Action.Text, State = x.State.Text, Instruction = x.Instruction.Text }),
-                    Log = log.Text
+                    Log = log.Text,
+                    UpdateOffers = updateOffers, TestOffers = testOffers, StableOffers = stableOffers, TestErrors = testOfferErrors, StableErrors = stableOfferErrors,
+                    TestCards = ProductCommands("Test").Where(c => c.CollectionChannel == "test").Select(c => new { c.Id, c.TestView, c.ReleaseLabel, c.SelectedChannel, c.SelectedVersion, Action = PrimaryText(c,AppearanceFor(c)) }),
+                    SelectionUnchanged = before.SequenceEqual(SelectionProof())
                 }, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch (Exception error) { File.WriteAllText(destination, JsonSerializer.Serialize(new { Error = error.ToString() })); }
@@ -114,9 +122,11 @@ public sealed partial class ManagerForm
             CheckBounds(card);
         }
         Navigate("Ribbon"); Require(ribbonPage.Visible && !productsPage.Visible, "Ribbon editor navigation");
-        Require(ribbonEditor!.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 2, "Ribbon editor defaults contain installed tools only");
+        var managementCount = ribbonEditor!.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count(b => b.Id.StartsWith("manager:"));
+        Require(managementCount > 0, "Installed tools expose editable management controls");
+        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 2 + managementCount, "Ribbon editor defaults contain installed tools and management only");
         ribbonEditor.AddTool("native:sheets:create-sheets");
-        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 3, "Uninstalled tool can be placed without installation");
+        Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 3 + managementCount, "Uninstalled tool can be placed without installation");
         var editable = ribbonEditor.Snapshot();
         var moved = editable.Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).First();
         var secondId = CommandInventory().First(x => x.Kind is ButtonKind.PyRevit or ButtonKind.Native && x.Id != moved.Id).Id;
@@ -210,6 +220,8 @@ public sealed partial class ManagerForm
             Require(direct.Kind == ButtonKind.Native && direct.Source is null && direct.CommandId.Length > 0 && direct.ModuleId.Length > 0, "Registered button available before package download " + direct.Id);
             Require(!direct.Title.StartsWith("RoBIM", StringComparison.OrdinalIgnoreCase), "Display name omits product prefix " + direct.Id);
             using var menu = BuildButtonMenu(direct);
+            Require(menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "저장소 TEST 버전 설치…") &&
+                menu.Items.Cast<ToolStripItem>().Any(x => x.Text == "저장소 정식 버전 설치…"), "Native release channels are directly selectable before download " + direct.Id);
             Require(!menu.Items.Cast<ToolStripItem>().Any(x => (x.Text ?? "").Contains("기능 목록") || x.Text == "공용 패키지 관리"), "No native discovery or separate package menu " + direct.Id);
             using var card = CreateCommandCard(direct); snapshotVerified = true; refreshingSnapshot = false; busy = false;
             RefreshCardActions();
@@ -219,15 +231,17 @@ public sealed partial class ManagerForm
         var sheetsPackage = sheetsRepository.Packages.Single();
         var sheetsTool = ExtensionCatalog.Tool(sheetsRepository, sheetsPackage);
         var promoted = RegisteredNativeCard(new(new(sheetsTool, "unused", "", false, false, false, ""), new(sheetsRepository, sheetsPackage)))
-            with { Selected = true, SelectedChannel = "test" };
-        Require(promoted.Channel == "stable" && promoted.CollectionChannel == "stable" && promoted.SelectedChannel == "test",
-            "Stable offer appears in normal tools without relabeling installed TEST");
-        Require(promoted.HasChannelUpdate, "Stable promotion selects update rather than removing installed TEST");
+            with { Selected = true, SelectedChannel = "test", SelectedVersion = "0.1.0-test.2" };
+        Require(promoted.Channel == "stable" && promoted.CollectionChannel == "test" && promoted.SelectedChannel == "test",
+            "Installed TEST controls collection despite stable catalog default");
+        updateOffers[promoted.Owner.Status.Tool.Id] = new("0.2.0", "stable");
+        Require(NativeReleaseState(promoted).Update?.Channel == "stable", "Newer stable promotion selects update");
         using var statusCard = CreateCommandCard(promoted with { SelectedVersion = "0.1.0-test.2" });
         var statusBinding = cardBindings[promoted.Id];
         appearanceSnapshot[promoted.Id] = new(true, true, false, "업데이트 가능 · 0.1.0-test.2 → 0.2.0", "업데이트 후 Reload");
         RefreshCardActions(); var updateColor = statusCard.BackColor;
-        Require(statusBinding.Action.Text == "업데이트" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        Require(statusBinding.Action.Text == "정식 업데이트" && statusBinding.State.Text.Contains("0.1.0-test.2 → 0.2.0"), "Update action and installed/latest versions are visible");
+        updateOffers[promoted.Owner.Status.Tool.Id] = new("0.0.1", "stable");
         appearanceSnapshot[promoted.Id] = new(true, false, false, "설치됨", ""); RefreshCardActions();
         Require(statusCard.BackColor != updateColor && statusBinding.State.Text.StartsWith("설치 ·"), "Installed card uses separate color and text");
         using var missingCard = CreateCommandCard(promoted with { Id = "missing", Selected = false }); RefreshCardActions();
@@ -238,6 +252,68 @@ public sealed partial class ManagerForm
         updateErrors[promoted.Owner.Status.Tool.Id] = "offline";
         var failedAppearance = BuildAppearances([promoted with { SelectedVersion = "0.2.0" }])[promoted.Id];
         Require(failedAppearance.Update && failedAppearance.Message.Contains("최신 확인 실패"), "Refresh failure retains last verified update offer");
+        var stableCard = promoted with { SelectedChannel="stable",SelectedVersion="0.2.0" };
+        var stableId=stableCard.Owner.Status.Tool.Id;
+        updateErrors.Clear(); updateOffers[stableId]=new("v0.2.0","stable"); testOffers[stableId]=new("v0.3.0-test.1","test");
+        var projected=ProductCommands("Test",[stableCard]).Single();
+        Require(projected.TestView && projected.Id==stableCard.Id && projected.CommandId==stableCard.CommandId && stableCard.Channel=="stable", "TEST view preserves canonical button identity and default channel");
+        Require(!SelectedInView(projected) && PrimaryText(projected,AppearanceFor(projected))=="TEST 설치", "Installed stable offers explicit TEST install instead of removal");
+        Require(AppearanceFor(stableCard).Message.Contains("TEST 보기") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
+        using var testCard=CreateCommandCard(projected); RefreshCardActions();
+        Require(cardBindings[projected.Id].Action.Text=="TEST 설치" && cardBindings[projected.Id].State.Text.Contains("정식 0.2.0"),"TEST card explains currently installed stable version");
+        var selectedTest=projected with { SelectedChannel="test",SelectedVersion="0.2.5-test.1" };
+        Require(PrimaryText(selectedTest,AppearanceFor(selectedTest))=="TEST 업데이트","Installed TEST can update within TEST channel");
+        var currentTest = projected with { SelectedChannel="test", SelectedVersion="v0.3.0-test.1", CachedOffer=new("0.2.0","stable") };
+        var mine = ProductCommands("Mine",[currentTest]).Single();
+        Require(mine.ReleaseLabel.StartsWith("TEST · v0.3.0-test.1") && mine.CollectionChannel=="test", "My tools labels the actual installed TEST version");
+        appearanceSnapshot[mine.Id]=new(true,true,false,"새 기능 패키지 · 업데이트 가능","");
+        Require(!AppearanceFor(mine).Update && PrimaryText(mine,AppearanceFor(mine))=="제거" && !AppearanceFor(mine).Message.Contains("새 기능 패키지"), "Old stable cache and stale UI flags do not mark current TEST outdated");
+        testOffers[stableId]=new("v0.3.0-test.2","test");
+        Require(AppearanceFor(mine).Update && PrimaryText(mine,AppearanceFor(mine))=="TEST 업데이트", "My tools offers later TEST updates");
+        stableOffers[stableId]=new("v0.3.0","stable");
+        Require(PrimaryText(mine,AppearanceFor(mine))=="정식 업데이트" && OfferFor(mine)?.Channel=="stable", "Installed TEST offers stable promotion from My tools");
+        var testCatalog = mine with { Channel="test" };
+        Require(OfferFor(testCatalog)?.Channel=="stable", "Stable promotion is found even while repository default remains TEST");
+        var promotedStable=testCatalog with { SelectedChannel="stable",SelectedVersion="0.3.0",ViewChannel="" };
+        Require(promotedStable.CollectionChannel=="stable" && !AppearanceFor(promotedStable).Update && ProductCommands("Mine",[promotedStable]).Single().ReleaseLabel.StartsWith("정식"), "Applied promotion becomes stable without repeating update");
+        stableOffers.Clear(); testOffers[stableId]=new("v0.3.0-test.1","test");
+        testOffers[stableId]=new("0.2.0-test.1","test");
+        Require(!ProductCommands("Test",[stableCard]).Any() && ProductCommands("Test",[selectedTest]).Any(),"Covered TEST is hidden while installed TEST remains manageable");
+        testOffers[stableId]=new("v0.3.0-test.1","test"); testOfferErrors[stableId]="offline";
+        Require(AppearanceFor(stableCard).Message.Contains("TEST 확인 실패") && NewTestAvailable(stableCard),"Failed TEST check retains prior offer and current installation");
+        var cacheRoundtrip=JsonSerializer.Deserialize<DisplaySnapshot>(JsonSerializer.Serialize(new DisplaySnapshot(6,[],[],[],[],DateTimeOffset.UtcNow,updateOffers,testOffers,testOfferErrors)))!;
+        Require(cacheRoundtrip.Tests![stableId].Version=="v0.3.0-test.1" && cacheRoundtrip.TestErrors![stableId]=="offline","TEST offers and check failures survive display-cache roundtrip");
+        stableOffers[stableId]=new("0.3.0","stable"); stableOfferErrors[stableId]="offline";
+        var fullCache=JsonSerializer.Deserialize<DisplaySnapshot>(JsonSerializer.Serialize(new DisplaySnapshot(7,[],[],[],[],DateTimeOffset.UtcNow,updateOffers,testOffers,testOfferErrors,stableOffers,stableOfferErrors)))!;
+        Require(fullCache.Stables![stableId].Version=="0.3.0" && fullCache.StableErrors![stableId]=="offline", "Stable promotion offers and errors survive display cache");
+        stableOffers.Clear(); stableOfferErrors.Clear();
+        // Exercise navigation from the actual link against the preview fixture's stable card.
+        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable");
+        updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");
+        productSearch.Clear(); Navigate("Revit");
+        var notice=(LinkLabel)cardBindings[sample.Id].State;
+        Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
+        using (var stableBitmap=new Bitmap(Width,Height)) { DrawToBitmap(stableBitmap,new Rectangle(Point.Empty,Size)); stableBitmap.Save(destination+".stable.png"); }
+        typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
+        Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
+        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
+        using (var owners = new RepositoryPublishersDialog(new(1,true,[new("alice","user"),new("team","organization")])))
+        {
+            owners.ShowInTaskbar=false;owners.StartPosition=FormStartPosition.Manual;owners.Location=new(-20000,-20000);owners.Show();Application.DoEvents();
+            IEnumerable<Control> Descendants(Control root) => root.Controls.Cast<Control>().SelectMany(c => new[]{c}.Concat(Descendants(c)));
+            var controls=Descendants(owners).ToArray();var table=controls.OfType<DataGridView>().Single();
+            var input=controls.OfType<TextBox>().Single();input.Text="another";
+            controls.OfType<Button>().Single(b=>b.Text=="추가").PerformClick();
+            Require(table.Rows.Count==3,"Publisher dialog adds a third owner");
+            table.ClearSelection();table.Rows[0].Selected=true;
+            controls.OfType<Button>().Single(b=>b.Text=="선택 삭제").PerformClick();
+            Require(table.Rows.Count==2,"Publisher dialog removes only selected owner");
+            table.Rows[0].Cells["Enabled"].Value=false;
+            controls.OfType<CheckBox>().Single().Checked=false;
+            using(var bitmap=new Bitmap(owners.Width,owners.Height)){owners.DrawToBitmap(bitmap,new Rectangle(Point.Empty,owners.Size));bitmap.Save(destination+".publishers.png");}
+            controls.OfType<Button>().Single(b=>b.Text=="저장").PerformClick();
+            Require(owners.Result is { IncludeConnectedAccount:false, Publishers.Length:2 } && !owners.Result.Publishers[0].Enabled,"Publisher dialog persists enable toggle and account scope");
+        }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

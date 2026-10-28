@@ -11,6 +11,44 @@ public sealed record RibbonLayout(int SchemaVersion, string Host, RibbonTabLayou
 
 public sealed class RibbonLayouts(ManagerPaths paths)
 {
+    public static RibbonTool DefaultLocation(RibbonTool tool)
+    {
+        var reserved = !tool.Id.StartsWith("manager:", StringComparison.Ordinal) && (tool.Tab.Trim() == "RoBIM 관리" || tool.Panel.Trim() == "관리");
+        return tool with { Tab = reserved || string.IsNullOrWhiteSpace(tool.Tab) ? "RoBIM 도구" : tool.Tab.Trim(),
+            Panel = reserved || string.IsNullOrWhiteSpace(tool.Panel) ? "도구" : tool.Panel.Trim() };
+    }
+    public static RibbonTool FromGroup(string id, string title, string group, bool installed, string? icon = null)
+    {
+        var pieces = group.Split(" / ", 2, StringSplitOptions.TrimEntries);
+        return DefaultLocation(new(id, title, pieces.Length > 1 ? pieces[0] : "", pieces.Length > 1 ? pieces[1] : "", installed, icon));
+    }
+    public static RibbonTool[] WithManagementTools(IEnumerable<RibbonTool> values)
+    {
+        var tools = values.Select(DefaultLocation).ToList();
+        if (tools.Any(t => t.Installed && (t.Id.StartsWith("robim-revit:", StringComparison.Ordinal) || t.Id.StartsWith("revit:", StringComparison.Ordinal))))
+            tools.Add(new("manager:pyrevit-reload", "pyRevit Reload", "RoBIM 관리", "Manager", true));
+        if (tools.Any(t => t.Installed && t.Id.StartsWith("native:", StringComparison.Ordinal)))
+        {
+            tools.Add(new("manager:RoBIM.Native.Reload", "독립 Add-in Reload", "RoBIM 관리", "독립 Add-in", true));
+            tools.Add(new("manager:RoBIM.Native.Manager", "Add-in Manager", "RoBIM 관리", "독립 Add-in", true));
+        }
+        return tools.ToArray();
+    }
+    public static RibbonLayout IncludeMissingManagement(RibbonLayout layout, IEnumerable<RibbonTool> tools)
+    {
+        var ids = layout.Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Select(b => b.Id).ToHashSet();
+        var tabs = layout.Tabs.ToList();
+        foreach (var tool in tools.Where(t => t.Installed && t.Id.StartsWith("manager:", StringComparison.Ordinal) && !ids.Contains(t.Id)))
+        {
+            var ti = tabs.FindIndex(t => t.Name.Equals(tool.Tab, StringComparison.OrdinalIgnoreCase));
+            if (ti < 0) { tabs.Add(new(tool.Tab, [])); ti = tabs.Count - 1; }
+            var panels = tabs[ti].Panels.ToList(); var pi = panels.FindIndex(p => p.Name.Equals(tool.Panel, StringComparison.OrdinalIgnoreCase));
+            if (pi < 0) panels.Add(new(tool.Panel, [new(tool.Id, tool.Title)]));
+            else panels[pi] = panels[pi] with { Buttons = [..panels[pi].Buttons, new(tool.Id, tool.Title)] };
+            tabs[ti] = tabs[ti] with { Panels = panels.ToArray() };
+        }
+        return layout with { Tabs = tabs.ToArray() };
+    }
     public string FilePath(string host) => SafeFiles.Child(paths.Data, "ribbon-layout-" + Host(host).ToLowerInvariant() + ".json");
     private static string Host(string host) => host is "Revit" or "AutoCAD" ? host : throw new IOException("지원하지 않는 리본 호스트");
     public static void Validate(RibbonLayout layout)
@@ -65,10 +103,11 @@ public sealed class RibbonLayouts(ManagerPaths paths)
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
     public static RibbonLayout Defaults(string host, IEnumerable<RibbonTool> tools) => new(1, host,
-        tools.Where(x => x.Installed).GroupBy(x => x.Tab).Select(tab => new RibbonTabLayout(tab.Key,
+        tools.Where(x => x.Installed).Select(DefaultLocation).GroupBy(x => x.Tab).Select(tab => new RibbonTabLayout(tab.Key,
             tab.GroupBy(x => x.Panel).Select(panel => new RibbonPanelLayout(panel.Key, panel.Select(x => new RibbonPlacement(x.Id, x.Title)).ToArray())).ToArray())).ToArray());
     public void EnsureInstalled(RibbonTool tool, IEnumerable<RibbonTool> initialTools, Action? select = null)
     {
+        tool = DefaultLocation(tool);
         if (!tool.Installed) throw new IOException("설치한 버튼만 자동 배치할 수 있습니다.");
         var file = FilePath("Revit"); SafeFiles.NoLinks(file);
         var before = File.Exists(file) ? File.ReadAllBytes(file) : null;

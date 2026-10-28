@@ -7,12 +7,13 @@ using System.Text.RegularExpressions;
 namespace RoBIM.Manager.Core;
 
 public sealed record ExtensionPackage(string Id, string Name, string Host, string Path, string Folder,
-    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown");
+    string Distribution = "git", string? Asset = null, string Description = "", string Channel = "unknown", string ModuleId = "", string CommandId = "");
 public sealed record ExtensionManifest(int SchemaVersion, ExtensionPackage[] Packages);
 public sealed record ExtensionRepository(string Repository, string Branch, ExtensionPackage[] Packages, string Recognition);
+public sealed class NoInstallablePackagesException(string message) : IOException(message);
 public sealed record CatalogResult(IReadOnlyList<ExtensionRepository> Repositories, string[] Warnings);
 
-public sealed class ExtensionCatalog(ManagerPaths paths)
+public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? requireChannel = null)
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     private string FilePath => SafeFiles.Child(paths.Data, "extension-repositories.json");
@@ -46,6 +47,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
             if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
+            if (package.ModuleId is null || package.CommandId is null ||
+                (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&
+                (package.Host != "revit" || !Regex.IsMatch(package.ModuleId, "^[a-z][a-z0-9.-]{0,63}$") || !Regex.IsMatch(package.CommandId, "^[a-z][a-z0-9.-]{0,63}$")))
+                throw new InvalidDataException("모듈·명령 ID를 함께 지정해야 합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
             if (package.Folder is null || !Regex.IsMatch(package.Folder, @"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,100}$") ||
                 !package.Folder.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || package.Folder.Contains("..") || !folders.Add(package.Host + "/" + package.Folder))
@@ -60,8 +65,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
-        "gagaggan/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
-        "gagaggan/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
+        "robim-tech/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
+        "robim-tech/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
@@ -79,6 +84,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
             using var document = JsonDocument.Parse(await manifest.Content.ReadAsStringAsync());
             if (document.RootElement.GetProperty("size").GetInt64() > 128 * 1024) throw new IOException("표시 정보 파일이 너무 큽니다.");
             var content = Encoding.UTF8.GetString(Convert.FromBase64String(document.RootElement.GetProperty("content").GetString()!));
+            using var declaration = JsonDocument.Parse(content);
+            if (declaration.RootElement.TryGetProperty("schemaVersion", out var schema) && schema.GetInt32() == 1 &&
+                declaration.RootElement.TryGetProperty("packages", out var entries) && entries.ValueKind == JsonValueKind.Array && entries.GetArrayLength() == 0)
+                throw new NoInstallablePackagesException("설치 도구가 없는 기반 저장소입니다.");
             return new(canonical, branch, ParseManifest(content), "robim-package.json");
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
@@ -104,8 +113,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     {
         var bundled = BundledCatalog.Read();
         var defaults = bundled.Repositories;
-        if (!File.Exists(FilePath)) return defaults;
-        var repos = JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [];
+        var repos = File.Exists(FilePath) ? JsonSerializer.Deserialize<ExtensionRepository[]>(File.ReadAllText(FilePath), Json) ?? [] : [];
         foreach (var repo in repos)
         {
             if (Repository("https://github.com/" + repo.Repository) != repo.Repository) throw new IOException("등록 저장소 경로 오류");
@@ -115,14 +123,17 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         // Only superseded, centrally owned package entries are redirected. Reading
         // the registry never rewrites it, installs tools or drops unrelated entries.
         repos = CurrentSources(repos);
-        return defaults.Where(x => !repos.Any(r => r.Repository.Equals(x.Repository, StringComparison.OrdinalIgnoreCase))).Concat(repos).ToArray();
+        return CurrentSources(defaults.Concat(RepositoryDiscovery.Cached(paths)).Concat(repos));
     }
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
         var moves = BundledCatalog.Read().RepositoryMoves ?? [];
         return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
-            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))).ToArray() })
-            .Where(repo => repo.Packages.Length > 0).ToArray();
+            move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) &&
+            !(move.ToRepositories.Length == 1 && RepositoryOwnership.Canonical(move.FromRepository).Equals(move.ToRepositories[0], StringComparison.OrdinalIgnoreCase)))).ToArray() })
+            .Where(repo => repo.Packages.Length > 0)
+            .Select(repo => repo with { Repository = RepositoryOwnership.Canonical(repo.Repository) })
+            .GroupBy(repo => repo.Repository, StringComparer.OrdinalIgnoreCase).Select(group => group.Last()).ToArray();
     }
     public void Register(ExtensionRepository repository)
     {
@@ -165,14 +176,18 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     }
     public static ToolSpec Tool(ExtensionRepository repository, ExtensionPackage package)
     {
+        var moves = BundledCatalog.Read().RepositoryMoves ?? [];
+        var moved = moves.FirstOrDefault(move => move.FromRepository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase)
+            && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) && move.ToRepositories.Length == 1);
+        repository = repository with { Repository = RepositoryOwnership.Canonical(moved?.ToRepositories[0] ?? repository.Repository) };
         if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Cad.FolderName) return Catalog.Cad;
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
         if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
         // A one-to-one repository move keeps the legacy installation record key.
         // Module/command IDs continue to identify Native selections and ribbon state.
-        var identity = (BundledCatalog.Read().RepositoryMoves ?? []).FirstOrDefault(move => move.ToRepositories.Length == 1 &&
-            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? repository.Repository;
+        var identity = moves.FirstOrDefault(move => move.ToRepositories.Length == 1 &&
+            move.ToRepositories[0].Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase))?.FromRepository ?? RepositoryOwnership.LegacyIdentity(repository.Repository);
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToLowerInvariant() + "/" + package.Id))).ToLowerInvariant()[..16];
         return new("ext-" + digest, ToolNames.Display(package.Name), package.Host == "autocad" ? ToolKind.AutoCAD : package.Host == "revit" ? ToolKind.NativeRevit : ToolKind.PyRevit,
             repository.Repository, repository.Branch, package.Folder, package.Description, true);
@@ -181,19 +196,29 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
     {
         var package = current.Packages.SingleOrDefault(p => p.Id == previous.Id) ?? throw new IOException("기존 패키지 ID가 저장소에 없습니다.");
         if (package.Host != previous.Host || package.Path != previous.Path || package.Folder != previous.Folder ||
-            package.Distribution != previous.Distribution || package.Asset != previous.Asset)
+            package.Distribution != previous.Distribution || package.Asset != previous.Asset ||
+            previous.ModuleId.Length > 0 && (package.ModuleId != previous.ModuleId || package.CommandId != previous.CommandId))
             throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
         return package;
     }
-    public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package)
+    public static ExtensionPackage ReleaseChannel(ExtensionPackage package, string channel)
+    {
+        if (package.Host != "revit" || package.Distribution != "release" || channel is not ("test" or "stable"))
+            throw new IOException("독립 Revit 도구의 TEST 또는 정식 배포를 선택하십시오.");
+        return package with { Channel = channel };
+    }
+    public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package, string? releaseChannel = null)
     {
         var refreshed = await Inspect("https://github.com/" + repository.Repository);
         if (!refreshed.Packages.Contains(package)) throw new IOException("저장소 표시 정보가 변경되었습니다. 목록을 새로 조회하십시오.");
+        // An explicit user choice changes only release selection, never the registered default or package identity.
+        if (releaseChannel is not null) package = ReleaseChannel(package, releaseChannel);
         var cache = SafeFiles.Child(paths.Data, "Extensions/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(cache);
         string root, version;
         if (package.Distribution == "git")
         {
+            requireChannel?.Invoke(package.Channel);
             root = System.IO.Path.Combine(cache, "source");
             var result = await ProcessRunner.Run("git", ["-c", "core.hooksPath=NUL", "-c", "core.longpaths=true", "clone", "--depth", "1", "--branch", refreshed.Branch, "https://github.com/" + refreshed.Repository + ".git", root]);
             if (result.ExitCode != 0) throw new IOException("확장 소스 다운로드 실패. 연결 계정·토큰의 Contents 읽기 권한을 확인하십시오.");
@@ -202,6 +227,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         else
         {
             var offer = await ReleaseUpdates.Check(refreshed, package);
+            requireChannel?.Invoke(offer.Channel);
             version = offer.Version;
             var digest = offer.Digest;
             using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + offer.AssetId, "application/octet-stream");
@@ -219,6 +245,11 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
         var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
         InstallService.ValidatePackage(Tool(refreshed, package), prepared);
+        if (package.Host == "revit")
+        {
+            var module = RoBIM.Revit.Reload.NativeProtocol.Module(prepared);
+            requireChannel?.Invoke(ModuleReleases.Native(prepared, module.Id, module.Version).Channel);
+        }
         return new(prepared, version);
     }
 }

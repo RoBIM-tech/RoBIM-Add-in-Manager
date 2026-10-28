@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Test";
+    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Navisworks" or "Test";
     private readonly TextBox productSearch = new() { PlaceholderText = "도구 이름 또는 기능 검색", Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
     private readonly ComboBox productSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };
@@ -23,20 +23,22 @@ public sealed partial class ManagerForm
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty };
         layout.ColumnStyles.Add(new(SizeType.Percent, 100));
         layout.RowStyles.Add(new(SizeType.AutoSize)); layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.AutoSize));
-        var searchRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 5, Padding = new(0, 4, 0, 16), Margin = Padding.Empty };
+        var searchRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 6, Padding = new(0, 4, 0, 16), Margin = Padding.Empty };
         searchRow.ColumnStyles.Add(new(SizeType.Percent, 100)); searchRow.ColumnStyles.Add(new(SizeType.Absolute, 150));
         searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize)); searchRow.ColumnStyles.Add(new(SizeType.AutoSize));
         productSearch.Margin = new(0, 4, 10, 0); productSort.Margin = new(0, 4, 10, 0);
         productSort.Items.AddRange(["기본 순서", "이름순", "설치된 도구 먼저", "업데이트 먼저"]); productSort.SelectedIndex = 0;
-        var refresh = MakeButton("새로 고침"); var add = MakeButton("＋ 도구 등록"); add.Margin = Padding.Empty;
+        searchRow.ColumnStyles.Add(new(SizeType.AutoSize));
+        var publishers = MakeButton("제작자·조직"); publishers.Click += (_, _) => EditRepositoryPublishers();
+        var refresh = MakeButton("새로고침"); var add = MakeButton("＋ 도구 등록"); add.Margin = Padding.Empty;
         searchRow.Controls.Add(productSearch, 0, 0); searchRow.Controls.Add(productSort, 1, 0);
-        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(nativeReload, 3, 0); searchRow.Controls.Add(add, 4, 0);
+        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(nativeReload, 3, 0); searchRow.Controls.Add(publishers, 4, 0); searchRow.Controls.Add(add, 5, 0);
         nativeReload.Click += async (_, _) =>
         {
             var page = currentPage;
             await Run("Revit Reload 적용 요청", async () =>
             {
-                if (page != "PyRevit") new NativeRevitCommands(paths).RequestReload();
+                if (page != "PyRevit") NativeCommands().RequestReload();
                 if (page is not ("Revit" or "Test"))
                 {
                     if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
@@ -67,13 +69,14 @@ public sealed partial class ManagerForm
     {
         if (!IsProductPage) return;
         var scroll = productCards.VerticalScroll.Value;
-        IEnumerable<ButtonCard> rows = CommandInventory();
+        IEnumerable<ButtonCard> rows = ProductCommands(currentPage);
         rows = rows.Where(x => currentPage switch
         {
             "Test" => x.CollectionChannel == "test",
             "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
             "PyRevit" => x.Kind == ButtonKind.PyRevit,
             "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
+            "Navisworks" => false,
             "Mine" => x.Selected || x.Pending,
             _ => x.CollectionChannel != "test"
         });
@@ -82,8 +85,8 @@ public sealed partial class ManagerForm
         rows = productSort.SelectedIndex switch
         {
             1 => rows.OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
-            2 => rows.OrderByDescending(x => x.Selected).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
-            3 => rows.OrderByDescending(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
+            2 => rows.OrderByDescending(SelectedInView).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
+            3 => rows.OrderByDescending(x => AppearanceFor(x).Update).ThenBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase),
             _ => rows.OrderByDescending(x => x.Kind == ButtonKind.Native)
         };
         var visible = rows.ToList();
@@ -111,8 +114,8 @@ public sealed partial class ManagerForm
             var known = commandSnapshot.Select(x => x.Id).ToHashSet();
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
-        if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
-        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => appearanceSnapshot.GetValueOrDefault(x.Id)?.Update == true)}  ·  설치 {visible.Count(x => x.Selected)}  ·  미설치 {visible.Count(x => !x.Selected && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
+        if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Navisworks" ? NavisworksStatus() : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
+        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치 · 연보라: 새 TEST 있음" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
@@ -157,14 +160,15 @@ public sealed partial class ManagerForm
         text.Controls.Add(category, 0, 0); text.Controls.Add(title, 0, 1); header.Controls.Add(text, 1, 0); layout.Controls.Add(header, 0, 0);
         var description = new Label { Text = feature.Description, Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Color.FromArgb(102, 112, 131), Font = new Font(Font.FontFamily, 8.5f), Margin = Padding.Empty };
         layout.Controls.Add(description, 0, 1);
-        var stateLabel = new Label { Text = feature.Message, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8), ForeColor = Color.FromArgb(102, 112, 131), Margin = new(0, 0, (int)(6 * scale), 0) };
+        var stateLabel = new LinkLabel { Text = feature.Message, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8), ForeColor = Color.FromArgb(102, 112, 131), Margin = new(0, 0, (int)(6 * scale), 0) };
         var more = MakeButton("···"); more.MinimumSize = new((int)(30 * scale), (int)(22 * scale)); more.AutoSize = false; more.Dock = DockStyle.Fill; more.Margin = Padding.Empty; more.Padding = Padding.Empty; more.AccessibleName = feature.Title + " 관리 메뉴";
         var primary = MakeButton("설치하기", true); primary.Font = new Font(Font.FontFamily, 8.5f); primary.MinimumSize = new((int)(80 * scale), (int)(22 * scale)); primary.AutoSize = false; primary.Dock = DockStyle.Fill; primary.Padding = Padding.Empty; primary.Margin = new(0, 0, (int)(6 * scale), 0);
         primary.Dock = more.Dock = DockStyle.None;
         primary.Anchor = more.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         primary.Size = new((int)(90 * scale), (int)(22 * scale)); more.Size = new((int)(30 * scale), (int)(22 * scale));
         primary.Margin = new(0, (int)(4 * scale), (int)(6 * scale), 0); more.Margin = new(0, (int)(4 * scale), 0, 0);
-        primary.Click += async (_, _) => { if (busy || preview) return; await ToggleButton(feature); };
+        primary.Click += async (_, _) => { if (busy || preview) return; await PrimaryCardAction(feature); };
+        stateLabel.LinkClicked += (_, _) => { if (!busy) ShowTestOffer(feature); };
         var menu = BuildButtonMenu(feature); more.Click += (_, _) => menu.Show(more, new Point(0, more.Height));
         var instruction = new Label { Visible = false };
         card.Disposed += (_, _) => { menu.Dispose(); tips.Dispose(); instruction.Dispose(); };
@@ -219,23 +223,36 @@ public sealed partial class ManagerForm
 
     private void RefreshCardActions()
     {
-        nativeReload.Visible = IsProductPage && currentPage != "Cad";
+        nativeReload.Visible = IsProductPage && currentPage is not ("Cad" or "Navisworks");
         nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
         var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;
         foreach (var binding in cardBindings.Values)
         {
             var feature = binding.Row;
-            var appearance = appearanceSnapshot.GetValueOrDefault(feature.Id) ?? new(true, false, false, feature.Message, "");
-            binding.Action.Text = feature.Kind == ButtonKind.Discover ? "기능 목록 보기" : appearance.Legacy ? "전환하기" : appearance.Update ? "업데이트" : feature.Selected ? "제거" : "설치하기";
+            var appearance = AppearanceFor(feature);
+            binding.Action.Text = PrimaryText(feature, appearance);
             binding.Action.Enabled = ready && appearance.Enabled;
             binding.More.Enabled = ready;
             var updateState = appearance.Update;
-            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : feature.Selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
-            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : feature.Selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
-            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : feature.Selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
+            var selected = SelectedInView(feature);
+            var testAvailable = CanUseTest && selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
+            binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : testAvailable ? Color.FromArgb(246, 243, 250) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
+            binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : testAvailable ? Color.FromArgb(190, 179, 207) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
+            binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
-            binding.State.Text = (updateState ? "업데이트 · " : feature.Selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            binding.State.Text = (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            if (binding.State is LinkLabel link)
+            {
+                link.Links.Clear();
+                var at = link.Text.LastIndexOf("TEST 보기", StringComparison.Ordinal);
+                if (at >= 0 && CanUseTest)
+                {
+                    link.LinkColor = link.VisitedLinkColor = Color.FromArgb(102, 81, 131);
+                    link.ActiveLinkColor = Color.FromArgb(79, 59, 108);
+                    link.Links.Add(at, "TEST 보기".Length);
+                }
+            }
             binding.Instruction.Text = appearance.Instruction;
             var detail = appearance.Message + "\n" + appearance.Instruction;
             if (binding.Tips.GetToolTip(binding.State) != detail) binding.Tips.SetToolTip(binding.State, detail);

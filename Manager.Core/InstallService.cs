@@ -82,6 +82,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
 
     public void Install(ToolSpec tool, SourcePackage package)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, tool);
         using var operation = Lock();
         ensureHostClosed?.Invoke(tool);
         var target = paths.Target(tool);
@@ -132,6 +133,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     // and identical binaries in place; replace only the verified reloadable file delta.
     public void InstallReload(ToolSpec tool, SourcePackage package)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, tool);
         if (tool.Kind != ToolKind.PyRevit) throw new IOException("pyRevit 파일만 실행 중 교체할 수 있습니다.");
         using var operation = Lock();
         ensureHostClosed?.Invoke(tool);
@@ -293,7 +295,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
                 !File.Exists(Path.Combine(source, "Contents", "Windows", "DelHiddenNet.dll")))
                 throw new InvalidDataException("AutoCAD 패키지 구조가 올바르지 않습니다.");
         }
-        else if (!Directory.GetDirectories(source, "*.tab").Any() || (!tool.CustomPackage && !Directory.Exists(Path.Combine(source, "lib"))))
+        else if ((!Directory.GetDirectories(source, "*.tab").Any() && !(tool.Id == Catalog.RevitSelected.Id && RevitButtons.ValidEmptySelection(source))) || (!tool.CustomPackage && !Directory.Exists(Path.Combine(source, "lib"))))
             throw new InvalidDataException("RoBIM pyRevit 패키지 구조가 올바르지 않습니다.");
     }
 

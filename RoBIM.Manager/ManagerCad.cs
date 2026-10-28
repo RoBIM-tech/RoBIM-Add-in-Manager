@@ -17,7 +17,7 @@ public sealed partial class ManagerForm
         SourcePackage? downloaded = null;
         if (latestPackage || archivePath is not null)
         {
-            await Run("CAD 기능 패키지 준비", async () => { downloaded = archivePath is not null ? await sources.OfflineCad(archivePath) : await sources.DownloadCad(); });
+            await Run("CAD 기능 패키지 준비", async () => { downloaded = archivePath is not null ? await sources.OfflineCad(archivePath) : await sources.DownloadCad(CanUseTest ? null : "stable"); });
             if (downloaded is null) return;
         }
         try
@@ -44,6 +44,9 @@ public sealed partial class ManagerForm
             var configured = dialog.Configuration; var selected = dialog.Selection; var session = dialog.Session;
             await Run("CAD 선택 적용 준비", async () =>
             {
+                foreach (var module in configured.Modules.Where(m => m.Actions.Any(a => selected.Contains(CadFiles.Key(m, a)) &&
+                    (downloaded is not null || previous?.SelectedActions.Contains(CadFiles.Key(m, a)) != true))))
+                    RequireChannelAccess(ModuleReleases.Cad(root, module.Id, module.Version).Channel);
                 await Task.Run(() => bridge.Prepare(row.Status.Tool, sourceBundle, configured, selected, session, sourceRequest));
                 WriteLog("CAD 준비 완료 — AutoCAD의 RoBIM → 관리 → Reload에서 적용하십시오.");
                 MessageBox.Show(this, "선택한 버튼과 기능을 준비했습니다.\n\nAutoCAD → RoBIM → 관리 → Reload\n\nCAD 적용 결과는 이 화면에서 확인할 수 있습니다.", Text);

@@ -2,9 +2,18 @@ using System.IO.Compression;
 using System.Text.Json;
 using RoBIM.Manager.Core;
 
+if (args.Length == 2 && args[0] == "--check-organization-transfer")
+{
+    await RepositoryOwnershipTests.Live(Path.GetFullPath(args[1])); return 0;
+}
+
 if (args.Length == 2 && args[0] == "--check-native-downloads")
 {
     await SingleNativeButtonTests.Downloads(Path.GetFullPath(args[1])); return 0;
+}
+if (args.Length == 2 && args[0] == "--check-native-release-channels")
+{
+    await SingleNativeButtonTests.ReleaseChannels(Path.GetFullPath(args[1])); return 0;
 }
 
 if (args.Length == 2 && args[0] == "--check-existing-button-workflows")
@@ -52,9 +61,54 @@ void Test(string name, Action action)
     try { action(); results.Add(new { Name = name, Passed = true, Error = "" }); Console.WriteLine("PASS " + name); }
     catch (Exception ex) { failures++; results.Add(new { Name = name, Passed = false, Error = ex.ToString() }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
 }
+if (args.Contains("--device-login-only"))
+{
+    GitHubDeviceLoginTests.Run(Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} device login checks passed"); return failures==0?0:1;
+}
+GitHubDeviceLoginTests.Run(Test);
+HostRequirementTests.Run(root, Test);
+ManagerUpdateTests.Run(root, Test);
+if (args.Contains("--discovery-only"))
+{
+    RepositoryDiscoveryTests.Run(root, Test);
+    Console.WriteLine($"{results.Count-failures}/{results.Count} discovery checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--uninstall-only"))
+{
+    ManagerUninstallTests.Run(root, Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} uninstall checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--team-only"))
+{
+    TeamAccessTests.Run(Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} team checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--ownership-only"))
+{
+    RepositoryOwnershipTests.Run(root, Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} ownership checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--bridge-only"))
+{
+    ReloadBridgeTests.Run(root,Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} bridge checks passed"); return failures==0?0:1;
+}
+if (args.Contains("--buttons-only"))
+{
+    ButtonTests.Run(Test, Paths, Require, root);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} button checks passed"); return failures==0?0:1;
+}
 if (args.Contains("--location-only"))
 {
-    PyRevitLocationTests.Run(Test, Paths, Require, root);
+    RepositoryDiscoveryTests.Run(root, Test);
+PyRevitLocationTests.Run(Test, Paths, Require, root);
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
@@ -64,6 +118,9 @@ if (args.Contains("--native-single-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} passed"); return failures==0?0:1;
 }
+ManagerUninstallTests.Run(root, Test);
+TeamAccessTests.Run(Test);
+RepositoryOwnershipTests.Run(root, Test);
 ReleaseTests.Run(Test, Require, root);
 ReleaseUpdateTests.Run(Test, Require, root);
 SingleNativeButtonTests.Run(Test, Paths, Require, root);
@@ -288,6 +345,22 @@ Test("ProfileBlockedWhenHostRunning", () =>
     var called = false;
     var service = new RevitProfiles(Paths("activate-host"), () => throw new IOException("host running"), (_, _) => { called = true; return Task.CompletedTask; }, _ => true);
     Reject(() => service.Apply(true).GetAwaiter().GetResult()); Require(!called, "Profile modified while host running");
+});
+Test("EditableManagementAndFeatureFallback", () =>
+{
+    var native = new RibbonTool("native:tool:run", "기능", "RoBIM 관리", "", true);
+    var tools = RibbonLayouts.WithManagementTools([native, new("robim-revit:legacy", "기존", "", "", true)]);
+    Require(tools.Length == 5 && tools[0].Tab == "RoBIM 도구" && tools[0].Panel == "도구", "Missing feature panel fell into Management");
+    Require(RibbonLayouts.DefaultLocation(native with { Panel = "독립 Add-in" }).Tab == "RoBIM 도구", "Feature default occupied reserved management tab");
+    Require(RibbonLayouts.FromGroup("native:x:run", "X", "RoBIM 관리 / ", true).Panel == "도구", "Empty grouped panel not normalized");
+    Require(RibbonLayouts.WithManagementTools([native with { Installed = false }]).Length == 1, "Management appeared without installed tools");
+    var user = new RibbonLayout(1, "Revit", [new("사용자", [new("운영", [new("manager:RoBIM.Native.Reload", "다시 적용", "Small", "management", 2), new("manager:RoBIM.Native.Manager", "도구 관리", "Small", "management", 2)])])]);
+    var merged = RibbonLayouts.IncludeMissingManagement(user, tools);
+    Require(merged.Tabs[0] == user.Tabs[0] && merged.Tabs.SelectMany(t=>t.Panels).SelectMany(p=>p.Buttons).Count(b=>b.Id.StartsWith("manager:")) == 3, "Existing Management layout changed or missing control not added");
+    var store = new RibbonLayouts(Paths("management-layout")); store.Save(merged); var reread = store.Read("Revit");
+    Require(reread.Tabs[0].Panels[0].Buttons[0].Title == "다시 적용" && reread.Tabs[0].Panels[0].Buttons[1].StackRows == 2, "Management edit did not persist");
+    store.EnsureInstalled(native, []);
+    Require(store.Read("Revit").Tabs.Any(t=>t.Name == "RoBIM 도구" && t.Panels.Any(p=>p.Name == "도구" && p.Buttons.Any(b=>b.Id == native.Id))), "Auto placement used Management fallback");
 });
 Test("RibbonLayoutRoundTripAndInstallationIndependence", () =>
 {
@@ -713,7 +786,11 @@ if (args.Contains("--online"))
     }
     catch (Exception ex) { failures++; results.Add(new { Name = "PrivateGitHubCadAndRevitDownloadInstall", Passed = false, Error = ex.ToString() }); Console.WriteLine(ex.Message); }
 }
+RepositoryDiscoveryTests.Run(root, Test);
+ReloadBridgeTests.Run(root, Test);
+PyRevitRetirementTests.Run(root, Test);
 PyRevitLocationTests.Run(Test, Paths, Require, root);
+NativeReleasePolicyTests.Run(Test, Require);
 NativeRevitTests.Run(Test, Paths, Require, root);
 ButtonTests.Run(Test, Paths, Require, root);
 File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));

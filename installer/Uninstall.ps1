@@ -1,4 +1,4 @@
-param([switch]$Quiet)
+param([switch]$Quiet, [switch]$KeepUserData, [switch]$KeepSettings)
 $ErrorActionPreference = 'Stop'
 $destination = [IO.Path]::GetFullPath($PSScriptRoot)
 if (Test-Path -LiteralPath (Join-Path $destination '.robim-manager-native.ini')) { throw 'Setup.exe로 설치된 매니저는 Windows 설정의 설치된 앱에서 제거하십시오.' }
@@ -7,10 +7,15 @@ if (!(Test-Path -LiteralPath $marker)) { throw 'RoBIM Manager 설치 기록이 �
 $record = Get-Content -LiteralPath $marker -Raw | ConvertFrom-Json
 if ($record.Product -ne 'RoBIM.Manager' -or $record.Path -ne $destination) { throw '설치 경로 검증 실패' }
 $expectedExecutable = Join-Path $destination 'RoBIM.Manager.exe'
-if (Get-Process -Name 'RoBIM.Manager' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -eq $expectedExecutable } catch { $true } }) { throw 'RoBIM Manager를 먼저 종료하십시오.' }
+while (Get-Process -Name 'RoBIM.Manager' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -eq $expectedExecutable } catch { $true } }) {
+    if ($Quiet) { throw 'RoBIM Manager를 먼저 종료하십시오.' }
+    Add-Type -AssemblyName System.Windows.Forms
+    if ([Windows.Forms.MessageBox]::Show('RoBIM Manager를 종료한 뒤 재시도를 누르면 제거를 계속합니다.', 'RoBIM 제거', 'RetryCancel', 'Warning') -ne 'Retry') { exit 1 }
+}
 if (!$Quiet) {
     Add-Type -AssemblyName System.Windows.Forms
-    $answer = [Windows.Forms.MessageBox]::Show("RoBIM Manager를 제거합니까?`n설치된 CAD/Revit 도구·백업·사용자 설정은 유지합니다.`n도구는 제거 전에 관리자에서 개별 제거할 수 있습니다.", 'RoBIM Manager', 'YesNo', 'Question', 'Button2')
+    $message = if ($KeepUserData) { 'Manager 실행 파일만 제거합니다. 도구·설정·백업은 유지합니다.' } else { 'Manager와 관리 중인 Revit·CAD 도구, 연결 모듈, 검색 기록, 캐시 및 백업을 제거합니다. 개인 설정은 다음 화면에서 삭제/유지를 선택합니다. 다른 제품과 GitHub 공용 로그인은 유지합니다.' }
+    $answer = [Windows.Forms.MessageBox]::Show($message + "`n계속하시겠습니까?", 'RoBIM Manager', 'YesNo', 'Question', 'Button2')
     if ($answer -ne 'Yes') { exit 0 }
 }
 # Validate every deletion before removing the first file. Unknown files are preserved.
@@ -26,6 +31,12 @@ foreach ($path in $targets) {
         if ((Test-Path -LiteralPath $currentPath) -and ((Get-Item -LiteralPath $currentPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw '연결 경로는 제거하지 않습니다.' }
         $currentPath = [IO.Path]::GetDirectoryName($currentPath)
     }
+}
+if (!$KeepUserData) {
+    $cleanupArgument = if ($Quiet) { '--uninstall-user-data-silent' } else { '--uninstall-user-data' }
+    if ($KeepSettings) { $cleanupArgument += ' --keep-settings' }
+    $cleanup = Start-Process -FilePath $expectedExecutable -ArgumentList $cleanupArgument -WindowStyle Hidden -Wait -PassThru
+    if ($cleanup.ExitCode -ne 0) { throw 'RoBIM 전체 제거가 중단되었습니다. 도구·설정 정리를 완료하지 못해 Manager를 유지합니다.' }
 }
 if ($record.Integrated) {
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMManager'
@@ -48,4 +59,4 @@ if ($record.Integrated) {
 }
 foreach ($path in $targets) { if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force } }
 if (!(Get-ChildItem -LiteralPath $destination -Force | Select-Object -First 1)) { Remove-Item -LiteralPath $destination }
-Write-Output 'RoBIM Manager removed. Installed tools and backups were preserved.'
+Write-Output 'RoBIM Manager removal completed.'

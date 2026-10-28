@@ -5,9 +5,13 @@ namespace RoBIM.Manager.Core;
 /// <summary>Resolve a registered one-button package without a separate discovery step.</summary>
 public static class SingleNativeButton
 {
-    public static CatalogCommand? Registration(ExtensionRepository repository, ExtensionPackage package) =>
-        BundledCatalog.Read().Commands.SingleOrDefault(c => c.Host == "revit" &&
-            c.Repository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && c.PackageId == package.Id);
+    public static CatalogCommand? Registration(ExtensionRepository repository, ExtensionPackage package)
+    {
+        var builtin = BundledCatalog.Read().Commands.SingleOrDefault(c => c.Host == "revit" && c.Repository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase) && c.PackageId == package.Id);
+        if (package.ModuleId.Length == 0) return builtin;
+        if (builtin is not null && (builtin.ModuleId != package.ModuleId || builtin.CommandId != package.CommandId)) throw new IOException("표시 정보와 기존 등록 ID가 다릅니다.");
+        return new(repository.Repository, package.Id, package.ModuleId, package.CommandId, "revit");
+    }
 
     public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source, bool requireChannel = true)
     {
@@ -38,6 +42,15 @@ public static class SingleNativeButton
         }
         var source = !refresh && cached is not null ? cached : await download();
         Validate(repository, package, source);
+        var candidate = NativeProtocol.Module(source.Path);
+        foreach (var other in new ExtensionCatalog(paths).Registered().Where(r => !r.Repository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase)))
+            foreach (var p in other.Packages.Where(p => p.Host == "revit"))
+            {
+                var identity = Registration(other, p);
+                var previous = identity is null ? manager.CachedForFolder(p.Folder) : null;
+                if (candidate.Id == (identity?.ModuleId ?? (previous is null ? null : NativeProtocol.Module(previous.Path).Id)))
+                    throw new IOException("다른 저장소의 설치 모듈과 ID가 중복됩니다.");
+            }
         return manager.Cache(source);
     }
 }

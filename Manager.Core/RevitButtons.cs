@@ -136,6 +136,12 @@ public static class RevitButtons
         var actual = SafeFiles.Hashes(cache.Root); actual.Remove(CacheProof);
         if (!SafeFiles.Same(actual, cache.Hashes)) throw new IOException("버튼 원본 캐시가 변경되었습니다.");
     }
+    public static bool ValidEmptySelection(string source)
+    {
+        var selection = ReadSelection(source);
+        if (selection is not { Selected.Length: 0, Cache: not null }) return false;
+        ValidateCache(selection.Cache); return true;
+    }
     public static SourcePackage Prepare(SourcePackage source, string output, IReadOnlyList<string> selected)
     {
         var buttons = Read(source.Path); var known = buttons.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -228,6 +234,15 @@ public static class RevitButtons
             }
             SafeFiles.DeleteOwnedTree(Path.GetDirectoryName(command)!, command);
         }
+        // Empty pyRevit containers can reappear on startup even with a sentinel layout.
+        // Keep the complete reinstall source in the verified cache, outside the live extension.
+        var retained = selected.SelectMany(Ancestors).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var relative in AllContainers(output, 0).OrderByDescending(x => x.Length).ToArray())
+            if (!retained.Contains(relative))
+            {
+                var obsolete = SafeFiles.Child(output, relative);
+                SafeFiles.DeleteOwnedTree(Path.GetDirectoryName(obsolete)!, obsolete);
+            }
         File.WriteAllText(Path.Combine(output, SelectionFile), JsonSerializer.Serialize(new RevitButtonSelection(1, buttons, selected.ToArray(), cache)));
         File.WriteAllText(Path.Combine(output, "extension.json"), JsonSerializer.Serialize(new { name = "RoBIM-Selected", type = "extension", default_enabled = false, description = "RoBIM 버튼별 선택 설치" }));
         return new(output, source.Version);

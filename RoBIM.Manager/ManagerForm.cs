@@ -40,7 +40,7 @@ public sealed partial class ManagerForm : Form
     {
         this.preview = preview;
         installer = new(paths, EnvironmentProbe.EnsureHostClosed);
-        sources = new(paths);
+        sources = new(paths, RequireChannelAccess);
         Text = "RoBIM Add-in Manager";
         using (var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico")!)
         using (var icon = new Icon(stream)) Icon = (Icon)icon.Clone();
@@ -52,9 +52,11 @@ public sealed partial class ManagerForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.White;
         BuildView();
+        BuildLoginPage();
+        if (!preview && !inspect) InitializeAccess();
         FormClosing += (_, e) => { if (busy) { e.Cancel = true; MessageBox.Show(this, "작업이 끝난 뒤 닫아 주십시오.", Text); } };
         if (preview) { ShowPreviewRows(); _ = RefreshProfileLabel(); }
-        else if (!inspect) Shown += async (_, _) => await StartLocalDisplay();
+        else if (!inspect) Shown += async (_, _) => { await StartLocalDisplay(); await RestoreAccountAccess(); };
     }
     private static Button MakeButton(string text, bool primary = false) => new()
     {
@@ -111,7 +113,7 @@ public sealed partial class ManagerForm : Form
         if (row.Tool.Kind == ToolKind.AutoCAD)
         {
             // Reuse release selection, validation, and checksum verification for a useful cached download.
-            var package = await sources.DownloadCad();
+            var package = await sources.DownloadCad(CanUseTest ? null : "stable");
             latest[row.Tool.Id] = package.Version;
         }
         else
@@ -151,9 +153,10 @@ public sealed partial class ManagerForm : Form
                 }
                 var package = row.Tool.Kind == ToolKind.PyRevit ? await sources.DownloadRevit()
                     : bundled ? await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip"))
-                    : await sources.DownloadCad();
+                    : await sources.DownloadCad(CanUseTest ? null : "stable");
                 if (row.Tool.Kind == ToolKind.PyRevit)
                     package = await Task.Run(() => RevitPackages.Prepare(package, SafeFiles.Child(paths.Data, "Prepared/" + Guid.NewGuid().ToString("N")), false));
+                RequirePackageAccess(row.Tool, package);
                 await Task.Run(() => installer.Install(row.Tool, package));
                 WriteLog("설치 완료: " + package.Version + ". 제품을 다시 시작하면 적용됩니다.");
             }
@@ -162,13 +165,9 @@ public sealed partial class ManagerForm : Form
         });
     }
 
-    private static void ValidateCadRuntime()
+    private void ValidateCadRuntime()
     {
-        var runtime = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "AutoCAD 2026", "acdbmgd.runtimeconfig.json");
-        if (!File.Exists(runtime)) throw new IOException("기본 경로의 AutoCAD 2026 설치를 찾지 못했습니다. 이 버전은 AutoCAD 2026.1.2+가 필요합니다.");
-        using var document = JsonDocument.Parse(File.ReadAllText(runtime));
-        if (document.RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString() != "net10.0")
-            throw new IOException("이 CAD 도구에는 .NET 10 기반 AutoCAD 2026.1.2 이상이 필요합니다.");
+        EnsureHostRuntime(cad: true);
     }
 
     private async Task RemoveSelected()
@@ -185,6 +184,7 @@ public sealed partial class ManagerForm : Form
         {
             var backup = installer.Backups(row.Tool).FirstOrDefault() ?? throw new IOException("복원할 백업이 없습니다.");
             if (!Confirm(row.Tool.Name + "을 " + backup.Record.Version + " 버전으로 복원합니까?\n현재 버전도 먼저 백업합니다.")) return;
+            RequirePackageAccess(row.Tool, new SourcePackage(Path.Combine(backup.Directory, "content"), backup.Record.Version));
             await Task.Run(() => installer.Restore(row.Tool, backup));
             WriteLog("이전 버전을 복원했습니다. 제품을 다시 시작하십시오.");
             await RefreshStatuses();
@@ -194,10 +194,12 @@ public sealed partial class ManagerForm : Form
     private bool Confirm(string text) => MessageBox.Show(this, text, "RoBIM Manager", MessageBoxButtons.YesNo,
         MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
 
-    private async Task Run(string name, Func<Task> operation)
+    private async Task Run(string name, Func<Task> operation, bool requiresAccess = true)
     {
         if (busy || preview || refreshingSnapshot) return;
+        if (requiresAccess && !Allowed) { SwitchPage("Account"); ApplyAccessState(); return; }
         busy = true;
+        UpdateLoginPage();
         toolbar.Enabled = actions.Enabled = grid.Enabled = false;
         userPage.Enabled = developerPage.Enabled = accountPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = false;
         foreach (var control in navigation) control.Enabled = false;
@@ -217,6 +219,7 @@ public sealed partial class ManagerForm : Form
             ShowSelected();
             RefreshProductAction();
             if (currentPage == "Locations") UpdateLocationActions();
+            ApplyAccessState();
         }
     }
 
@@ -236,7 +239,7 @@ public sealed partial class ManagerForm : Form
     private void ShowPreviewRows()
     {
         var sheetPackage = new ExtensionPackage("sheets", "RoBIM 시트 생성", "revit", ".", "RoBIM.Sheets.bundle", "release", "RoBIM-Sheets-Revit2026.zip", "CAD · PDF 도면목록에서 도면번호와 도면명을 읽어 Revit 시트를 생성합니다.");
-        availablePackages.Add(new PackageRow(new ExtensionRepository("gagaggan/RoBIM-Revit-Addin", "main", [sheetPackage], "화면 확인용 예시"), sheetPackage));
+        availablePackages.Add(new PackageRow(new ExtensionRepository("RoBIM-tech/RoBIM-Revit-Addin", "main", [sheetPackage], "화면 확인용 예시"), sheetPackage));
         var cad = new ToolStatus(Catalog.Cad, paths.Target(Catalog.Cad), "v1.0.0-preview.1", true, false, false, "관리 중");
         var revit = new ToolStatus(Catalog.Revit, @"C:\RoBIM\RoBIM.extension", "main@82b51a7e0d42", false, true, false, "기존 설치 연결 · 브랜치 유지");
         foreach (var row in new[] { cad, revit })

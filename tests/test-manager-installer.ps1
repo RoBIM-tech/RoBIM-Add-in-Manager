@@ -34,7 +34,7 @@ $preview = Join-Path $runRoot 'preview.png'
 $process = Start-Process -FilePath (Join-Path $target 'RoBIM.Manager.exe') -ArgumentList @('--render-preview',('"' + $preview + '"')) -PassThru -WindowStyle Hidden
 if (!$process.WaitForExit(15000)) { Stop-Process -Id $process.Id -Force; throw 'Installed manager render timeout' }
 if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $preview)) { throw 'Installed self-contained manager failed to render' }
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $target 'Uninstall.ps1') -Quiet
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $target 'Uninstall.ps1') -Quiet -KeepUserData
 if ($LASTEXITCODE -ne 0) { throw 'Uninstall failed' }
 if ((Test-Path -LiteralPath (Join-Path $target 'RoBIM.Manager.exe')) -or !(Test-Path -LiteralPath $preserved)) { throw 'Uninstall failed to preserve unknown file' }
 $external = Join-Path $runRoot 'external'

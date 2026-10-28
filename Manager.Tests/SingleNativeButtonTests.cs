@@ -7,7 +7,9 @@ internal static class SingleNativeButtonTests
     public static void Run(Action<string,Action> test, Func<string,ManagerPaths> paths, Action<bool,string> require, string root)
     {
         var repo = BundledCatalog.Read().Repositories.Single(r => r.Repository.EndsWith("/RoBIM-Revit-ParameterCopy"));
-        var package = repo.Packages.Single();
+        // These fixtures intentionally model TEST bytes independently of the bundled default channel.
+        var package = repo.Packages.Single() with { Channel = "test" };
+        var originalPackageName = package.Name;
         var registration = SingleNativeButton.Registration(repo, package)!;
         SourcePackage Fixture(string name, string moduleId = "parameter-copy", string commandId = "copy", bool two = false)
         {
@@ -17,7 +19,41 @@ internal static class SingleNativeButtonTests
             NativeProtocol.Save(Path.Combine(dir, NativeProtocol.ManifestName), new NativeModule(1, moduleId, "0.1.0-test.2", "command-only", two ? [command, command with { Id = "extra" }] : [command]));
             return new(dir,"0.1.0-test.2");
         }
-        void Reject(Action action) { bool rejected=false; try {action();} catch(IOException) {rejected=true;} require(rejected,"Invalid package accepted"); }
+        void Reject(Action action) { bool rejected=false; try {action();} catch(Exception ex) when (ex is IOException or UnauthorizedAccessException) {rejected=true;} require(rejected,"Invalid package accepted"); }
+        test("OrdinaryUserCannotImportOrCacheTestAndCanRemoveOldSelection", () => {
+            var target=paths("channel-access-test"); var existing=new NativeRevitCommands(target);
+            var source=existing.Cache(Fixture("channel-access-old")); existing.Toggle(source.Path,"copy",true);
+            var before=JsonSerializer.Serialize(existing.Desired());
+            void StableOnly(string channel) { if(channel!="stable") throw new IOException("TEST denied"); }
+            var restricted=new NativeRevitCommands(target,requireChannel:StableOnly);
+            Reject(()=>restricted.Cache(Fixture("channel-access-new")));
+            var input=Fixture("channel-access-zip"); var archive=Path.Combine(root,"channel-access.zip");
+            System.IO.Compression.ZipFile.CreateFromDirectory(Path.GetDirectoryName(input.Path)!,archive);
+            File.WriteAllText(archive+".sha256",SafeFiles.Hash(archive));
+            Reject(()=>restricted.Import(archive));
+            require(JsonSerializer.Serialize(existing.Desired())==before,"Denied import changed the selected generation");
+            restricted.Toggle(source.Path,"copy",false);
+            require(restricted.Desired()!.Modules.Length==0,"Revoked TEST user could not remove old selection");
+        });
+        test("OrdinaryUserCanCacheVerifiedStableButUnknownRemainsBlocked", () => {
+            var target=paths("channel-access-stable"); var source=Fixture("channel-stable");
+            var module=NativeProtocol.Module(source.Path) with { Version="0.1.0" };
+            NativeProtocol.Save(Path.Combine(source.Path,NativeProtocol.ManifestName),module);
+            var guarded=new NativeRevitCommands(target,requireChannel: channel=> { if(channel!="stable") throw new IOException("denied"); });
+            Reject(()=>guarded.Cache(source));
+            File.WriteAllText(Path.Combine(source.Path,"robim-release.json"),"{\"schemaVersion\":1,\"modules\":[{\"id\":\"parameter-copy\",\"version\":\"0.1.0\",\"channel\":\"stable\",\"validation\":{\"by\":\"fixture\",\"hostBuild\":\"fixture\",\"evidence\":\"https://example.test/validation\"}}]}");
+            var cached=guarded.Cache(source); guarded.Toggle(cached.Path,"copy",true);
+            require(guarded.Desired()!.Modules.Single().Selected.Single()=="copy","Verified stable was rejected");
+        });
+        test("RevokedTestScopeCannotAutoPrepareCachedUpdates", () => {
+            var target=paths("channel-revocation-update"); var existing=new NativeRevitCommands(target);
+            var first=existing.Cache(Fixture("channel-revocation-first")); existing.Toggle(first.Path,"copy",true);
+            var newer=Fixture("channel-revocation-next"); File.AppendAllText(Path.Combine(newer.Path,"Feature.dll"),"new version"); existing.Cache(newer);
+            var before=JsonSerializer.Serialize(existing.Desired());
+            var restricted=new NativeRevitCommands(target,requireChannel: channel=> { if(channel!="stable") throw new IOException("denied"); });
+            restricted.PrepareCachedUpdates();
+            require(JsonSerializer.Serialize(existing.Desired())==before,"Anonymous/ordinary Reload advanced TEST code");
+        });
         test("AutomaticApplyRequestsOnlyExplicitPreparedSelection", () => {
             var target = paths("auto-apply-explicit"); var manager = new NativeRevitCommands(target, () => new(123,456));
             var source = manager.Cache(Fixture("auto-apply-first")); manager.Toggle(source.Path, "copy", true);
@@ -31,7 +67,7 @@ internal static class SingleNativeButtonTests
         });
         test("SingleNativeNamesAreDisplayOnly",()=> {
             require(ToolNames.Display("RoBIM 파라미터 복사") == "파라미터 복사" && ToolNames.Display("RoBIMatic") == "RoBIMatic", "Prefix handling changed tool names incorrectly");
-            require(ExtensionCatalog.Tool(repo,package).Name == "파라미터 복사" && package.Name.StartsWith("RoBIM "), "Display cleanup mutated source descriptor");
+            require(ExtensionCatalog.Tool(repo,package).Name == "파라미터 복사" && package.Name == originalPackageName, "Display cleanup mutated source descriptor");
         });
         test("SingleNativeRejectsWrongIdentityOrMultipleCommands",()=> {
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("wrong-module","wrong")));
@@ -53,6 +89,23 @@ internal static class SingleNativeButtonTests
             require(manager.Desired()!.Id==before.Id && manager.Desired()!.Modules.Single().Manifest.Version=="0.1.0-test.2","Catalog update silently upgraded installed channel");
             var selected=manager.Toggle(source.Path,"copy",true);
             require(selected.Modules.Single().Manifest.Version=="0.1.0","Explicit upgrade did not select stable bytes");
+        });
+        test("StableAndTestSwitchOnlyOnExplicitSelectionAndKeepOneRibbonIdentity", () => {
+            var target=paths("two-channel-switch"); var manager=new NativeRevitCommands(target,()=>null);
+            var stable=Fixture("two-channel-stable");
+            NativeProtocol.Save(Path.Combine(stable.Path,NativeProtocol.ManifestName),NativeProtocol.Module(stable.Path) with { Version="0.2.0" });
+            File.WriteAllText(Path.Combine(stable.Path,"robim-release.json"),JsonSerializer.Serialize(new{schemaVersion=1,modules=new[]{new{id="parameter-copy",version="0.2.0",channel="stable",validation=new{by="fixture",hostBuild="Revit 2026.5",evidence="https://example.org/check"}}}}));
+            var cached=manager.Cache(stable); var before=manager.Toggle(cached.Path,"copy",true);
+            var testSource=Fixture("two-channel-test");
+            var test=SingleNativeButton.Resolve(target,repo,ExtensionCatalog.ReleaseChannel(package,"test"),()=>Task.FromResult(testSource),refresh:true).GetAwaiter().GetResult();
+            require(manager.Desired()!.Id==before.Id && manager.Desired()!.Modules.Single().Manifest.Version=="0.2.0","Discovering TEST changed installed stable");
+            manager.PrepareCachedUpdates();
+            require(manager.Desired()!.Id==before.Id,"Generic Reload silently switched channel");
+            var chosen=manager.Toggle(test.Path,"copy",true);
+            require(chosen.Modules.Length==1 && chosen.Modules[0].Manifest.Id=="parameter-copy" && chosen.Modules[0].Selected.SequenceEqual(new[]{"copy"}),"TEST duplicated ribbon identity");
+            var back=SingleNativeButton.Resolve(target,repo,ExtensionCatalog.ReleaseChannel(package,"stable"),()=>Task.FromResult(stable),refresh:true).GetAwaiter().GetResult();
+            manager.Toggle(back.Path,"copy",true);
+            require(manager.Desired()!.Modules.Single().Manifest.Version=="0.2.0","Explicit return to stable failed");
         });
         test("ReleaseDescriptorRefreshAllowsChannelAndNameButRejectsIdentityChange",()=> {
             var promoted=package with {Channel="stable",Name="파라미터 복사"};
@@ -112,6 +165,34 @@ internal static class SingleNativeButtonTests
         });
     }
 
+    public static async Task ReleaseChannels(string root)
+    {
+        Directory.CreateDirectory(root);
+        var paths = new ManagerPaths(Path.Combine(root, "data"), Path.Combine(root, "cad"), Path.Combine(root, "revit"));
+        var catalog = new ExtensionCatalog(paths);
+        var repository = await catalog.Inspect("https://github.com/RoBIM-tech/RoBIM-Revit-Sheets");
+        var package = repository.Packages.Single();
+        catalog.Register(repository);
+        var registered = File.ReadAllBytes(Path.Combine(paths.Data, "extension-repositories.json"));
+        var results = new List<object>();
+        foreach (var channel in new[] { "stable", "test", "stable" })
+        {
+            var requested = ExtensionCatalog.ReleaseChannel(package, channel);
+            var source = await SingleNativeButton.Resolve(paths, repository, requested,
+                () => catalog.Download(repository, package, channel), refresh: true);
+            var module = SingleNativeButton.Validate(repository, requested, source);
+            var release = ModuleReleases.Native(source.Path, module.Id, module.Version);
+            if (release.Channel != channel) throw new IOException("Downloaded release channel mismatch");
+            var manager = new NativeRevitCommands(paths, () => null);
+            manager.Toggle(source.Path, module.Commands.Single().Id, true);
+            if (manager.Desired()!.Modules.Single().Manifest.Version != module.Version) throw new IOException("Explicit version was not selected");
+            if (!registered.SequenceEqual(File.ReadAllBytes(Path.Combine(paths.Data, "extension-repositories.json"))))
+                throw new IOException("Explicit channel choice changed registered defaults");
+            results.Add(new { Channel = channel, module.Version, module.Id, Passed = true });
+            Console.WriteLine("PASS repository download and isolated selection: " + channel + " / " + module.Version);
+        }
+        File.WriteAllText(Path.Combine(root, "release-channel-results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+    }
     public static async Task Downloads(string root)
     {
         Directory.CreateDirectory(root);

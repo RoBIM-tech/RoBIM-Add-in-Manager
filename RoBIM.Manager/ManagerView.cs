@@ -33,14 +33,15 @@ public sealed partial class ManagerForm
     private void BuildView()
     {
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
-        var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 540, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 590, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit 독립 Add-in"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Test", "TEST 도구"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit 독립 Add-in"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Navisworks", "Navisworks"), ("Test", "TEST 도구"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
             button.FlatAppearance.BorderSize = 0;
             button.Click += (_, _) => SwitchPage(id);
+            if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") button.Visible = false;
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
@@ -178,6 +179,7 @@ public sealed partial class ManagerForm
         };
         devRestore.Click += async (_, _) => await Run("TEST 복원", async () =>
         {
+            RequireChannelAccess("test");
             var backup = installer.Backups(Catalog.RevitDeveloper).FirstOrDefault() ?? throw new IOException("복원할 TEST 백업이 없습니다.");
             if (Confirm(backup.Record.Version + "으로 복원합니까?")) await Task.Run(() => installer.Restore(Catalog.RevitDeveloper, backup));
             await RefreshProfileLabel();
@@ -186,36 +188,53 @@ public sealed partial class ManagerForm
 
     private void BuildAccountPage()
     {
-        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
         panel.Controls.Add(accountStatus);
-        var selectRow = Row(); var selectAccount = MakeButton("선택 계정 연결");
-        selectRow.Controls.AddRange([Note("저장 계정"), savedAccounts, selectAccount]); panel.Controls.Add(selectRow);
+        BuildAccountOptions(panel);
+        var accountActions = Row();
+        var logout = MakeButton("로그아웃"); logout.Click += (_, _) => SignOut();
+        accountActions.Controls.AddRange([accountSwitchButton, logout]); panel.Controls.Add(accountActions);
+        panel.Controls.Add(accountSwitchPanel);
+        accountSwitchButton.Click += (_, _) =>
+        {
+            accountSwitchPanel.Visible = !accountSwitchPanel.Visible;
+            accountSwitchButton.Text = accountSwitchPanel.Visible ? "계정 변경 닫기" : "계정 변경";
+        };
+        var selectRow = Row(); var selectAccount = MakeButton("이 계정 사용");
+        selectRow.Controls.AddRange([Note("저장 계정"), savedAccounts, selectAccount]); accountSwitchPanel.Controls.Add(selectRow);
         selectAccount.Click += async (_, _) => await Run("GitHub 계정 선택", async () =>
         {
             if (savedAccounts.SelectedItem is not string loginName) throw new IOException("저장된 계정을 선택하십시오.");
-            await GitHubSession.UseBrowser(loginName); await RefreshAccountAndCatalog();
-        });
-        panel.Controls.Add(Note("GitHub 로그인은 브라우저에서 진행합니다. 로그인 정보는 Windows 자격 증명 관리자에 저장되어 다음 실행에도 사용됩니다."));
-        var buttons = Row(); var login = MakeButton("GitHub 로그인 / 저장", true); var verify = MakeButton("저장된 연결 확인");
-        buttons.Controls.AddRange([login, verify]); panel.Controls.Add(buttons);
+            teamAccess?.Lock(); await GitHubSession.UseBrowser(loginName); await RefreshAccountAndCatalog();
+        }, requiresAccess: false);
+        var login = MakeButton("다른 GitHub 계정으로 로그인", true);
+        accountSwitchPanel.Controls.Add(login);
+        accountSwitchPanel.Controls.Add(Note("브라우저에서 계정을 선택합니다. 로그인 정보는 Windows 자격 증명 관리자에 보관합니다."));
+        panel.Controls.Add(accountAdvancedButton); panel.Controls.Add(accountAdvancedPanel);
+        accountAdvancedButton.Click += (_, _) =>
+        {
+            accountAdvancedPanel.Visible = !accountAdvancedPanel.Visible;
+            accountAdvancedButton.Text = accountAdvancedPanel.Visible ? "고급 설정 닫기" : "고급 설정";
+            if (!accountAdvancedPanel.Visible) tokenInput.Clear();
+        };
         var tokenRow = Row(); var saveToken = MakeButton("토큰 확인 및 저장"); var deleteToken = MakeButton("현재 토큰 삭제");
-        tokenRow.Controls.AddRange([Note("토큰(PAT)"), tokenInput, saveToken, deleteToken]); panel.Controls.Add(tokenRow);
-        panel.Controls.Add(Note("토큰은 확인 후 Windows 자격 증명 관리자에 저장합니다. 토큰이 속한 실제 GitHub ID를 표시하며 선택한 저장소의 Metadata / Contents 읽기 권한이 필요합니다."));
+        accountAdvancedPanel.Controls.Add(Note("브라우저 로그인을 사용할 수 없을 때만 개인 액세스 토큰(PAT)을 입력하세요."));
+        tokenRow.Controls.AddRange([Note("토큰(PAT)"), tokenInput, saveToken, deleteToken]); accountAdvancedPanel.Controls.Add(tokenRow);
+        accountAdvancedPanel.Controls.Add(Note("토큰에는 저장소 읽기와 조직의 팀 구성원 읽기 권한(read:org 또는 조직 Members 읽기)이 필요합니다. Windows 자격 증명 관리자에만 저장합니다."));
         saveToken.Click += async (_, _) =>
         {
             var entered = tokenInput.Text.Trim(); tokenInput.Clear();
-            try { await Run("토큰 확인 및 저장", async () => { await GitHubSession.UseToken(entered); await RefreshAccountAndCatalog(); }); }
+            try { await Run("토큰 확인 및 저장", async () => { teamAccess?.Lock(); await GitHubSession.UseToken(entered); await RefreshAccountAndCatalog(); }, requiresAccess: false); }
             finally { entered = ""; tokenInput.Clear(); }
         };
         deleteToken.Click += async (_, _) => await Run("현재 토큰 삭제", async () =>
-        { GitHubSession.RemoveToken(); extensionGrid.Rows.Clear(); await RefreshAccount(); });
-        panel.Controls.Add(Note("사용자 설정이나 pyRevit INI에 토큰을 기록하지 않습니다. 계정 삭제는 Windows 자격 증명 관리자에서 처리할 수 있습니다."));
+        { teamAccess?.Lock(); GitHubSession.RemoveToken(); extensionGrid.Rows.Clear(); await RefreshAccount(); }, requiresAccess: false);
         var diagnostic = MakeButton("작업 기록 보기"); diagnostic.Click += (_, _) =>
         {
             using var dialog = new Form { Text = "작업 기록", Size = new Size(850, 450), StartPosition = FormStartPosition.CenterParent };
             dialog.Controls.Add(new TextBox { Text = log.Text, Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical }); dialog.ShowDialog(this);
         };
-        panel.Controls.Add(diagnostic); accountPage.Controls.Add(panel);
+        accountAdvancedPanel.Controls.Add(diagnostic); accountPage.Controls.Add(panel);
         var bridge = MakeButton("Revit Reload 연결 설치");
         bridge.Click += async (_, _) => await Run("Revit Reload 연결 설치", async () =>
         {
@@ -223,14 +242,39 @@ public sealed partial class ManagerForm
             await Task.Run(() => ReloadBridge.Install(paths, Path.Combine(AppContext.BaseDirectory, "RoBIM-ReloadBridge.zip")));
             MessageBox.Show(this, "Reload 연결을 설치했습니다. Revit에서 pyRevit Reload를 한 번 누르십시오.\nRoBIM TEST → RoBIM 연결 TEST → 적용 및 Reload 버튼이 표시됩니다.", Text);
         });
-        panel.Controls.Add(bridge);
-        panel.Controls.Add(Note("Revit을 켜 둔 채 파일을 준비한 뒤, Revit 안의 적용 및 Reload 버튼에서 반영합니다. DLL 변경은 재시작이 필요합니다."));
-        login.Click += async (_, _) => await Run("GitHub 로그인", async () => { await GitHubAccount.LoginAndSave(); await RefreshAccountAndCatalog(); });
-        verify.Click += async (_, _) => await Run("저장된 연결 확인", RefreshAccountAndCatalog);
+        var retirePython = MakeButton("기존 RoBIM pyRevit 연결 제거");
+        retirePython.Enabled = !preview && !RevitRuntimePolicy.NativeOnly(paths);
+        retirePython.Click += async (_, _) =>
+        {
+            if (!Confirm("기존 RoBIM pyRevit 버튼과 Manager용 pyRevit 연결을 백업 후 제거합니까?\n독립 Add-in과 다른 pyRevit 확장은 유지합니다. Revit을 저장하고 종료한 상태에서 실행하십시오.")) return;
+            await Run("RoBIM Native 전용 전환", async () =>
+            {
+                var backup = await Task.Run(() =>
+                {
+                    EnvironmentProbe.EnsureHostClosed(Catalog.Revit);
+                    var retirement = new PyRevitRetirement(paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini"));
+                    var plan = retirement.Prepare();
+                    NativeCommands().InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+                    retirement.Apply(plan);
+                    return Path.Combine(paths.Data, "Backups", "PyRevitRetirement", plan.Id);
+                });
+                foreach (var navigationItem in navigation.Where(x => x.Tag is string page && page is "PyRevit" or "Developer" or "Locations")) navigationItem.Visible = false;
+                retirePython.Enabled = false; bridge.Visible = false;
+                WriteLog("RoBIM pyRevit 연결 제거 완료 · 복구 백업: " + backup);
+            });
+            SwitchPage("Revit");
+        };
+        retirePython.Visible = preview || !RevitRuntimePolicy.NativeOnly(paths);
+        accountAdvancedPanel.Controls.Add(retirePython);
+        bridge.Visible = preview || !RevitRuntimePolicy.NativeOnly(paths);
+        accountAdvancedPanel.Controls.Add(bridge);
+        login.Click += async (_, _) => await Run("GitHub 로그인", async () => { teamAccess?.Lock(); await LoginGitHub(); await RefreshAccountAndCatalog(); }, requiresAccess: false);
     }
 
     private void SwitchPage(string id)
     {
+        if (!CanUseTest && id == "Test") id = "Revit";
+        if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") id = "Revit";
         if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
         currentPage = id;
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";
@@ -242,8 +286,8 @@ public sealed partial class ManagerForm
         productsPage.Visible = IsProductPage;
         profileLabel.Visible = id is "Revit" or "PyRevit" or "Cad" or "Developer";
         _ = RefreshProfileLabel();
-        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit 독립 Add-in" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
-        pageSubtitle.Text = id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "처음 한 번 계정을 연결하면 설치할 수 있습니다.";
+        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit 독립 Add-in" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
+        pageSubtitle.Text = id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
         foreach (var control in navigation)
         {
             var selected = (string?)control.Tag == id;
@@ -276,18 +320,25 @@ public sealed partial class ManagerForm
 
     private async Task RefreshAccount()
     {
+        await accountRefreshGate.WaitAsync();
+        checkingAccess = true;
+        sessionStarted = true;
         try
         {
             savedAccounts.Items.Clear();
             try { savedAccounts.Items.AddRange((await GitHubAccount.SavedAccounts()).Cast<object>().ToArray()); } catch (IOException) { }
-            var identity = await GitHubSession.Identify();
+            var access = teamAccess is null ? null : await teamAccess.Refresh();
+            if (access is { Allowed: false }) throw new IOException(access.Detail);
+            var identity = access is null ? await GitHubSession.Identify() : new GitHubIdentity(access.Login, GitHubSession.Current().Mode);
             authenticated = true; connectedLogin = identity.Login;
-            accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (identity.Mode == "Token" ? "토큰 인증" : "브라우저 계정");
+            accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (access?.Role ?? "계정 연결");
             catalogIdentity.Text = accountStatus.Text;
             if (savedAccounts.Items.Contains(identity.Login)) savedAccounts.SelectedItem = identity.Login;
         }
-        catch (Exception) { authenticated = false; connectedLogin = ""; accountStatus.Text = "GitHub 연결 확인 필요"; catalogIdentity.Text = "설정 / GitHub에서 계정 또는 토큰을 연결하십시오."; }
-        RefreshProductAction();
+        catch (Exception error) { teamAccess?.Lock(error.Message); authenticated = false; connectedLogin = ""; accountStatus.Text = error.Message; catalogIdentity.Text = error.Message; }
+        finally { checkingAccess = false; accountRefreshGate.Release(); if (!IsDisposed) ApplyAccessState(); }
+        if (!IsDisposed) RefreshProductAction();
+        if (!IsDisposed) _ = CheckManagerUpdate();
     }
 
     private Task RefreshProfileLabel()
@@ -321,6 +372,7 @@ public sealed partial class ManagerForm
         if (!Confirm((prepareReload ? "Revit 안에서 적용할 TEST 사본을 준비합니다." : "개발 TEST 사본을 설치합니다.") + "\n브랜치: " + loadedBranch + "\n패널: " + string.Join(", ", selected) + "\n운영 설치와 개발 원본은 유지합니다. 프로필 적용은 별도입니다.")) return;
         await Run("TEST 설치", async () =>
         {
+            RequireChannelAccess("test");
             SavePreferences(); _ = await EnvironmentProbe.RevitRoots();
             if (!prepareReload) EnvironmentProbe.EnsureHostClosed(Catalog.RevitDeveloper);
             var output = SafeFiles.Child(paths.Data, "Prepared/" + Guid.NewGuid().ToString("N"));
@@ -341,6 +393,7 @@ public sealed partial class ManagerForm
         if (!Confirm((developer ? "개발자 TEST" : "사용자") + " 프로필을 적용합니까?\nRevit 실행 중에는 적용 요청만 준비하며 Revit 안의 적용 및 Reload 버튼에서 전환합니다. 다른 RoBIM 프로필 파일은 보존합니다.")) return;
         await Run("Revit 프로필 적용", async () =>
         {
+            if (developer) RequireChannelAccess("test");
             _ = await EnvironmentProbe.RevitRoots();
             if (ReloadBridge.RevitRunning())
             {

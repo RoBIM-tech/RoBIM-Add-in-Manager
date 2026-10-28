@@ -23,7 +23,8 @@ public sealed partial class ManagerForm
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6 };
         for (var i = 0; i < 6; i++) layout.RowStyles.Add(new(i == 2 ? SizeType.Percent : SizeType.AutoSize, i == 2 ? 100 : 0));
         var top = Row(); var refresh = MakeButton("계정 저장소 새로 고침");
-        top.Controls.AddRange([refresh, catalogIdentity]); layout.Controls.Add(top);
+        var publishers = MakeButton("제작자·조직"); publishers.Click += (_, _) => EditRepositoryPublishers();
+        top.Controls.AddRange([refresh, publishers, catalogIdentity]); layout.Controls.Add(top);
         layout.Controls.Add(Note("애드인 토픽 또는 RoBIM 기본 도구만 자동 표시합니다. 다른 저장소는 Git URL로 구조를 확인하여 등록할 수 있습니다."));
         foreach (var (name, title, weight) in new[] { ("Name", "패키지", 125), ("Host", "제품", 65), ("Repo", "저장소", 180), ("Branch", "브랜치", 75), ("Status", "설치 상태", 150) })
             extensionGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = name, HeaderText = title, FillWeight = weight, SortMode = DataGridViewColumnSortMode.NotSortable });
@@ -46,8 +47,8 @@ public sealed partial class ManagerForm
         {
             // Validate locally before echoing any URL into the UI or a log.
             var repository = ExtensionCatalog.Repository(gitUrl.Text);
-            var entry = await new ExtensionCatalog(paths).Inspect("https://github.com/" + repository);
-            new ExtensionCatalog(paths).Register(entry); gitUrl.Text = "https://github.com/" + entry.Repository + ".git";
+            var entry = await ExtensionSources().Inspect("https://github.com/" + repository);
+            ExtensionSources().Register(entry); gitUrl.Text = "https://github.com/" + entry.Repository + ".git";
             await RefreshExtensionCatalog();
         });
         installPackage.Click += (_, _) =>
@@ -72,13 +73,14 @@ public sealed partial class ManagerForm
     private async Task RefreshAccountAndCatalog()
     {
         await RefreshAccount();
+        if (!Allowed) return;
         try { await RefreshExtensionCatalog(); }
         catch (Exception ex) { catalogInfo.Text = "저장된 목록 유지 · 저장소 조회 실패: " + ex.Message; WriteLog(catalogInfo.Text); }
     }
     private async Task RefreshExtensionCatalog()
     {
         repositoryLookupCount++;
-        var result = await Task.Run(() => new ExtensionCatalog(paths).Discover());
+        var result = await Task.Run(() => new RepositoryDiscovery(paths).Refresh());
         availablePackages.Clear();
         foreach (var repository in result.Repositories)
             foreach (var package in repository.Packages) availablePackages.Add(new PackageRow(repository, package));
@@ -112,7 +114,8 @@ public sealed partial class ManagerForm
         {
             EnvironmentProbe.EnsureHostClosed(tool);
             if (tool.Kind == ToolKind.PyRevit) _ = await EnvironmentProbe.RevitRoots();
-            var catalog = new ExtensionCatalog(paths); var package = await catalog.Download(row.Repository, row.Package);
+            var catalog = ExtensionSources(); var package = await catalog.Download(row.Repository, row.Package);
+            RequirePackageAccess(tool, package);
             await Task.Run(() => installer.Install(tool, package)); catalog.Register(row.Repository);
             await RefreshExtensionCatalog(); WriteLog("확장 설치 완료: " + row.Repository.Repository + " · " + package.Version);
         });
@@ -136,6 +139,7 @@ public sealed partial class ManagerForm
             if (restoreBackup)
             {
                 var backup = installer.Backups(tool).FirstOrDefault() ?? throw new IOException("복원할 백업이 없습니다.");
+                RequirePackageAccess(tool, new SourcePackage(Path.Combine(backup.Directory, "content"), backup.Record.Version));
                 await Task.Run(() => installer.Restore(tool, backup));
             }
             else await Task.Run(() => installer.Remove(tool));

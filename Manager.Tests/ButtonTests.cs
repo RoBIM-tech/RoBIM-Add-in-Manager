@@ -43,7 +43,7 @@ internal static class ButtonTests
             var ids = RevitButtons.Read(source).Select(x => x.Id).ToArray();
             var package = RevitButtons.Prepare(new(source, "v1"), source + "-selected", ids);
             require(!Directory.Exists(Path.Combine(package.Path, "RoBIM TEST.tab/Personal.panel/Draft.pushbutton")) && File.Exists(RevitButtons.ResourcePath(package.Path, "RoBIM TEST.tab/Personal.panel/Draft.pushbutton/script.py")), "Draft source not safely archived outside ribbon tree");
-            require(File.ReadAllText(Path.Combine(package.Path, "RoBIM TEST.tab/bundle.yaml")).Contains("__ROBIM_NO_SELECTED_BUTTONS__") && File.ReadAllText(Path.Combine(package.Path, "RoBIM TEST.tab/Personal.panel/bundle.yaml")).Contains("__ROBIM_NO_SELECTED_BUTTONS__"), "Unlisted TEST containers remain visible");
+            require(!Directory.Exists(Path.Combine(package.Path, "RoBIM TEST.tab")), "Unselected TEST tab/panel remains in live tree");
         });
         test("EmptyButtonSelectionDoesNotShowAll", () =>
         {
@@ -51,7 +51,7 @@ internal static class ButtonTests
             require(File.ReadAllText(Path.Combine(package.Path, "bundle.yaml")).Contains("__ROBIM_NO_SELECTED_BUTTONS__"), "Empty layout would expose every button");
             require(RevitButtons.ReadSelection(package.Path)!.Selected.Length == 0, "Empty state");
             require(!Directory.Exists(Path.Combine(package.Path, ".robim-disabled")), "Uninstalled scripts remain inside installation");
-            require(!Directory.EnumerateDirectories(Path.Combine(package.Path, "RoBIM 기본.tab/Elements.panel"), "*.pushbutton").Any(), "Uninstalled commands remain in active tree");
+            require(!Directory.Exists(Path.Combine(package.Path, "RoBIM 기본.tab")), "Uninstalled tab/panel remains in active tree");
             var id = RevitButtons.Read(package.Path)[0].Id;
             var enabled = RevitButtons.Prepare(package, source + "-reenabled", [id]);
             require(File.Exists(Path.Combine(enabled.Path, id, "script.py")) && RevitButtons.ReadSelection(enabled.Path)!.Selected.SequenceEqual([id]), "Archived button cannot be reinstalled");

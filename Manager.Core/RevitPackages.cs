@@ -56,7 +56,7 @@ public static class RevitPackages
         File.WriteAllText(Path.Combine(output, "extension.json"), JsonSerializer.Serialize(new
         {
             name = developer ? "RoBIM-Developer" : "RoBIM", type = "extension",
-            url = "https://github.com/gagaggan/RoBIM-pyrevit.git", default_enabled = !developer,
+            url = "https://github.com/RoBIM-tech/RoBIM-pyrevit.git", default_enabled = !developer,
             description = developer ? "RoBIM 개인 TEST 프로필" : "RoBIM 사용자 프로필"
         }));
         File.WriteAllText(Path.Combine(output, "robim-profile.json"), JsonSerializer.Serialize(new

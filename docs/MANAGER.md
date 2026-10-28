@@ -15,7 +15,7 @@ pending.json이 있다는 사실은 적용 완료가 아니다. Manager는 Resul
 
 사용 순서는 [간단 사용설명서](USER_GUIDE_KO.md)를 참고하십시오.
 
-이 저장소는 매니저·Setup·Reload 연결과 문서를 관리합니다. CAD는 gagaggan/RoBIM-CAD, Revit은 gagaggan/RoBIM-pyrevit에서 관리합니다. 초기 구현의 이전 Git 이력은 CAD 저장소의 과거 브랜치에 보존하고 현재 작업과 배포는 이 저장소로 분리합니다.
+이 저장소는 매니저·Setup·Reload 연결과 문서를 관리합니다. CAD는 RoBIM-tech/RoBIM-CAD, Revit은 RoBIM-tech/RoBIM-pyrevit에서 관리합니다. 초기 구현의 이전 Git 이력은 CAD 저장소의 과거 브랜치에 보존하고 현재 작업과 배포는 이 저장소로 분리합니다.
 
 - Manager.Core: .NET 10 설치·백업·복원·GitHub 인증·패키지 검색·설치 흐름 정책
 - RoBIM.Manager: Windows Forms. Revit / AutoCAD 제품별 목록과 한 개의 기본 작업 버튼
