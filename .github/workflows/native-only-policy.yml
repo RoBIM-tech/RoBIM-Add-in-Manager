@@ -14,3 +14,11 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Compile production policy and verify pyRevit is disabled
         run: dotnet run -c Release --project tests/NativeOnlyPolicy/NativeOnlyPolicy.csproj
+      - name: Check Windows builder PowerShell syntax
+        shell: pwsh
+        run: |
+          foreach ($path in @('build-manager.ps1', 'scripts/Build-ManagerTestLocal.ps1', 'installer/Install.ps1')) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { throw "$path parse error: $($errors | Out-String)" }
+          }
