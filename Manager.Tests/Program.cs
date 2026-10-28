@@ -61,6 +61,15 @@ void Test(string name, Action action)
     try { action(); results.Add(new { Name = name, Passed = true, Error = "" }); Console.WriteLine("PASS " + name); }
     catch (Exception ex) { failures++; results.Add(new { Name = name, Passed = false, Error = ex.ToString() }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
 }
+if (args.Contains("--device-login-only"))
+{
+    GitHubDeviceLoginTests.Run(Test);
+    File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
+    Console.WriteLine($"{results.Count-failures}/{results.Count} device login checks passed"); return failures==0?0:1;
+}
+GitHubDeviceLoginTests.Run(Test);
+HostRequirementTests.Run(root, Test);
+ManagerUpdateTests.Run(root, Test);
 if (args.Contains("--discovery-only"))
 {
     RepositoryDiscoveryTests.Run(root, Test);

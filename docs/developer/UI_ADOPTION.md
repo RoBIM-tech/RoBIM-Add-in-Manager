@@ -50,3 +50,8 @@ Manager는 시작/2분 주기 GitHub 멤버십 조회, 최대 3분 유효 상태
 Revit Host 1.0.0-preview.8을 동봉해 자동 결합 0.1.0-test.2의 모델리스 창과 행 선택을 지원합니다. Manager 기능 로직·권한/로그인·CAD 패키지·사용자 선택/리본은 변경하지 않습니다. Host 교체에는 Revit 종료·재시작이 필요합니다. 새 Manager 설치 후 자동 결합 카드를 새로고침하고 TEST 업데이트를 설치합니다. 창에서 뷰를 바꾸거나 모델을 수정해도 결과표를 유지합니다.
 
 로컬 빌드/임시 설치 검증과 실제 PC 설치·Revit 모델 명령 검증은 구분합니다. 배포 근거는 docs/developer/MODELESS_TEST_DELIVERY_20261028.md에 기록합니다.
+
+
+## preview.51
+
+Git 없는 기기 인증창, Manager 자동 업데이트 설정/상태, Navisworks 빈 목록을 추가합니다. 기존 Manager 카드/설정 스타일과 Windows 기본 제목 표시줄을 유지합니다. .NET 검사는 버튼 없이 Setup 및 기능 설치 과정에 통합합니다. UI 렌더·인증·실제 설치 검증은 각각 별도 기록합니다.

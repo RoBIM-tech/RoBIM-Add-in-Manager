@@ -40,11 +40,12 @@ public sealed partial class ManagerForm
         loginRemember.CheckedChanged += (_, _) => automaticLogin.Checked = loginRemember.Checked;
         automaticLogin.CheckedChanged += (_, _) => loginRemember.Checked = automaticLogin.Checked;
         card.Controls.Add(loginRemember); card.Controls.Add(loginMessage);
+
         card.Controls.Add(TextLine("Reload와 Manager 열기는 로그인하지 않아도 사용할 수 있습니다.", 9, false, Color.FromArgb(90, 105, 125)));
         card.Controls.Add(TextLine("Add-in Manager · " + Application.ProductVersion.Split('+')[0], 9, false, Color.FromArgb(120, 133, 150)));
         loginPrimary.Click += async (_, _) => await Run("GitHub 로그인", async () =>
         {
-            teamAccess?.Lock(); await GitHubAccount.LoginAndSave(); await RefreshAccountAndCatalog();
+            teamAccess?.Lock(); await LoginGitHub(); await RefreshAccountAndCatalog();
         }, requiresAccess: false);
         loginSaved.Click += async (_, _) => await Run("저장된 계정 확인", async () =>
         {

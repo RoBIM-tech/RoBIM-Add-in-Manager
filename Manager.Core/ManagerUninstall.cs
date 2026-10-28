@@ -105,7 +105,7 @@ public sealed class ManagerUninstall(ManagerPaths paths, string addinsRoot, stri
                 var settings = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "github-auth.json", "repository-publishers.json", "pyrevit-location.json",
-                    "ribbon-layout-revit.json", "ribbon-layout-autocad.json", "revit-mode.json", "account-preferences.json"
+                    "ribbon-layout-revit.json", "ribbon-layout-autocad.json", "revit-mode.json", "account-preferences.json", "host-locations.json"
                 };
                 foreach (var entry in Directory.GetFileSystemEntries(paths.Data))
                 {

@@ -79,8 +79,10 @@ public sealed partial class ManagerForm
     {
         try { automaticLogin.Checked = AccountPreferences.Read(paths).AutoLogin; } catch (Exception) { automaticLogin.Checked = true; }
         try { startWithWindows.Checked = StartupRegistration.Enabled(Environment.ProcessPath!); } catch (Exception) { }
-        panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows);
-        automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked).Save(paths); };
+        try { managerAutoUpdate.Checked = AccountPreferences.Read(paths).AutoUpdate; } catch (Exception) { managerAutoUpdate.Checked = true; }
+        panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows); panel.Controls.Add(managerAutoUpdate); panel.Controls.Add(managerUpdateStatus);
+        managerAutoUpdate.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
+        automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
         startWithWindows.CheckedChanged += (_, _) =>
         {
             if (preview) return;

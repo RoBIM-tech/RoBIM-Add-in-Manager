@@ -7,7 +7,8 @@ internal static class SingleNativeButtonTests
     public static void Run(Action<string,Action> test, Func<string,ManagerPaths> paths, Action<bool,string> require, string root)
     {
         var repo = BundledCatalog.Read().Repositories.Single(r => r.Repository.EndsWith("/RoBIM-Revit-ParameterCopy"));
-        var package = repo.Packages.Single();
+        // These fixtures intentionally model TEST bytes independently of the bundled default channel.
+        var package = repo.Packages.Single() with { Channel = "test" };
         var originalPackageName = package.Name;
         var registration = SingleNativeButton.Registration(repo, package)!;
         SourcePackage Fixture(string name, string moduleId = "parameter-copy", string commandId = "copy", bool two = false)

@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Test";
+    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Navisworks" or "Test";
     private readonly TextBox productSearch = new() { PlaceholderText = "도구 이름 또는 기능 검색", Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
     private readonly ComboBox productSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };
@@ -76,6 +76,7 @@ public sealed partial class ManagerForm
             "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
             "PyRevit" => x.Kind == ButtonKind.PyRevit,
             "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
+            "Navisworks" => false,
             "Mine" => x.Selected || x.Pending,
             _ => x.CollectionChannel != "test"
         });
@@ -113,7 +114,7 @@ public sealed partial class ManagerForm
             var known = commandSnapshot.Select(x => x.Id).ToHashSet();
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
-        if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
+        if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Navisworks" ? NavisworksStatus() : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
         productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  주황: 업데이트 · 녹색: 설치 · 회색: 미설치 · 연보라: 새 TEST 있음" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
@@ -222,7 +223,7 @@ public sealed partial class ManagerForm
 
     private void RefreshCardActions()
     {
-        nativeReload.Visible = IsProductPage && currentPage != "Cad";
+        nativeReload.Visible = IsProductPage && currentPage is not ("Cad" or "Navisworks");
         nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
         var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;

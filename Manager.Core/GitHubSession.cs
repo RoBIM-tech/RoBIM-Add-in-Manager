@@ -14,7 +14,7 @@ public static class GitHubSession
     public static GitHubAuth Current()
     {
         var settings = File.Exists(Settings) ? JsonSerializer.Deserialize<GitHubAuth>(File.ReadAllText(Settings)) ?? new() : new();
-        if (settings.Mode is not ("Browser" or "Token") ||
+        if (settings.Mode is not ("Browser" or "Device" or "Token") ||
             (settings.Login.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(settings.Login, "^[A-Za-z0-9-]{1,39}$")))
             throw new IOException("GitHub 연결 설정을 확인하십시오.");
         return settings;
@@ -28,7 +28,7 @@ public static class GitHubSession
     internal static void ConfigureGit(System.Diagnostics.ProcessStartInfo info)
     {
         var auth = Current();
-        if (auth.Mode == "Token")
+        if (auth.Mode is "Token" or "Device")
         {
             var token = WindowsTokenStore.Get(auth.Login);
             info.Environment["GIT_CONFIG_COUNT"] = "2";
@@ -45,12 +45,11 @@ public static class GitHubSession
     public static async Task<string> Credential()
     {
         var auth = Current();
-        if (auth.Mode == "Token") return WindowsTokenStore.Get(auth.Login);
-        var result = await ProcessRunner.Run("git", ["-c", "credential.helper=manager", "credential", "fill"],
-            input: "protocol=https\nhost=github.com\n" + (auth.Login.Length > 0 ? "username=" + auth.Login + "\n" : "") + "\n");
-        var token = result.Output.Split('\n').FirstOrDefault(x => x.StartsWith("password=", StringComparison.Ordinal))?[9..].TrimEnd('\r');
-        if (result.ExitCode != 0 || string.IsNullOrEmpty(token)) throw new IOException("GitHub 계정 또는 토큰 연결이 필요합니다.");
-        return token;
+        if (auth.Login.Length == 0) throw new IOException("GitHub로 로그인하십시오.");
+        // Older Browser/GCM connections require one explicit sign-in; never invoke Git.
+        await Task.CompletedTask;
+        try { return WindowsTokenStore.Get(auth.Login); }
+        catch (IOException) { throw new IOException("GitHub로 다시 로그인하십시오. 이 버전부터 Git 없이 로그인합니다."); }
     }
     public static async Task<HttpResponseMessage> Request(string relative, string accept = "application/vnd.github+json", string? token = null)
     {
@@ -84,14 +83,20 @@ public static class GitHubSession
     public static async Task<GitHubIdentity> UseBrowser(string login = "")
     {
         if (login.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(login, "^[A-Za-z0-9-]{1,39}$")) throw new ArgumentException("GitHub 계정명 오류");
-        // Verify the selected GCM account before replacing the active connection.
-        var result = await ProcessRunner.Run("git", ["credential", "fill"], input: "protocol=https\nhost=github.com\n" + (login.Length > 0 ? "username=" + login + "\n" : "") + "\n");
-        var token = result.Output.Split('\n').FirstOrDefault(x => x.StartsWith("password="))?[9..].TrimEnd('\r');
-        if (result.ExitCode != 0 || token is null) throw new IOException("선택한 GitHub 계정의 인증을 확인하지 못했습니다.");
+        if (login.Length == 0) login = Current().Login;
+        if (login.Length == 0) throw new IOException("GitHub로 로그인하십시오.");
+        var token = WindowsTokenStore.Get(login);
         var actual = await Login(token);
-        if (login.Length > 0 && !login.Equals(actual, StringComparison.OrdinalIgnoreCase)) throw new IOException("선택한 계정과 인증된 GitHub 계정이 다릅니다.");
-        Save(new("Browser", actual)); return new(actual, "Browser");
+        if (!login.Equals(actual, StringComparison.OrdinalIgnoreCase)) throw new IOException("선택한 계정과 인증된 GitHub 계정이 다릅니다.");
+        Save(new("Device", actual)); return new(actual, "Device");
     }
+    public static async Task<GitHubIdentity> UseDeviceToken(string token, CancellationToken cancellation = default)
+    {
+        var login = await Login(token);
+        cancellation.ThrowIfCancellationRequested();
+        WindowsTokenStore.Save(login, token); Save(new("Device", login)); return new(login, "Device");
+    }
+
     public static async Task<GitHubIdentity> UseToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length > 2000 || !System.Text.RegularExpressions.Regex.IsMatch(token, "^[A-Za-z0-9_-]+$"))

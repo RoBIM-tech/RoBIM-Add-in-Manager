@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 
 namespace RoBIM.Manager.Core;
 
-public sealed record AccountPreferences(bool AutoLogin = true)
+public sealed record AccountPreferences(bool AutoLogin = true, bool AutoUpdate = true)
 {
     public static AccountPreferences Read(ManagerPaths paths)
     {

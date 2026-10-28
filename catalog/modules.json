@@ -14,7 +14,8 @@
           "folder": "DelHiddenNet.bundle",
           "distribution": "release",
           "asset": "DelHiddenNet-AutoCAD2026.zip",
-          "description": "CAD 기능별 선택 설치"
+          "description": "CAD 기능별 선택 설치",
+          "channel": "stable"
         }
       ]
     },
@@ -33,7 +34,9 @@
           "distribution": "release",
           "asset": "RoBIM-Sheets-Revit2026.zip",
           "description": "Revit 2026.5+ / .NET 10 독립 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
-          "channel": "stable"
+          "channel": "stable",
+          "moduleId": "sheets",
+          "commandId": "create-sheets"
         }
       ]
     },
@@ -52,7 +55,9 @@
           "distribution": "release",
           "asset": "RoBIM.Revit.ParameterCopy-Revit2026.zip",
           "description": "카테고리를 선택하고 각 요소의 원본 값을 같은 요소의 대상 파라미터에 복사합니다. 미리보기·덮어쓰기·타입 충돌 검사를 지원합니다.",
-          "channel": "test"
+          "channel": "stable",
+          "moduleId": "parameter-copy",
+          "commandId": "copy"
         }
       ]
     },

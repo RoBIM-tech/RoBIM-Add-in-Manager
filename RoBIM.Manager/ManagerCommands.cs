@@ -274,8 +274,7 @@ public sealed partial class ManagerForm
                         SingleNativeButton.Validate(current.Repository, current.Package, input, requireChannel: false);
                     source = enable ? manager.Cache(input) : input;
                 }
-                var runtimeFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2026", "RevitNET.runtimeconfig.json");
-                if (!File.Exists(runtimeFile) || System.Text.Json.JsonDocument.Parse(File.ReadAllText(runtimeFile)).RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString() != "net10.0") throw new IOException("이 독립 로더에는 Revit 2026.5+ / .NET 10이 필요합니다.");
+                EnsureHostRuntime(cad: false);
                 var hostZip = Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip");
                 manager.InstallHost(hostZip, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
                 if (enable)

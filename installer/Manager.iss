@@ -12,8 +12,8 @@ AppId=RoBIM.AddinManager.Test
 AppId=RoBIM.AddinManager
 #endif
 AppName=RoBIM Add-in Manager
-AppVersion=1.0.0-preview.50
-AppVerName=RoBIM Add-in Manager 1.0.0-preview.50
+AppVersion=1.0.0-preview.51
+AppVerName=RoBIM Add-in Manager 1.0.0-preview.51
 AppPublisher=RoBIM
 AppPublisherURL=https://github.com/RoBIM-tech/RoBIM-Add-in-Manager
 DefaultDirName={localappdata}\Programs\RoBIM Manager
@@ -34,7 +34,7 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.0.0.50
+VersionInfoVersion=1.0.0.51
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
@@ -48,6 +48,9 @@ english.ConfirmUninstall=Remove RoBIM Manager and its managed Revit/CAD tools, h
 Source: "{#RepoRoot}\artifacts\RoBIM-Manager\*"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Guard.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Guard.ps1"; Flags: dontcopy
+#ifndef TestBuild
+Source: "{#RepoRoot}\artifacts\RoBIM-Manager\RoBIM.Manager.exe"; DestName: "RuntimeCheck.exe"; Flags: dontcopy
+#endif
 
 [Icons]
 #ifndef TestBuild
@@ -91,7 +94,18 @@ begin
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+#ifndef TestBuild
+var RuntimeCode: Integer; RuntimeReport: AnsiString;
+#endif
 begin
+#ifndef TestBuild
+  ExtractTemporaryFile('RuntimeCheck.exe');
+  if not Exec(ExpandConstant('{tmp}\RuntimeCheck.exe'), '--verify-setup-runtime "' + ExpandConstant('{tmp}\RoBIM-runtime-check.txt') + '"', '', SW_HIDE, ewWaitUntilTerminated, RuntimeCode) or (RuntimeCode <> 0) then begin
+    LoadStringFromFile(ExpandConstant('{tmp}\RoBIM-runtime-check.txt'), RuntimeReport);
+    Result := '필요한 .NET 10 x64 실행 환경을 확인하지 못했습니다. Autodesk 설치 복구 또는 Microsoft .NET 실행 환경 설치 후 다시 시도하세요.' + #13#10 + String(RuntimeReport);
+    exit;
+  end;
+#endif
   ExtractTemporaryFile('Guard.ps1');
   if not RunGuard(ExpandConstant('{tmp}\Guard.ps1'), False) then
     Result := 'RoBIM Manager를 종료하십시오. 기존 설치 기록 또는 설치 경로를 확인할 수 없으면 설치를 진행하지 않습니다.';

@@ -8,6 +8,22 @@ internal static class Program
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--apply-manager-update") return Core.ManagerUpdates.Apply(args[1]);
+        if (args.Length == 2 && args[0] == "--verify-setup-runtime")
+        {
+            var reports = new List<string> { "Manager: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription + " / x64=" + Environment.Is64BitProcess };
+            var ready = Environment.Is64BitProcess && Environment.Version.Major == 10;
+            foreach (var cad in new[] { false, true })
+            {
+                var config = Path.Combine(Core.HostRequirements.HostRoot(cad),cad ? "acdbmgd.runtimeconfig.json" : "RevitNET.runtimeconfig.json");
+                if (!File.Exists(config)) continue;
+                var check=Core.HostRequirements.Check(cad); reports.Add(check.Text);
+                using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(config));
+                if (json.RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString()=="net10.0") ready &= check.Ready;
+            }
+            File.WriteAllText(args[1],string.Join("\n\n",reports)); return ready ? 0 : 1;
+        }
+
         if (args.Length is 1 or 2 && args[0] is "--uninstall-user-data" or "--uninstall-user-data-silent")
         {
             var silentCleanup = args[0] == "--uninstall-user-data-silent";

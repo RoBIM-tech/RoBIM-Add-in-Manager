@@ -165,13 +165,9 @@ public sealed partial class ManagerForm : Form
         });
     }
 
-    private static void ValidateCadRuntime()
+    private void ValidateCadRuntime()
     {
-        var runtime = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "AutoCAD 2026", "acdbmgd.runtimeconfig.json");
-        if (!File.Exists(runtime)) throw new IOException("기본 경로의 AutoCAD 2026 설치를 찾지 못했습니다. 이 버전은 AutoCAD 2026.1.2+가 필요합니다.");
-        using var document = JsonDocument.Parse(File.ReadAllText(runtime));
-        if (document.RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString() != "net10.0")
-            throw new IOException("이 CAD 도구에는 .NET 10 기반 AutoCAD 2026.1.2 이상이 필요합니다.");
+        EnsureHostRuntime(cad: true);
     }
 
     private async Task RemoveSelected()
