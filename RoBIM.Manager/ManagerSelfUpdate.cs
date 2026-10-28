@@ -23,6 +23,7 @@ public sealed partial class ManagerForm
             if (preview) { managerUpdateStatus.Text="현재 버전 · "+Application.ProductVersion.Split('+')[0]+" · 미리보기"; return; }
             if (teamAccess?.Allowed!=true || checkingManagerUpdate || busy) return;
             managerUpdateCheck.Enabled=false;
+            checkingManagerUpdate=true;
             try
             {
                 manuallyCheckedManagerUpdate=await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0]);
@@ -30,22 +31,24 @@ public sealed partial class ManagerForm
                 managerUpdateStatus.Text=manuallyCheckedManagerUpdate is { } update ? "Manager "+Application.ProductVersion.Split('+')[0]+" → "+update.Version+" 업데이트 가능" : "현재 Manager "+Application.ProductVersion.Split('+')[0]+" · 최신 버전입니다.";
             }
             catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 확인 실패 · "+error.Message; }
-            finally { if (!IsDisposed) managerUpdateCheck.Enabled=true; }
+            finally { checkingManagerUpdate=false; if (!IsDisposed) managerUpdateCheck.Enabled=true; }
         };
         managerUpdateNow.Click += async (_, _) =>
         {
-            if (preview || manuallyCheckedManagerUpdate is not { } update || teamAccess?.Allowed!=true || busy) return;
+            if (preview || manuallyCheckedManagerUpdate is not { } update || teamAccess?.Allowed!=true || busy || checkingManagerUpdate) return;
             if (!ManagerUpdates.NativeInstallation(Path.GetDirectoryName(Environment.ProcessPath!)!))
             { OpenUrl("https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/releases/tag/v"+update.Version); return; }
             managerUpdateNow.Enabled=false;
+            checkingManagerUpdate=true;
             try
             {
                 var installer=await ManagerUpdates.Download(paths,update);
                 pendingManagerUpdate=(update,installer);
+                checkingManagerUpdate=false;
                 await CheckManagerUpdate(force:true);
             }
             catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 준비 실패 · "+error.Message; }
-            finally { if (!IsDisposed) managerUpdateNow.Enabled=true; }
+            finally { checkingManagerUpdate=false; if (!IsDisposed) managerUpdateNow.Enabled=true; }
         };
     }
     private async Task CheckManagerUpdate(bool force = false)
