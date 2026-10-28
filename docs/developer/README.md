@@ -272,3 +272,9 @@ AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 c
 ### Native 전용 검사 범위
 
 Manager.Tests는 Native/CAD·인증·Manager 업데이트·설치 보존·리본·잔여 설치 제거를 검사합니다. retired-pyrevit-tests.json의 과거 pyRevit 신규 설치/프로필/Reload 성공 시나리오는 현재 운영에서 종료되어 기본 실행에서 제외하며 통과 수에 포함하지 않습니다. 별도 retired-tests.json에 이름과 이유를 기록합니다. 과거 동작을 조사할 때만 --include-retired-pyrevit을 사용하며 현재 정책에서 실패하는 것이 정상입니다. 기존 설치의 제거/백업/동시 변경 방지 검사는 구형 설치 기록을 직접 준비하여 계속 실행합니다. NativeOnlyPolicyTests는 실제 Manager.Core를 대상으로 신규 pyRevit 설치/등록 차단 및 기존 파일 보존을 검사합니다.
+
+## Preview 55: 동봉 Revit 연결 패키지 수정
+
+preview.54 이하의 일부 Manager 배포는 동봉 Host를 preview.8로 문서화했지만 실제 ZIP은 preview.1이었습니다. 로컬 SHA-256과 sidecar만 일치해도 빌드가 허용된 것이 원인입니다. preview.55는 GitHub 공식 host-v1.0.0-preview.8의 ZIP 해시 e4371baf…로 고정하고 실제 DLL 버전 preview.8을 확인했습니다. CAD stable1.0.1은 기존 공식 배포와 일치했습니다.
+
+release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하며, 빌드는 구형 Host ZIP과 그에 맞는 로컬 sidecar 조합도 거부합니다. 정식 Setup 빌드의 CAD도 고정하며 Portable 후보 빌드만 명시적 CAD 후보를 허용합니다. 현재 Host 교체는 Revit 종료 후 ‘Revit 연결 설치 / 업데이트’로 진행하고, 저장된 리본·도구 선택을 보존합니다. 업데이트가 실행 중 Revit을 강제 종료하지 않습니다.

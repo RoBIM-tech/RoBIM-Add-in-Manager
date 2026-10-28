@@ -17,7 +17,7 @@ jobs:
       - name: Check Windows builder PowerShell syntax
         shell: pwsh
         run: |
-          foreach ($path in @('build-manager.ps1', 'scripts/Build-ManagerTestLocal.ps1', 'installer/Install.ps1')) {
+          foreach ($path in @('build-manager.ps1', 'scripts/Build-ManagerTestLocal.ps1', 'scripts/Test-BundledPackages.ps1', 'tests/test-bundled-packages.ps1', 'installer/Install.ps1')) {
             $tokens = $null; $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { throw "$path parse error: $($errors | Out-String)" }

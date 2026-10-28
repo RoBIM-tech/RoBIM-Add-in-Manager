@@ -14,6 +14,8 @@ if ((Get-FileHash -LiteralPath $cadPackage).Hash -ne (Get-Content -LiteralPath (
 $hostPackage = if ($RevitHostPackagePath) { [IO.Path]::GetFullPath($RevitHostPackagePath) } else { Join-Path $PSScriptRoot 'artifacts\RoBIM-Host-Revit2026.zip' }
 if (!(Test-Path -LiteralPath $hostPackage) -or !(Test-Path -LiteralPath ($hostPackage + '.sha256')) -or (Get-FileHash -LiteralPath $hostPackage).Hash -ne (Get-Content -LiteralPath ($hostPackage + '.sha256') -Raw).Trim()) { throw 'A verified RoBIM-Host-Revit2026.zip release asset is required. Pass -RevitHostPackagePath; Manager never builds module repositories.' }
 $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
+& (Join-Path $PSScriptRoot 'scripts/Test-BundledPackages.ps1') -RevitHostPackagePath $hostPackage -CadPackagePath $cadPackage -AllowCandidateCad:$SkipSetup
+if (!$?) { throw 'Locked release package verification failed.' }
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
@@ -52,6 +54,7 @@ $cad = $cadPackage
 Copy-Item -LiteralPath $cad -Destination (Join-Path $output 'DelHiddenNet-AutoCAD2026.zip') -Force
 Copy-Item -LiteralPath $hostPackage -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip') -Force
 Copy-Item -LiteralPath ($hostPackage + '.sha256') -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip.sha256') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-packages.lock.json') -Destination (Join-Path $output 'release-packages.lock.json') -Force
 (Get-FileHash -LiteralPath $cad -Algorithm SHA256).Hash | Set-Content -LiteralPath (Join-Path $output 'DelHiddenNet-AutoCAD2026.zip.sha256') -Encoding ASCII
 foreach ($name in @('Install.ps1','Uninstall.ps1')) {
     $source = Join-Path $PSScriptRoot "installer\$name"
