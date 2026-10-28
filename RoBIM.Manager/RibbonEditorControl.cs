@@ -45,7 +45,7 @@ internal sealed partial class RibbonEditorControl : UserControl
         var apply = Add("Revit 적용", () => { }); apply.BackColor = Color.FromArgb(30, 91, 166); apply.ForeColor = Color.White;
         actions.Controls.SetChildIndex(save, 0); actions.Controls.SetChildIndex(apply, 1);
         apply.Click += async (_, _) => { try { var layout = Snapshot(); if (example) { status.Text = "미리보기 예시입니다."; return; } store.Save(layout); if (ApplyRequested is not null) status.Text = await ApplyRequested(layout); } catch (Exception e) { MessageBox.Show(this, e.Message, "리본 적용"); } };
-        Add("결과 확인", () => { var file = Path.Combine(Path.GetDirectoryName(store.FilePath("Revit"))!, "revit-ui-result.json"); if (!File.Exists(file)) { status.Text = "아직 적용 결과가 없습니다."; return; } using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(file)); status.Text = doc.RootElement.GetProperty("Message").GetString(); });
+        Add("결과 확인", () => status.Text = store.RevitResult());
         root.Controls.Add(preview, 0, 0);
         root.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 0, 0, 10), Text = "큰 버튼은 한 칸을 사용합니다. 2단·3단 묶음을 만든 뒤 그 안으로 버튼을 드래그하면 한 칸에 세로로 쌓입니다.\n패널과 버튼 묶음은 가로로 배치됩니다. 미설치 버튼은 회색이며 배치를 저장해도 설치하지 않습니다." }, 0, 1);
         var columns = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
