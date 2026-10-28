@@ -52,9 +52,6 @@ $cad = $cadPackage
 Copy-Item -LiteralPath $cad -Destination (Join-Path $output 'DelHiddenNet-AutoCAD2026.zip') -Force
 Copy-Item -LiteralPath $hostPackage -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip') -Force
 Copy-Item -LiteralPath ($hostPackage + '.sha256') -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip.sha256') -Force
-$bridge = Join-Path $output 'RoBIM-ReloadBridge.zip'
-Compress-Archive -LiteralPath (Join-Path $PSScriptRoot 'reload-bridge\RoBIM Manager.extension') -DestinationPath $bridge -Force
-(Get-FileHash -LiteralPath $bridge -Algorithm SHA256).Hash | Set-Content -LiteralPath ($bridge + '.sha256') -Encoding ASCII
 (Get-FileHash -LiteralPath $cad -Algorithm SHA256).Hash | Set-Content -LiteralPath (Join-Path $output 'DelHiddenNet-AutoCAD2026.zip.sha256') -Encoding ASCII
 foreach ($name in @('Install.ps1','Uninstall.ps1')) {
     $source = Join-Path $PSScriptRoot "installer\$name"

@@ -193,6 +193,7 @@ internal static class Program
             if (args.Contains("--account")) preview.PreviewPage("Account");
             if (args.Contains("--extensions")) preview.PreviewPage("Extensions");
             if (args.Contains("--cad")) preview.PreviewPage("Cad");
+            if (args.Contains("--cad-ribbon")) preview.PreviewPage("CadRibbon");
 
             if (args.Contains("--all")) preview.PreviewPage("All");
             if (args.Contains("--test")) preview.PreviewPage("Test");

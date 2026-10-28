@@ -11,8 +11,6 @@ $target = Join-Path $runRoot 'installed'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $target -Quiet -SkipIntegration
 if ($LASTEXITCODE -ne 0) { throw 'Installer script failed' }
 if (!(Test-Path -LiteralPath (Join-Path $target 'RoBIM.Manager.exe'))) { throw 'Manager EXE missing after install' }
-$bridgeZip = Join-Path $target 'RoBIM-ReloadBridge.zip'
-if ((Get-FileHash -LiteralPath $bridgeZip).Hash -ne (Get-Content -LiteralPath ($bridgeZip + '.sha256') -Raw).Trim()) { throw 'Bridge hash mismatch' }
 $nativeZip = Join-Path $target 'RoBIM-Host-Revit2026.zip'
 if ((Get-FileHash -LiteralPath $nativeZip).Hash -ne (Get-Content -LiteralPath ($nativeZip + '.sha256') -Raw).Trim()) { throw 'Native Revit host hash mismatch' }
 $nativeCheck = Join-Path $runRoot 'native-check'
@@ -22,10 +20,7 @@ foreach ($name in @('RoBIM.Revit.Host.dll','RoBIM.Revit.Reload.dll','RoBIM.Revit
 }
 if (Get-ChildItem -LiteralPath $nativeCheck -File -Recurse | Where-Object { $_.Name -match '^RevitAPI.*\.dll$|\.(rvt|dwg|pdf)$' }) { throw 'Forbidden SDK/model file in native host package' }
 if (!(Test-Path -LiteralPath (Join-Path $target 'YamlDotNet-LICENSE.txt'))) { throw 'Dependency license missing after install' }
-$bridgeCheck = Join-Path $runRoot 'bridge-check'
-Expand-Archive -LiteralPath $bridgeZip -DestinationPath $bridgeCheck
-$bridgeButton = Join-Path $bridgeCheck 'RoBIM Manager.extension\RoBIM 관리.tab\Manager.panel\ManagerReload.pushbutton'
-foreach ($name in @('script.py','bundle.yaml','icon.png','icon.dark.png')) { if (!(Test-Path -LiteralPath (Join-Path $bridgeButton $name))) { throw "Bridge file missing: $name" } }
+if (Test-Path -LiteralPath (Join-Path $target 'RoBIM-ReloadBridge.zip')) { throw 'Retired pyRevit bridge unexpectedly bundled' }
 $preserved = Join-Path $target 'personal-file.keep'
 Set-Content -LiteralPath $preserved -Value 'must survive uninstall'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $payload 'Install.ps1') -Destination $target -Quiet -SkipIntegration
@@ -48,7 +43,7 @@ try {
 if ($LASTEXITCODE -eq 0 -or !(Test-Path -LiteralPath (Join-Path $external 'keep.txt'))) { throw 'Unmanaged installer destination was not protected' }
 @{
     PortableExtraction=$true; Installation=$true; Reinstallation=$true; InstalledUiRender=$true
-    Uninstall=$true; UnknownFilePreserved=$true; UnmanagedDestinationProtected=$true; ReloadBridgePackage=$true; NativeRevitHostPackage=$true; DependencyLicenses=$true
+    Uninstall=$true; UnknownFilePreserved=$true; UnmanagedDestinationProtected=$true; PyRevitExcluded=$true; NativeRevitHostPackage=$true; DependencyLicenses=$true
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'artifacts\setup-test-results.json') -Encoding UTF8
 Copy-Item -LiteralPath $preview -Destination (Join-Path $root 'artifacts\manager-preview.png') -Force
 Write-Output "Setup checks passed: $runRoot"
