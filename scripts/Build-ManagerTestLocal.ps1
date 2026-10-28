@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Windows x64 is required.' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 foreach ($tool in @('dotnet', 'python', 'gh')) {
-    if (!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing $tool: install and configure it first." }
+    if (!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing ${tool}: install and configure it first." }
 }
 if (!$LibraryFeed) {
     $LibraryFeed = Join-Path $root 'artifacts/verified-stable-nuget'
