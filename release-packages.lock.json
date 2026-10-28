@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "revitHost": {
     "repository": "RoBIM-tech/RoBIM-Revit-Addin",
-    "tag": "host-v1.0.0-preview.8",
-    "version": "1.0.0-preview.8",
+    "tag": "host-v1.0.0-preview.9",
+    "version": "1.0.0-preview.9",
     "asset": "RoBIM-Host-Revit2026.zip",
-    "sha256": "e4371baf64aea13bc73d8fa12cb9e47e0088c771ce6e54621e3e387d430d73d8"
+    "sha256": "580DD546724975DABF42A5BFC953C19B63CF6D3F3115BA1761B2F94961E680CD"
   },
   "cad": {
     "repository": "RoBIM-tech/RoBIM-CAD",
