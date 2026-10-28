@@ -17,6 +17,7 @@ $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
+New-Item -ItemType Directory -Path $output -Force | Out-Null
 $packageSources = @('https://api.nuget.org/v3/index.json')
 if ($LibraryFeed) {
     $packageSources += [IO.Path]::GetFullPath($LibraryFeed)
