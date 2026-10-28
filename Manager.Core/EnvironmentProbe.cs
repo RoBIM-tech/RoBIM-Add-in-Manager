@@ -23,22 +23,13 @@ public static class EnvironmentProbe
         }
     }
 
-    public static async Task<IReadOnlyList<string>> RevitRoots()
+    public static Task<IReadOnlyList<string>> RevitRoots()
     {
         var current = ManagerPaths.CurrentUser();
         var roots = new List<string> { current.RevitExtensions, PyRevitLocation.Root(current) };
         roots.AddRange(ConfiguredRevitRoots(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini")));
-        // Installation discovery is read-only and must survive a stale desktop PATH or CLI failure.
-        // Profile changes still go through the installed CLI and report failures explicitly.
-        try
-        {
-            var result = await ProcessRunner.Run(PyRevitExecutable(), ["extensions", "paths"]);
-            if (result.ExitCode == 0)
-                foreach (var line in result.Output.Split('\n').Select(x => x.Trim()))
-                    if (Path.IsPathFullyQualified(line) && Directory.Exists(line)) roots.Add(line);
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException) { }
-        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        // Historical roots may be inspected, but Native-only operation never launches pyRevit.
+        return Task.FromResult<IReadOnlyList<string>>(roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     public static string PyRevitExecutable(string? path = null)

@@ -34,5 +34,37 @@ internal static class NativeOnlyPolicyTests
             Rejected(() => registry.Register(legacy));
             Require(SafeFiles.Same(before,SafeFiles.Hashes(paths.Data)));
         });
+        test("NativePolicyRejectsAllProfilesAndRegistrationBeforeAnyChanges", () =>
+        {
+            var paths = Paths("native-policy-profile");
+            Directory.CreateDirectory(paths.Data);
+            var foreign = Path.Combine(paths.RevitExtensions, "Other.extension", "personal.py");
+            var backup = Path.Combine(paths.Data, "Backups", "user-backup.ini");
+            Directory.CreateDirectory(Path.GetDirectoryName(foreign)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+            File.WriteAllText(foreign, "foreign content"); File.WriteAllText(backup, "user backup");
+            var ini = Path.Combine(paths.Data, "pyrevit.ini"); File.WriteAllText(ini, "[Other.extension]\ndisabled = false\n");
+            var before = File.ReadAllBytes(ini); var called = false;
+            var profiles = new RevitProfiles(paths, () => called = true, (_, _) => { called = true; return Task.CompletedTask; }, _ => true);
+            Rejected(() => profiles.Apply(false).GetAwaiter().GetResult());
+            Rejected(() => profiles.Apply(true).GetAwaiter().GetResult());
+            Rejected(() => profiles.ApplySelection().GetAwaiter().GetResult());
+            Rejected(() => PyRevitLocation.RegisterSearchRoot(ini, Path.Combine(root, "new-root")));
+            Rejected(() => RevitProfiles.WriteEnabled(ini, "Other", true));
+            Rejected(() => new PyRevitLocation(paths, () => called = true, ini).Change(Path.Combine(root, "new-root")));
+            Require(!called && !Directory.Exists(Path.Combine(root, "new-root")) && before.SequenceEqual(File.ReadAllBytes(ini)));
+            Require(File.ReadAllText(foreign) == "foreign content" && File.ReadAllText(backup) == "user backup");
+        });
+        test("NativePolicyRejectsEveryLegacyAndForeignToolBeforeInstall", () =>
+        {
+            var paths = Paths("native-policy-all");
+            foreach (var tool in new[] { Catalog.Revit, Catalog.RevitDeveloper, Catalog.RevitSelected, Catalog.ReloadBridge,
+                new ToolSpec("foreign", "Other", ToolKind.PyRevit, "other/project", "main", "Other.extension", "", true) })
+            {
+                Rejected(() => RevitRuntimePolicy.EnsureAllowed(paths, tool));
+                Rejected(() => new InstallService(paths, _ => {}).Install(tool, new(Path.Combine(root, "missing-source"), "1")));
+            }
+            Require(!Directory.Exists(paths.Data) && !Directory.Exists(paths.RevitExtensions));
+        });
     }
 }

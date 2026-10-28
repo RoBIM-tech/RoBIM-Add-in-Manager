@@ -33,5 +33,11 @@
   "ButtonLiveRejectsStaleSourceTamperedPayloadAndInvalidSession",
   "ExternalInstallationRemainsSelectedWhenGitMetadataFails",
   "InstallationPresenceDoesNotDependOnManagerOwnershipRecord",
-  "DownloadedCatalogIsNotAnInstalledProfile"
+  "DownloadedCatalogIsNotAnInstalledProfile",
+  "ProfileActivationOnlyOneEnabled",
+  "ProfileActivationFailureRestoresFlags",
+  "ProfileBlockedWhenHostRunning",
+  "PyRevitSearchPathPreservesBomOtherRootsAndRejectsAmbiguity",
+  "CopiedProfileIniActivationPreservesOtherSettings",
+  "CopiedProfileIniPreservesBomAndRejectsAmbiguousFlags"
 ]

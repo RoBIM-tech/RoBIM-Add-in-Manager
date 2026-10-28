@@ -38,6 +38,7 @@ public sealed class PyRevitLocation(ManagerPaths paths, Action? ensureClosed = n
     }
     public static void RegisterSearchRoot(string file, string root)
     {
+        RevitRuntimePolicy.RejectLegacyOperation();
         var before = Bytes(file); var bytes = before ?? []; var bom = bytes.Length >= 3 && bytes[0] == 239 && bytes[1] == 187 && bytes[2] == 191;
         var text = Encoding.UTF8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)); var newline = text.Contains("\r\n") ? "\r\n" : "\n";
         if (text.Length > 0 && !text.EndsWith('\n')) text += newline;
@@ -58,6 +59,7 @@ public sealed class PyRevitLocation(ManagerPaths paths, Action? ensureClosed = n
     }
     public PyRevitLocationResult Change(string requested)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, Catalog.Revit);
         void Check() { if (ensureClosed is null) EnvironmentProbe.EnsureHostClosed(Catalog.Revit); else ensureClosed(); }
         Check(); Directory.CreateDirectory(paths.Data);
         using var reloadLock = new FileStream(SafeFiles.Child(paths.Data, "reload.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);

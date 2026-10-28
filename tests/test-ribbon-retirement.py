@@ -1,4 +1,4 @@
-"""Deleted legacy controls in a live mixed panel must not survive the apply."""
+"""Historical compatibility regression only; no pyRevit runtime is operated."""
 import ast
 from pathlib import Path
 from types import SimpleNamespace as N
@@ -31,3 +31,14 @@ bindings['robim-revit:RoBIM 기본.tab/Elements.panel/AutoJoin.pushbutton']=(Non
 scope['_retire_unselected_python'](bindings,assigned)
 assert stale[0].IsVisible and stale[0].IsEnabled
 print('PASS removed/nested/duplicate legacy controls retired; selected/native/foreign/caption-only preserved; repeated apply and reinstall safe')
+
+# Read-only historical root discovery must never start the retired CLI.
+core = Path(__file__).resolve().parents[1] / 'Manager.Core'
+probe = (core / 'EnvironmentProbe.cs').read_text(encoding='utf-8')
+roots = probe.split('public static Task<IReadOnlyList<string>> RevitRoots()', 1)[1].split('public static string PyRevitExecutable', 1)[0]
+assert 'ProcessRunner.Run' not in roots and 'PyRevitExecutable(' not in roots
+profiles = (core / 'RevitProfiles.cs').read_text(encoding='utf-8')
+for signature in ('public async Task Apply(bool developer)', 'public async Task ApplySelection()'):
+    body = profiles.split(signature, 1)[1].split('\n    }', 1)[0]
+    assert body.index('RevitRuntimePolicy.EnsureAllowed') < body.index('ensureClosed')
+print('PASS Native-only discovery and profile gates prevent legacy CLI execution')

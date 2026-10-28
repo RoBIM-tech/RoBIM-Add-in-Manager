@@ -9,6 +9,7 @@ public sealed class RevitProfiles(ManagerPaths paths, Action? ensureClosed = nul
 {
     public async Task Apply(bool developer)
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, Catalog.Revit);
         if (ensureClosed is null) EnvironmentProbe.EnsureHostClosed(Catalog.Revit); else ensureClosed();
         SafeFiles.NoLinks(paths.Data);
         Directory.CreateDirectory(paths.Data);
@@ -55,6 +56,7 @@ public sealed class RevitProfiles(ManagerPaths paths, Action? ensureClosed = nul
 
     public async Task ApplySelection()
     {
+        RevitRuntimePolicy.EnsureAllowed(paths, Catalog.RevitSelected);
         if (ensureClosed is null) EnvironmentProbe.EnsureHostClosed(Catalog.RevitSelected); else ensureClosed();
         SafeFiles.NoLinks(paths.Data); Directory.CreateDirectory(paths.Data);
         using var operation = new FileStream(Path.Combine(paths.Data, "operation.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -107,6 +109,7 @@ public sealed class RevitProfiles(ManagerPaths paths, Action? ensureClosed = nul
 
     public static void WriteEnabled(string file, string name, bool enabled)
     {
+        RevitRuntimePolicy.RejectLegacyOperation();
         if (name is not ("RoBIM" or "RoBIM-Developer" or "RoBIM-Selected")) throw new IOException("지원하지 않는 RoBIM 프로필");
         SafeFiles.NoLinks(file);
         var before = File.Exists(file) ? File.ReadAllBytes(file) : [];
