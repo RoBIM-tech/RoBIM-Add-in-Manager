@@ -35,7 +35,7 @@ public sealed partial class ManagerForm
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
         var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Extensions", "도구 등록"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
@@ -45,8 +45,8 @@ public sealed partial class ManagerForm
                 button.Height=34; button.Padding=new(28,0,0,0); button.Font=new Font(Font.FontFamily,9F);
                 button.AccessibleName=(id=="Ribbon" ? "Revit" : id=="CadRibbon" ? "AutoCAD" : "Navisworks")+" 리본 편집";
             }
-            button.Click += (_, _) => SwitchPage(id);
-            if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") button.Visible = false;
+            button.Click += (_, _) => { try { SwitchPage(id); } catch (Exception ex) { ReportPageFailure(id, ex); } };
+            // Legacy pyRevit pages are no longer part of the navigation.
             navigation.Add(button); nav.Controls.Add(button);
         }
         sidebar.Controls.Add(nav);
@@ -281,10 +281,31 @@ public sealed partial class ManagerForm
         login.Click += async (_, _) => await Run("GitHub 로그인", async () => { teamAccess?.Lock(); await LoginGitHub(); await RefreshAccountAndCatalog(); }, requiresAccess: false);
     }
 
+    private void ReportPageFailure(string page, Exception error)
+    {
+        // Store the stack trace locally, never in a GitHub issue or Release asset.
+        try
+        {
+            Directory.CreateDirectory(paths.Data);
+            var target = Path.Combine(paths.Data, "cad-panel-errors.log");
+            if (File.Exists(target) && new FileInfo(target).Length > 1024 * 1024)
+                File.Move(target, target + ".old", true);
+            File.AppendAllText(target, $"[{DateTimeOffset.Now:O}] {page}: {error}\n");
+        }
+        catch (Exception) { /* Diagnostics must never terminate the UI. */ }
+        WriteLog("화면 표시 오류 (" + page + "): " + error.Message);
+        if (page is "Cad" or "CadRibbon")
+        {
+            cadRibbonSummary.Text = "AutoCAD 패널 정보를 표시하지 못했습니다. cad-panel-errors.log에서 오류 내용을 확인하세요.";
+            footer.Text = "AutoCAD 화면 로드 실패 · 설치·사용자 도면을 변경하지 않았습니다.";
+        }
+        else footer.Text = "화면 표시 오류: " + error.Message;
+    }
+
     private void SwitchPage(string id)
     {
         if (!CanUseTest && id == "Test") id = "Revit";
-        if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") id = "Revit";
+        if (id is "PyRevit" or "Developer" or "Locations") id = "Revit";
         if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
         currentPage = id;
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";

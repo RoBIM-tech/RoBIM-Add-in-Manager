@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Navisworks" or "Test";
+    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "Cad" or "Navisworks" or "Test";
     private readonly TextBox productSearch = new() { PlaceholderText = "도구 이름 또는 기능 검색", Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
     private readonly ComboBox productSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };

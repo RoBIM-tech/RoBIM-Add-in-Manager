@@ -32,7 +32,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
         if (name.Length == 0 || name is "." or ".." || name.Contains("..")) throw new ArgumentException("저장소 이름 오류");
         return match.Groups[1].Value + "/" + name;
     }
-    public static bool Related(IEnumerable<string> topics) => topics.Any(x => x is "robim-addon" or "pyrevit-extension" or "autocad-plugin" or "revit-addin");
+    public static bool Related(IEnumerable<string> topics) => topics.Any(x => x is "robim-addon" or "autocad-plugin" or "revit-addin");
     public static ExtensionPackage[] ParseManifest(string text)
     {
         var manifest = JsonSerializer.Deserialize<ExtensionManifest>(text, Json) ?? throw new InvalidDataException("패키지 표시 정보가 비어 있습니다.");
@@ -66,12 +66,14 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
         "robim-tech/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
-        "robim-tech/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
     {
         var repo = Repository(url);
+        if (repo.EndsWith("/RoBIM-pyrevit", StringComparison.OrdinalIgnoreCase) ||
+            repo.EndsWith("/RoBIM-pyrevit-extension", StringComparison.OrdinalIgnoreCase))
+            throw new NoInstallablePackagesException("pyRevit은 사용하지 않습니다. 저장소 이력만 보존합니다.");
         using var response = await GitHubSession.Request("/repos/" + repo);
         if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException("저장소를 찾을 수 없습니다. 주소와 계정·토큰의 저장소 접근 권한을 확인하십시오.");
         using var metadata = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -88,9 +90,14 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (declaration.RootElement.TryGetProperty("schemaVersion", out var schema) && schema.GetInt32() == 1 &&
                 declaration.RootElement.TryGetProperty("packages", out var entries) && entries.ValueKind == JsonValueKind.Array && entries.GetArrayLength() == 0)
                 throw new NoInstallablePackagesException("설치 도구가 없는 기반 저장소입니다.");
-            return new(canonical, branch, ParseManifest(content), "robim-package.json");
+            var parsed = ParseManifest(content);
+            if (parsed.All(x => x.Host == "pyrevit"))
+                throw new NoInstallablePackagesException("pyRevit 패키지는 지원 대상에서 제외되었습니다.");
+            return new(canonical, branch, parsed.Where(x => x.Host != "pyrevit").ToArray(), "robim-package.json");
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
+        // No implicit .extension fallback: pyRevit is retired.
+        throw new NoInstallablePackagesException("독립 Revit/CAD robim-package.json이 없습니다. pyRevit 확장은 검색하지 않습니다.");
         // Existing pyRevit repositories may use native root/nested .extension bundles.
         using var rootResponse = await GitHubSession.Request("/repos/" + canonical + "/contents?ref=" + Uri.EscapeDataString(branch));
         if (!rootResponse.IsSuccessStatusCode) throw new IOException("저장소 구조를 확인하지 못했습니다.");
@@ -128,7 +135,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
         var moves = BundledCatalog.Read().RepositoryMoves ?? [];
-        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
+        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => package.Host != "pyrevit" && !moves.Any(move =>
             move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) &&
             !(move.ToRepositories.Length == 1 && RepositoryOwnership.Canonical(move.FromRepository).Equals(move.ToRepositories[0], StringComparison.OrdinalIgnoreCase)))).ToArray() })
             .Where(repo => repo.Packages.Length > 0)

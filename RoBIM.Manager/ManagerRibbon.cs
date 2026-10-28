@@ -38,7 +38,7 @@ public sealed partial class ManagerForm
                 else if (!NativeHostPackage.Matches(paths, RibbonHostArchive))
                     return "배치 저장 완료 · Revit 연결 업데이트가 필요합니다. Revit을 저장하고 종료한 뒤 위의 ‘Revit 연결 설치 / 업데이트’를 누르세요. 현재 Revit에는 아직 적용되지 않았습니다.";
             }
-            return RequestAutomaticRevitApply(native: true, pyRevit: new RevitReload(paths).PendingSelection() is not null, layout: true);
+            return RequestAutomaticRevitApply(native: true, pyRevit: false, layout: true);
         };
     }
     private string RibbonHostArchive => Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip");
@@ -50,7 +50,7 @@ public sealed partial class ManagerForm
     }
     private void RefreshRibbonEditor()
     {
-        var tools = RibbonLayouts.WithManagementTools(CommandInventory().Where(x => x.Kind is ButtonKind.PyRevit or ButtonKind.Native)
+        var tools = RibbonLayouts.WithManagementTools(CommandInventory().Where(x => x.Kind == ButtonKind.Native)
             .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon)));
         ribbonEditor?.LoadTools(tools);
     }

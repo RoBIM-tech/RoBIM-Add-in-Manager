@@ -97,7 +97,7 @@ public sealed partial class ManagerForm
                 if (!snapshotVerified) throw new IOException("Local snapshot verification failed");
                 var startupMs = startup.Elapsed.TotalMilliseconds;
                 var before = inventoryScanCount; var timings = new List<object>();
-                foreach (var page in new[] { "Revit", "PyRevit", "Cad", "All", "Mine", "PyRevit", "Revit" })
+                foreach (var page in new[] { "Revit", "Cad", "CadRibbon", "All", "Mine", "Revit" })
                 {
                     var watch = Stopwatch.StartNew(); SwitchPage(page); PerformLayout();
                     timings.Add(new { Page = page, Milliseconds = watch.Elapsed.TotalMilliseconds, Cards = cardBindings.Count });
