@@ -128,6 +128,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     }
     public void Register(ExtensionRepository repository)
     {
+        if (repository.Packages.Any(p => p.Host == "pyrevit"))
+            throw new NoInstallablePackagesException("pyRevit 저장소는 등록하지 않습니다.");
         _ = Repository("https://github.com/" + repository.Repository);
         ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, repository.Packages)));
         Directory.CreateDirectory(paths.Data);

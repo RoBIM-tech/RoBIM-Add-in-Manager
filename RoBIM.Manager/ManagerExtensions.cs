@@ -67,7 +67,7 @@ public sealed partial class ManagerForm
             if (entry.Package.Host == "pyrevit") continue;
             var tool = ExtensionCatalog.Tool(entry.Repository, entry.Package);
             var status = productRows.FirstOrDefault(x => x.Status.Tool.Id == tool.Id)?.Status;
-            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : tool.Kind == ToolKind.PyRevit ? "Revit · pyRevit" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
+            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
             extensionGrid.Rows[index].Tag = entry;
         }
     }

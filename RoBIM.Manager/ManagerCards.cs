@@ -39,17 +39,7 @@ public sealed partial class ManagerForm
             await Run("Revit Reload 적용 요청", async () =>
             {
                 NativeCommands().RequestReload();
-                if (page is not ("Revit" or "Test"))
-                {
-                    if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
-                    else
-                    {
-                        var applied = await new RevitReload(paths).ApplyPendingSelectionWhenClosed(() => new RevitProfiles(paths).ApplySelection());
-                        WriteLog(applied ? "준비된 버튼 선택을 설치했습니다. 다음 Revit 시작 시 로드합니다." : "적용할 pyRevit 버튼 선택이 없습니다.");
-                        if (applied) await RefreshStatuses();
-                    }
-                }
-                else WriteLog("독립 Add-in Reload 요청 완료");
+                WriteLog("독립 Revit Add-in Reload 요청 완료");
             });
         };
         layout.Controls.Add(searchRow, 0, 0); layout.Controls.Add(productCards, 0, 1); layout.Controls.Add(productCount, 0, 2);

@@ -274,9 +274,9 @@ public sealed partial class ManagerForm
             });
             SwitchPage("Revit");
         };
-        retirePython.Visible = preview || !RevitRuntimePolicy.NativeOnly(paths);
+        retirePython.Visible = false;
         accountAdvancedPanel.Controls.Add(retirePython);
-        bridge.Visible = preview || !RevitRuntimePolicy.NativeOnly(paths);
+        bridge.Visible = false;
         accountAdvancedPanel.Controls.Add(bridge);
         login.Click += async (_, _) => await Run("GitHub 로그인", async () => { teamAccess?.Lock(); await LoginGitHub(); await RefreshAccountAndCatalog(); }, requiresAccess: false);
     }
