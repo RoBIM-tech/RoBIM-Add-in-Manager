@@ -32,9 +32,17 @@ public sealed partial class ManagerForm
         card.Channel == "stable" && card.Selected && card.SelectedChannel == "test";
     private IEnumerable<ButtonCard> ProductCommands(string page, IEnumerable<ButtonCard>? inventory = null)
     {
+        if (!CanUseTest && page == "Test") yield break;
         foreach (var original in inventory ?? CommandInventory())
         {
             var card = original;
+            if (!CanUseTest && card.Kind == ButtonKind.Native && card.CollectionChannel != "stable" && page != "Mine")
+            {
+                var stable = ChannelOffer(card, "stable");
+                if (stable is null) continue;
+                card = card with { Channel = "stable", ViewChannel = "", Selected = false, Pending = false,
+                    SelectedChannel = "", SelectedVersion = "", ReleaseLabel = "정식 · " + stable.Version, CachedOffer = stable };
+            }
             if (card.Kind == ButtonKind.Native && card.Selected && card.SelectedChannel is "stable" or "test")
                 card = card with { ReleaseLabel = (card.SelectedChannel == "test" ? "TEST" : "정식") + " · " + card.SelectedVersion + (card.Pending ? " (적용 준비)" : " (설치됨)") };
             if (page == "Mine" && card.Kind == ButtonKind.Native && card.SelectedChannel == "test")
@@ -70,7 +78,7 @@ public sealed partial class ManagerForm
                     Message = (card.Selected ? "현재 정식 " + card.SelectedVersion + " · " : "") + "TEST " + (offer?.Version ?? "제공 확인 필요"),
                     Instruction = "TEST 설치는 이 버튼의 현재 버전을 교체합니다. 이전 정식으로 돌아가려면 ···의 저장소 정식 버전 설치를 선택하십시오. " + value.Instruction };
             }
-            else if (NewTestAvailable(card))
+            else if (CanUseTest && NewTestAvailable(card))
                 value = value with { Message = "TEST 보기 · " + ChannelOffer(card, "test")!.Version + " 제공 · " + value.Message,
                     Instruction = value.Instruction + "\nTEST 보기를 눌러 선택 설치할 수 있습니다. 정식 설치는 자동으로 바뀌지 않습니다." };
             if (updateErrors.TryGetValue(id, out var error))
@@ -80,6 +88,8 @@ public sealed partial class ManagerForm
             value = value with { Message = value.Message + " · TEST 확인 실패", Instruction = value.Instruction + "\n마지막 TEST 조회 결과 유지: " + testError };
         if (stableOfferErrors.TryGetValue(id, out var stableError))
             value = value with { Message = value.Message + " · 정식 확인 실패", Instruction = value.Instruction + "\n마지막 정식 조회 결과 유지: " + stableError };
+        if (!CanUseTest && card.Selected && card.SelectedChannel != "stable")
+            value = value with { Update = false, Message = "사용 권한 없음 · 기존 설치 유지", Instruction = "TEST 도구는 실행할 수 없습니다. 제거하거나 TEST 권한을 요청하십시오." };
         return value;
     }
     private string PrimaryText(ButtonCard card, CardAppearance appearance)
@@ -94,11 +104,14 @@ public sealed partial class ManagerForm
     }
     private async Task PrimaryCardAction(ButtonCard card)
     {
+        if (!CanUseTest && card.Selected && card.SelectedChannel != "stable") { await ToggleButton(card, false); return; }
+        if (!CanUseTest && card.Kind == ButtonKind.Native && !card.Selected && card.Channel == "stable") { await ToggleButton(card, true, "stable"); return; }
         if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test");
         else await ToggleButton(card);
     }
     private void ShowTestOffer(ButtonCard card)
     {
+        if (!CanUseTest) return;
         SwitchPage("Test"); productSearch.Text = card.Title; RenderProductCards();
     }
 }

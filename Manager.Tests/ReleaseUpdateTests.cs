@@ -35,6 +35,9 @@ static class ReleaseUpdateTests
             require(ReleaseUpdates.Select(document.RootElement, ExtensionCatalog.ReleaseChannel(requested, "stable")).AssetId == 1, "Return to stable did not select stable release");
             var legacy = ReleaseUpdates.Select(document.RootElement, package with { Channel = "unknown" });
             require(legacy.AssetId == 2 && legacy.Channel == "test", "Legacy prerelease ZIP was ignored or mislabeled stable");
+            using var stableOnly = JsonDocument.Parse("[" + document.RootElement[2].GetRawText() + "]");
+            var legacyStable = ReleaseUpdates.Select(stableOnly.RootElement, package with { Channel = "unknown" });
+            require(legacyStable.AssetId == 1 && legacyStable.Channel == "stable", "Verified public release retained unknown channel");
         });
         test("StableRepositoryAlsoDiscoversNewTestWithoutChangingDefault", () =>
         {

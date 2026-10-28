@@ -47,8 +47,8 @@ public sealed partial class ManagerForm
         {
             // Validate locally before echoing any URL into the UI or a log.
             var repository = ExtensionCatalog.Repository(gitUrl.Text);
-            var entry = await new ExtensionCatalog(paths).Inspect("https://github.com/" + repository);
-            new ExtensionCatalog(paths).Register(entry); gitUrl.Text = "https://github.com/" + entry.Repository + ".git";
+            var entry = await ExtensionSources().Inspect("https://github.com/" + repository);
+            ExtensionSources().Register(entry); gitUrl.Text = "https://github.com/" + entry.Repository + ".git";
             await RefreshExtensionCatalog();
         });
         installPackage.Click += (_, _) =>
@@ -114,7 +114,8 @@ public sealed partial class ManagerForm
         {
             EnvironmentProbe.EnsureHostClosed(tool);
             if (tool.Kind == ToolKind.PyRevit) _ = await EnvironmentProbe.RevitRoots();
-            var catalog = new ExtensionCatalog(paths); var package = await catalog.Download(row.Repository, row.Package);
+            var catalog = ExtensionSources(); var package = await catalog.Download(row.Repository, row.Package);
+            RequirePackageAccess(tool, package);
             await Task.Run(() => installer.Install(tool, package)); catalog.Register(row.Repository);
             await RefreshExtensionCatalog(); WriteLog("확장 설치 완료: " + row.Repository.Repository + " · " + package.Version);
         });
@@ -138,6 +139,7 @@ public sealed partial class ManagerForm
             if (restoreBackup)
             {
                 var backup = installer.Backups(tool).FirstOrDefault() ?? throw new IOException("복원할 백업이 없습니다.");
+                RequirePackageAccess(tool, new SourcePackage(Path.Combine(backup.Directory, "content"), backup.Record.Version));
                 await Task.Run(() => installer.Restore(tool, backup));
             }
             else await Task.Run(() => installer.Remove(tool));

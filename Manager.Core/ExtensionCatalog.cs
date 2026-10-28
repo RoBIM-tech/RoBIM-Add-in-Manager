@@ -13,7 +13,7 @@ public sealed record ExtensionRepository(string Repository, string Branch, Exten
 public sealed class NoInstallablePackagesException(string message) : IOException(message);
 public sealed record CatalogResult(IReadOnlyList<ExtensionRepository> Repositories, string[] Warnings);
 
-public sealed class ExtensionCatalog(ManagerPaths paths)
+public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? requireChannel = null)
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     private string FilePath => SafeFiles.Child(paths.Data, "extension-repositories.json");
@@ -218,6 +218,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         string root, version;
         if (package.Distribution == "git")
         {
+            requireChannel?.Invoke(package.Channel);
             root = System.IO.Path.Combine(cache, "source");
             var result = await ProcessRunner.Run("git", ["-c", "core.hooksPath=NUL", "-c", "core.longpaths=true", "clone", "--depth", "1", "--branch", refreshed.Branch, "https://github.com/" + refreshed.Repository + ".git", root]);
             if (result.ExitCode != 0) throw new IOException("확장 소스 다운로드 실패. 연결 계정·토큰의 Contents 읽기 권한을 확인하십시오.");
@@ -226,6 +227,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         else
         {
             var offer = await ReleaseUpdates.Check(refreshed, package);
+            requireChannel?.Invoke(offer.Channel);
             version = offer.Version;
             var digest = offer.Digest;
             using var download = await GitHubSession.Request("/repos/" + refreshed.Repository + "/releases/assets/" + offer.AssetId, "application/octet-stream");
@@ -243,6 +245,11 @@ public sealed class ExtensionCatalog(ManagerPaths paths)
         var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
         var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
         InstallService.ValidatePackage(Tool(refreshed, package), prepared);
+        if (package.Host == "revit")
+        {
+            var module = RoBIM.Revit.Reload.NativeProtocol.Module(prepared);
+            requireChannel?.Invoke(ModuleReleases.Native(prepared, module.Id, module.Version).Channel);
+        }
         return new(prepared, version);
     }
 }

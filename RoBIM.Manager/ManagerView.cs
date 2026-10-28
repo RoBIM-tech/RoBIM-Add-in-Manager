@@ -179,6 +179,7 @@ public sealed partial class ManagerForm
         };
         devRestore.Click += async (_, _) => await Run("TEST 복원", async () =>
         {
+            RequireChannelAccess("test");
             var backup = installer.Backups(Catalog.RevitDeveloper).FirstOrDefault() ?? throw new IOException("복원할 TEST 백업이 없습니다.");
             if (Confirm(backup.Record.Version + "으로 복원합니까?")) await Task.Run(() => installer.Restore(Catalog.RevitDeveloper, backup));
             await RefreshProfileLabel();
@@ -253,7 +254,7 @@ public sealed partial class ManagerForm
                     EnvironmentProbe.EnsureHostClosed(Catalog.Revit);
                     var retirement = new PyRevitRetirement(paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini"));
                     var plan = retirement.Prepare();
-                    new NativeRevitCommands(paths).InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+                    NativeCommands().InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
                     retirement.Apply(plan);
                     return Path.Combine(paths.Data, "Backups", "PyRevitRetirement", plan.Id);
                 });
@@ -272,6 +273,7 @@ public sealed partial class ManagerForm
 
     private void SwitchPage(string id)
     {
+        if (!CanUseTest && id == "Test") id = "Revit";
         if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") id = "Revit";
         if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", ToolKind.PyRevit => "PyRevit", _ => "Revit" };
         currentPage = id;
@@ -329,7 +331,7 @@ public sealed partial class ManagerForm
             if (access is { Allowed: false }) throw new IOException(access.Detail);
             var identity = access is null ? await GitHubSession.Identify() : new GitHubIdentity(access.Login, GitHubSession.Current().Mode);
             authenticated = true; connectedLogin = identity.Login;
-            accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (identity.Mode == "Token" ? "토큰 인증" : "브라우저 계정");
+            accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (access?.Role ?? "계정 연결");
             catalogIdentity.Text = accountStatus.Text;
             if (savedAccounts.Items.Contains(identity.Login)) savedAccounts.SelectedItem = identity.Login;
         }
@@ -369,6 +371,7 @@ public sealed partial class ManagerForm
         if (!Confirm((prepareReload ? "Revit 안에서 적용할 TEST 사본을 준비합니다." : "개발 TEST 사본을 설치합니다.") + "\n브랜치: " + loadedBranch + "\n패널: " + string.Join(", ", selected) + "\n운영 설치와 개발 원본은 유지합니다. 프로필 적용은 별도입니다.")) return;
         await Run("TEST 설치", async () =>
         {
+            RequireChannelAccess("test");
             SavePreferences(); _ = await EnvironmentProbe.RevitRoots();
             if (!prepareReload) EnvironmentProbe.EnsureHostClosed(Catalog.RevitDeveloper);
             var output = SafeFiles.Child(paths.Data, "Prepared/" + Guid.NewGuid().ToString("N"));
@@ -389,6 +392,7 @@ public sealed partial class ManagerForm
         if (!Confirm((developer ? "개발자 TEST" : "사용자") + " 프로필을 적용합니까?\nRevit 실행 중에는 적용 요청만 준비하며 Revit 안의 적용 및 Reload 버튼에서 전환합니다. 다른 RoBIM 프로필 파일은 보존합니다.")) return;
         await Run("Revit 프로필 적용", async () =>
         {
+            if (developer) RequireChannelAccess("test");
             _ = await EnvironmentProbe.RevitRoots();
             if (ReloadBridge.RevitRunning())
             {

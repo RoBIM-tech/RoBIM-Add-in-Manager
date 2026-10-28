@@ -57,7 +57,7 @@ public sealed partial class ManagerForm
         }
         if (!preview)
         {
-            foreach (var package in new NativeRevitCommands(paths).CachedPackages())
+            foreach (var package in NativeCommands().CachedPackages())
             {
                 var module = RoBIM.Revit.Reload.NativeProtocol.Module(package.Path);
                 var folder = Path.GetFileName(package.Path);

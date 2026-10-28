@@ -58,6 +58,15 @@ public sealed partial class ManagerForm
         var allowed = teamAccess.Allowed && !busy;
         userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = allowed;
         toolbar.Enabled = actions.Enabled = grid.Enabled = allowed;
+        foreach (var item in navigation.Where(n => (string?)n.Tag == "Test")) item.Visible = teamAccess.TestAllowed;
+        foreach (var item in navigation.Where(n => (string?)n.Tag == "Developer")) item.Visible = teamAccess.TestAllowed && !RevitRuntimePolicy.NativeOnly(paths);
+        if (teamAccess.Allowed && !teamAccess.TestAllowed && currentPage == "Test") SwitchPage("Revit");
+        if (renderedTestAccess != teamAccess.TestAllowed)
+        {
+            renderedTestAccess = teamAccess.TestAllowed;
+            foreach (var cached in cachedCards.Values.ToArray()) cached.Control.Dispose();
+            cachedCards.Clear(); RenderProductCards();
+        }
         if (tray is not null) tray.Text = teamAccess.Allowed ? "RoBIM Manager · 팀 인증 완료" : "RoBIM Manager · 로그인/팀 인증 필요";
         if (!teamAccess.Allowed)
         {
@@ -78,7 +87,7 @@ public sealed partial class ManagerForm
             try { StartupRegistration.Set(Environment.ProcessPath!, startWithWindows.Checked); }
             catch (Exception error) { MessageBox.Show(this, error.Message, "Windows 자동 시작"); }
         };
-        panel.Controls.Add(Note("RoBIM-tech / robim 팀의 활성 구성원만 도구를 사용할 수 있습니다. 창을 닫으면 알림 영역에서 인증을 유지하며, 종료·로그아웃하면 도구가 잠깁니다."));
+        panel.Controls.Add(Note("일반 사용자는 정식 도구를, TEST 사용자·개발자·관리자는 TEST까지 사용할 수 있습니다. 창을 닫으면 알림 영역에서 인증을 유지하며, 종료·로그아웃하면 도구가 잠깁니다."));
     }
     public void VerifyTeamAccessUi(string destination)
     {
@@ -105,6 +114,20 @@ public sealed partial class ManagerForm
                 teamAccess.Lock(); ApplyAccessState();
                 Require(!productsPage.Enabled && !ribbonPage.Enabled, "LogoutDisablesManagerTools");
                 Require(loginPage.Visible && mainViews.All(view => !view.Visible), "LogoutReturnsToDedicatedLogin");
+                foreach (var roleTeam in TeamAccess.Teams)
+                {
+                    teamAccess.Dispose();
+                    teamAccess = new TeamAccess(false, () => Task.FromResult(new GitHubIdentity("fixture", "Browser")), route =>
+                        Task.FromResult(new System.Net.Http.HttpResponseMessage(route.Contains("/teams/" + roleTeam + "/") ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.NotFound)
+                        { Content = new System.Net.Http.StringContent("{\"state\":\"active\"}") }));
+                    await teamAccess.Refresh(); ApplyAccessState();
+                    Require(productsPage.Enabled && CanUseTest == (roleTeam != "robim"), "RoleUiScope_" + roleTeam);
+                    SwitchPage("Test");
+                    Require((currentPage == "Test") == (roleTeam != "robim"), "TestNavigationScope_" + roleTeam);
+                    var denied = false;
+                    try { RequireChannelAccess("test"); } catch (IOException) { denied = true; }
+                    Require(denied == (roleTeam == "robim"), "TestActionScope_" + roleTeam);
+                }
                 File.WriteAllText(destination, System.Text.Json.JsonSerializer.Serialize(new { Passed = true, Checks = checks }));
             }
             catch (Exception error) { File.WriteAllText(destination, System.Text.Json.JsonSerializer.Serialize(new { Passed = false, Checks = checks, Error = error.ToString() })); }

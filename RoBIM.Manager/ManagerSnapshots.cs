@@ -28,7 +28,7 @@ public sealed partial class ManagerForm
         var file = new FileInfo(SafeFiles.Child(paths.Data, "extension-repositories.json"));
         var stamp = file.Exists ? file.LastWriteTimeUtc.Ticks + ":" + file.Length : "missing";
         if (!force && stamp == registeredCatalogStamp) return;
-        var registered = await Task.Run(() => new ExtensionCatalog(paths).Registered()
+        var registered = await Task.Run(() => ExtensionSources().Registered()
             .SelectMany(repository => repository.Packages.Select(package => new PackageRow(repository, package))).ToArray());
         foreach (var entry in registered)
         {

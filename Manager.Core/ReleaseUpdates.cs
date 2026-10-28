@@ -65,7 +65,7 @@ public static class ReleaseUpdates
                 var digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
                 if (asset.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
                     throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
-                return new(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" && release.GetProperty("prerelease").GetBoolean() ? "test" : package.Channel, asset.GetProperty("id").GetInt64(), digest);
+                return new(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" ? (release.GetProperty("prerelease").GetBoolean() ? "test" : "stable") : package.Channel, asset.GetProperty("id").GetInt64(), digest);
             }
         }
         return null;

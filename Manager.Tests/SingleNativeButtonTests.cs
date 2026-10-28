@@ -19,6 +19,40 @@ internal static class SingleNativeButtonTests
             return new(dir,"0.1.0-test.2");
         }
         void Reject(Action action) { bool rejected=false; try {action();} catch(Exception ex) when (ex is IOException or UnauthorizedAccessException) {rejected=true;} require(rejected,"Invalid package accepted"); }
+        test("OrdinaryUserCannotImportOrCacheTestAndCanRemoveOldSelection", () => {
+            var target=paths("channel-access-test"); var existing=new NativeRevitCommands(target);
+            var source=existing.Cache(Fixture("channel-access-old")); existing.Toggle(source.Path,"copy",true);
+            var before=JsonSerializer.Serialize(existing.Desired());
+            void StableOnly(string channel) { if(channel!="stable") throw new IOException("TEST denied"); }
+            var restricted=new NativeRevitCommands(target,requireChannel:StableOnly);
+            Reject(()=>restricted.Cache(Fixture("channel-access-new")));
+            var input=Fixture("channel-access-zip"); var archive=Path.Combine(root,"channel-access.zip");
+            System.IO.Compression.ZipFile.CreateFromDirectory(Path.GetDirectoryName(input.Path)!,archive);
+            File.WriteAllText(archive+".sha256",SafeFiles.Hash(archive));
+            Reject(()=>restricted.Import(archive));
+            require(JsonSerializer.Serialize(existing.Desired())==before,"Denied import changed the selected generation");
+            restricted.Toggle(source.Path,"copy",false);
+            require(restricted.Desired()!.Modules.Length==0,"Revoked TEST user could not remove old selection");
+        });
+        test("OrdinaryUserCanCacheVerifiedStableButUnknownRemainsBlocked", () => {
+            var target=paths("channel-access-stable"); var source=Fixture("channel-stable");
+            var module=NativeProtocol.Module(source.Path) with { Version="0.1.0" };
+            NativeProtocol.Save(Path.Combine(source.Path,NativeProtocol.ManifestName),module);
+            var guarded=new NativeRevitCommands(target,requireChannel: channel=> { if(channel!="stable") throw new IOException("denied"); });
+            Reject(()=>guarded.Cache(source));
+            File.WriteAllText(Path.Combine(source.Path,"robim-release.json"),"{\"schemaVersion\":1,\"modules\":[{\"id\":\"parameter-copy\",\"version\":\"0.1.0\",\"channel\":\"stable\",\"validation\":{\"by\":\"fixture\",\"hostBuild\":\"fixture\",\"evidence\":\"https://example.test/validation\"}}]}");
+            var cached=guarded.Cache(source); guarded.Toggle(cached.Path,"copy",true);
+            require(guarded.Desired()!.Modules.Single().Selected.Single()=="copy","Verified stable was rejected");
+        });
+        test("RevokedTestScopeCannotAutoPrepareCachedUpdates", () => {
+            var target=paths("channel-revocation-update"); var existing=new NativeRevitCommands(target);
+            var first=existing.Cache(Fixture("channel-revocation-first")); existing.Toggle(first.Path,"copy",true);
+            var newer=Fixture("channel-revocation-next"); File.AppendAllText(Path.Combine(newer.Path,"Feature.dll"),"new version"); existing.Cache(newer);
+            var before=JsonSerializer.Serialize(existing.Desired());
+            var restricted=new NativeRevitCommands(target,requireChannel: channel=> { if(channel!="stable") throw new IOException("denied"); });
+            restricted.PrepareCachedUpdates();
+            require(JsonSerializer.Serialize(existing.Desired())==before,"Anonymous/ordinary Reload advanced TEST code");
+        });
         test("AutomaticApplyRequestsOnlyExplicitPreparedSelection", () => {
             var target = paths("auto-apply-explicit"); var manager = new NativeRevitCommands(target, () => new(123,456));
             var source = manager.Cache(Fixture("auto-apply-first")); manager.Toggle(source.Path, "copy", true);

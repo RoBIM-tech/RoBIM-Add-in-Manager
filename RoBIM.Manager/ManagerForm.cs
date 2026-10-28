@@ -40,7 +40,7 @@ public sealed partial class ManagerForm : Form
     {
         this.preview = preview;
         installer = new(paths, EnvironmentProbe.EnsureHostClosed);
-        sources = new(paths);
+        sources = new(paths, RequireChannelAccess);
         Text = "RoBIM Add-in Manager";
         using (var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico")!)
         using (var icon = new Icon(stream)) Icon = (Icon)icon.Clone();
@@ -113,7 +113,7 @@ public sealed partial class ManagerForm : Form
         if (row.Tool.Kind == ToolKind.AutoCAD)
         {
             // Reuse release selection, validation, and checksum verification for a useful cached download.
-            var package = await sources.DownloadCad();
+            var package = await sources.DownloadCad(CanUseTest ? null : "stable");
             latest[row.Tool.Id] = package.Version;
         }
         else
@@ -153,9 +153,10 @@ public sealed partial class ManagerForm : Form
                 }
                 var package = row.Tool.Kind == ToolKind.PyRevit ? await sources.DownloadRevit()
                     : bundled ? await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip"))
-                    : await sources.DownloadCad();
+                    : await sources.DownloadCad(CanUseTest ? null : "stable");
                 if (row.Tool.Kind == ToolKind.PyRevit)
                     package = await Task.Run(() => RevitPackages.Prepare(package, SafeFiles.Child(paths.Data, "Prepared/" + Guid.NewGuid().ToString("N")), false));
+                RequirePackageAccess(row.Tool, package);
                 await Task.Run(() => installer.Install(row.Tool, package));
                 WriteLog("설치 완료: " + package.Version + ". 제품을 다시 시작하면 적용됩니다.");
             }
@@ -187,6 +188,7 @@ public sealed partial class ManagerForm : Form
         {
             var backup = installer.Backups(row.Tool).FirstOrDefault() ?? throw new IOException("복원할 백업이 없습니다.");
             if (!Confirm(row.Tool.Name + "을 " + backup.Record.Version + " 버전으로 복원합니까?\n현재 버전도 먼저 백업합니다.")) return;
+            RequirePackageAccess(row.Tool, new SourcePackage(Path.Combine(backup.Directory, "content"), backup.Record.Version));
             await Task.Run(() => installer.Restore(row.Tool, backup));
             WriteLog("이전 버전을 복원했습니다. 제품을 다시 시작하십시오.");
             await RefreshStatuses();

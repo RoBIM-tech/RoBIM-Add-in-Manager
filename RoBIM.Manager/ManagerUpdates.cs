@@ -17,7 +17,7 @@ public sealed partial class ManagerForm
         var messages = new List<string>();
         if (native && File.Exists(Path.Combine(paths.Data, "NativeRevit", "pending.json")))
         {
-            try { new NativeRevitCommands(paths).RequestReload(includeCachedUpdates: false); messages.Add("독립 Add-in 자동 적용 요청 완료"); }
+            try { NativeCommands().RequestReload(includeCachedUpdates: false); messages.Add("독립 Add-in 자동 적용 요청 완료"); }
             catch (Exception ex) { messages.Add("변경 준비 유지 · 자동 적용 요청 실패: " + ex.Message); }
         }
         if (pyRevit || layout)
@@ -65,7 +65,7 @@ public sealed partial class ManagerForm
                 await gate.WaitAsync();
                 try
                 {
-                    var repository = await new ExtensionCatalog(paths).Inspect("https://github.com/" + group.Key);
+                    var repository = await ExtensionSources().Inspect("https://github.com/" + group.Key);
                     foreach (var previous in group) ExtensionCatalog.CurrentPackage(previous.Package, repository);
                     var entries = new List<UpdateCheck>();
                     foreach (var previous in group)
@@ -96,7 +96,7 @@ public sealed partial class ManagerForm
             updateErrors.Clear(); testOfferErrors.Clear(); stableOfferErrors.Clear();
             foreach (var result in results)
             {
-                if (result.Repository is not null) new ExtensionCatalog(paths).Register(result.Repository);
+                if (result.Repository is not null) ExtensionSources().Register(result.Repository);
                 foreach (var entry in result.Entries)
                 {
                     if (entry.Offer is not null) updateOffers[entry.Id] = entry.Offer;

@@ -38,7 +38,7 @@ public sealed partial class ManagerForm
             var page = currentPage;
             await Run("Revit Reload 적용 요청", async () =>
             {
-                if (page != "PyRevit") new NativeRevitCommands(paths).RequestReload();
+                if (page != "PyRevit") NativeCommands().RequestReload();
                 if (page is not ("Revit" or "Test"))
                 {
                     if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
@@ -235,7 +235,7 @@ public sealed partial class ManagerForm
             binding.More.Enabled = ready;
             var updateState = appearance.Update;
             var selected = SelectedInView(feature);
-            var testAvailable = selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
+            var testAvailable = CanUseTest && selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
             binding.Card.BackColor = updateState ? Color.FromArgb(255, 246, 232) : testAvailable ? Color.FromArgb(246, 243, 250) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
             binding.Card.BorderColor = updateState ? Color.FromArgb(223, 164, 78) : testAvailable ? Color.FromArgb(190, 179, 207) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
@@ -245,7 +245,7 @@ public sealed partial class ManagerForm
             {
                 link.Links.Clear();
                 var at = link.Text.LastIndexOf("TEST 보기", StringComparison.Ordinal);
-                if (at >= 0)
+                if (at >= 0 && CanUseTest)
                 {
                     link.LinkColor = link.VisitedLinkColor = Color.FromArgb(102, 81, 131);
                     link.ActiveLinkColor = Color.FromArgb(79, 59, 108);

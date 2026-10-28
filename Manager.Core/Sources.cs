@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace RoBIM.Manager.Core;
 
-public sealed class Sources(ManagerPaths paths)
+public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel = null)
 {
     private static readonly HttpClient Http = CreateClient();
     private static HttpClient CreateClient()
@@ -62,10 +62,12 @@ public sealed class Sources(ManagerPaths paths)
         return new(package, version);
     }
 
-    public async Task<SourcePackage> DownloadCad()
+    public async Task<SourcePackage> DownloadCad(string? channel = null)
     {
         var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", "DelHiddenNet-AutoCAD2026.zip");
+        if (channel is not null) package = ExtensionCatalog.ReleaseChannel(package, channel);
         var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
+        requireChannel?.Invoke(offer.Channel);
         var assetId = offer.AssetId; var digest = offer.Digest; var version = offer.Version;
         var archive = Path.Combine(NewCache(), "package.zip");
         using (var download = await Request($"https://api.github.com/repos/RoBIM-tech/RoBIM-CAD/releases/assets/{assetId}", "application/octet-stream", true))
@@ -98,6 +100,7 @@ public sealed class Sources(ManagerPaths paths)
 
     public async Task<SourcePackage> DownloadRevit(string? branch = null)
     {
+        requireChannel?.Invoke("test");
         branch ??= Catalog.Revit.Branch;
         RevitPackages.ValidateBranch(branch);
         var directory = NewCache();

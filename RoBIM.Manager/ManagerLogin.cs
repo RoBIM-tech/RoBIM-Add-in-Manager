@@ -30,7 +30,7 @@ public sealed partial class ManagerForm
         };
         card.Controls.Add(TextLine("RoBIM", 27, true, Color.FromArgb(49, 92, 164)));
         card.Controls.Add(TextLine("GitHub 계정으로 시작하세요", 20, true, Color.FromArgb(24, 38, 62)));
-        card.Controls.Add(TextLine("RoBIM-tech 조직의 robim 팀 구성원은\n로그인 후 Revit · AutoCAD 도구를 사용할 수 있습니다.", 10, false, Color.FromArgb(90, 105, 125)));
+        card.Controls.Add(TextLine("RoBIM 팀의 GitHub 계정으로 로그인하세요.\n일반 사용자는 정식, TEST·개발자·관리자는 TEST까지 사용합니다.", 10, false, Color.FromArgb(90, 105, 125)));
         foreach (var button in new[] { loginPrimary, loginSaved })
         {
             button.AutoSize = false; button.Size = new(496, 46); button.Margin = new(0, 6, 0, 4);

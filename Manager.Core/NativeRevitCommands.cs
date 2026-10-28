@@ -7,10 +7,15 @@ namespace RoBIM.Manager.Core;
 
 public sealed record RevitSession(int Pid, long StartTicks);
 public sealed record NativeCatalogPackage(string Path, string Version, Dictionary<string, string> Hashes);
-public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>? sessionProbe = null)
+public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>? sessionProbe = null, Action<string>? requireChannel = null)
 {
     public void ToggleWithMigration(ToolSpec tool, string source, string commandId, bool selected)
     {
+        if (selected)
+        {
+            var module = NativeProtocol.Module(source);
+            requireChannel?.Invoke(ModuleReleases.Native(source, module.Id, module.Version).Channel);
+        }
         if (tool.Kind != ToolKind.NativeRevit) throw new IOException("독립 Revit 모듈만 전환할 수 있습니다.");
         var installer = new InstallService(paths, EnvironmentProbe.EnsureHostClosed);
         var legacy = installer.Status(tool);
@@ -53,6 +58,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     public NativeRequest Toggle(string package, string commandId, bool selected)
     {
         var manifest = NativeProtocol.Module(package); var current = Desired();
+        if (selected) requireChannel?.Invoke(ModuleReleases.Native(package, manifest.Id, manifest.Version).Channel);
         if (!selected)
         {
             // Removal preserves the selected generation, even if a newer TEST catalog was imported.
@@ -93,7 +99,13 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         foreach (var entry in desired.Modules)
         {
             if (!HasUpdate(entry.Manifest.Id)) continue;
-            var package = Cached(entry.Manifest.Id)!; Cache(package);
+            var package = Cached(entry.Manifest.Id)!;
+            if (requireChannel is not null)
+            {
+                try { requireChannel(ModuleReleases.Native(package.Path, entry.Manifest.Id, NativeProtocol.Module(package.Path).Version).Channel); }
+                catch (IOException) { continue; }
+            }
+            Cache(package);
             var module = NativeProtocol.Module(package.Path);
             // Importing a catalog is not consent to change a selected release channel.
             if (ModuleReleases.Native(package.Path, module.Id, module.Version).Channel !=
@@ -138,6 +150,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var roots = Directory.GetDirectories(cache); if (roots.Length != 1) throw new IOException("Revit 패키지 루트 오류");
         var manifest = NativeProtocol.Module(roots[0]);
         ModuleReleases.ValidateNative(roots[0]);
+        requireChannel?.Invoke(ModuleReleases.Native(roots[0], manifest.Id, manifest.Version).Channel);
         var package = new SourcePackage(roots[0], manifest.Version);
         NativeProtocol.Save(NativeProtocol.Child(Data, "catalog-" + manifest.Id + ".json"), new NativeCatalogPackage(package.Path, package.Version, NativeProtocol.Hashes(package.Path)));
         PrepareCachedUpdates(); return package;
@@ -155,6 +168,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     {
         var module = NativeProtocol.Module(source.Path);
         ModuleReleases.ValidateNative(source.Path);
+        requireChannel?.Invoke(ModuleReleases.Native(source.Path, module.Id, module.Version).Channel);
         var current = Cached(module.Id);
         if (current is not null && Path.GetFullPath(current.Path).Equals(Path.GetFullPath(source.Path), StringComparison.OrdinalIgnoreCase))
         {

@@ -132,7 +132,8 @@ internal static class Program
         }
         if (args.Length == 2 && args[0] == "--import-native-module")
         {
-            new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser()).Import(args[1]); return 0;
+            using var permission = new Core.TeamAccess(serve: false); permission.Refresh().GetAwaiter().GetResult();
+            new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser(), requireChannel: permission.Require).Import(args[1]); return 0;
         }
         if (args.Contains("--install-native-reload-host"))
         {
@@ -140,7 +141,8 @@ internal static class Program
         }
         if (args.Length == 5 && args[0] == "--native-toggle")
         {
-            var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser());
+            using var permission = new Core.TeamAccess(serve: false); permission.Refresh().GetAwaiter().GetResult();
+            var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser(), requireChannel: permission.Require);
             var package = manager.Cached(args[1]) ?? throw new IOException("Native module catalog entry missing.");
             var module = RoBIM.Revit.Reload.NativeProtocol.Module(package.Path);
             var tool = new Core.ToolSpec("native-local-" + module.Id, module.Commands[0].Title, Core.ToolKind.NativeRevit, "", "main", Path.GetFileName(package.Path), "독립 모듈", true);
@@ -149,7 +151,7 @@ internal static class Program
         }
         if (args.Length == 2 && args[0] == "--native-reload")
         {
-            var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser()); manager.RequestReload();
+            var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser()); manager.RequestReload(includeCachedUpdates: false);
             File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(manager.Desired())); return 0;
         }
         if (args.Length == 2 && args[0] == "--render-cad-buttons")
