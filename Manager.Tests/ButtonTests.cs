@@ -380,6 +380,30 @@ internal static class ButtonTests
             service.InstallHost(Archive(source), addins, () => { }); var before = SafeFiles.Hashes(target.Target(Catalog.RevitHost)); File.AppendAllText(Path.Combine(source, "Contents/2026/RoBIM.Revit.Host.dll"), "new core");
             Reject(() => service.InstallHost(Archive(source), addins, () => throw new IOException("host running"))); require(SafeFiles.Same(before, SafeFiles.Hashes(target.Target(Catalog.RevitHost))), "Running loader overwritten");
         });
+        test("NativeHostReadinessDetectsOldHostAndPreservesRibbon", () =>
+        {
+            var source = HostSource("readiness"); var target = paths("native-host-readiness");
+            var service = new NativeRevitCommands(target, () => null); var addins = Path.Combine(target.Data, "Addins");
+            var first = Archive(source);
+            require(!NativeHostPackage.Matches(target, first), "Missing host reported ready");
+            service.InstallHost(first, addins, () => { });
+            require(NativeHostPackage.Matches(target, first), "Installed identical host reported outdated");
+            var ribbon = Path.Combine(target.Data, "ribbon-layout-revit.json"); File.WriteAllText(ribbon, "saved user placement");
+            File.AppendAllText(Path.Combine(source, "Contents/2026/RoBIM.Revit.Host.dll"), "new ribbon support");
+            var next = Archive(source);
+            require(!NativeHostPackage.Matches(target, next), "Existing older host reported ready for current ribbon");
+            Reject(() => service.InstallHost(next, addins, () => throw new IOException("host running")));
+            require(File.ReadAllText(ribbon) == "saved user placement" && !NativeHostPackage.Matches(target, next), "Blocked upgrade changed state");
+            service.InstallHost(next, addins, () => { });
+            require(NativeHostPackage.Matches(target, next) && File.ReadAllText(ribbon) == "saved user placement", "Host upgrade lost ribbon or remains outdated");
+        });
+        test("NativeHostReadinessRejectsUnverifiedBundle", () =>
+        {
+            var source = HostSource("readiness-tampered"); var target = paths("native-host-tampered"); var zip = Archive(source);
+            File.AppendAllText(zip, "changed bytes");
+            Reject(() => NativeHostPackage.Matches(target, zip));
+            require(!Directory.Exists(target.Target(Catalog.RevitHost)), "Readiness check installed a host");
+        });
         test("NativeHostPreservesForeignRegistration", () =>
         {
             var source = HostSource("foreign"); var target = paths("native-host-foreign"); var service = new NativeRevitCommands(target, () => null); var addins = Path.Combine(target.Data, "Addins"); Directory.CreateDirectory(addins);

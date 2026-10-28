@@ -130,6 +130,8 @@ public sealed partial class ManagerForm
             CheckBounds(card);
         }
         Navigate("Ribbon"); Require(ribbonPage.Visible && !productsPage.Visible, "Ribbon editor navigation");
+        var ribbonConnection = ribbonPage.Controls.OfType<FlowLayoutPanel>().SelectMany(x => x.Controls.OfType<Button>()).Single(x => x.AccessibleName == "Revit 리본 연결 설치 및 업데이트");
+        Require(ribbonConnection.Visible && ribbonConnection.Parent!.Bottom <= ribbonEditor!.Top, "Native ribbon connection recovery is visible without covering the editor");
         var managementCount = ribbonEditor!.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count(b => b.Id.StartsWith("manager:"));
         Require(managementCount > 0, "Installed tools expose editable management controls");
         Require(ribbonEditor.Snapshot().Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Count() == 2 + managementCount, "Ribbon editor defaults contain installed tools and management only");
