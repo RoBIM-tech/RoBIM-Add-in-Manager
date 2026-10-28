@@ -14,7 +14,24 @@ jobs:
           python-version: '3.12'
       - run: python scripts/validate_registration.py
 
+  ribbon-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ribbon bridge offline regressions
+        run: |
+          python tests/test-ribbon-activation.py
+          python tests/test-ribbon-bindings.py
+          python tests/test-ribbon-retirement.py
   manager-regression:
+    # Full .NET tests need immutable private RoBIM.Common/Access.Core NuGet feed.
+    # Enable only after the private feed is provisioned on the runner.
+    if: vars.ROBIM_MANAGER_DEPENDENCIES_READY == 'true'
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
