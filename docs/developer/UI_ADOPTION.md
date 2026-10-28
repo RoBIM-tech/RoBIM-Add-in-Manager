@@ -55,3 +55,6 @@ Revit Host 1.0.0-preview.8을 동봉해 자동 결합 0.1.0-test.2의 모델리�
 ## preview.51
 
 Git 없는 기기 인증창, Manager 자동 업데이트 설정/상태, Navisworks 빈 목록을 추가합니다. 기존 Manager 카드/설정 스타일과 Windows 기본 제목 표시줄을 유지합니다. .NET 검사는 버튼 없이 Setup 및 기능 설치 과정에 통합합니다. UI 렌더·인증·실제 설치 검증은 각각 별도 기록합니다.
+
+
+preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으로 표시합니다. 내부 모듈·명령·설치 ID와 동작은 유지합니다.
