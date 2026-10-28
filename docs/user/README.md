@@ -280,3 +280,9 @@ preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으
 Revit 도구·검색·새 설치·리본은 독립 C# Add-in만 사용합니다. pyRevit 메뉴와 연결 신규 설치는 제공하지 않으며, 기존 소유 잔여 설치가 있으면 설정의 고급 항목에서 백업 후 제거할 수 있습니다. 업데이트 자체는 이전 pyRevit 파일이나 사용자 리본을 자동 삭제하지 않습니다. Revit 리본 연결 업데이트와 Manager 업데이트 확인 버튼을 유지합니다.
 
 AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 cad-panel-errors.log에 기록합니다. Navisworks는 빈 도구/리본 안내를 유지합니다. Manager의 미리보기 예시도 Native 도구로 바꾸어 제거된 pyRevit 제품을 찾다가 실패하지 않게 했습니다.
+
+## Preview 55: 동봉 Revit 연결 패키지 수정
+
+preview.54 이하의 일부 Manager 배포는 동봉 Host를 preview.8로 문서화했지만 실제 ZIP은 preview.1이었습니다. 로컬 SHA-256과 sidecar만 일치해도 빌드가 허용된 것이 원인입니다. preview.55는 GitHub 공식 host-v1.0.0-preview.8의 ZIP 해시 e4371baf…로 고정하고 실제 DLL 버전 preview.8을 확인했습니다. CAD stable1.0.1은 기존 공식 배포와 일치했습니다.
+
+release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하며, 빌드는 구형 Host ZIP과 그에 맞는 로컬 sidecar 조합도 거부합니다. 정식 Setup 빌드의 CAD도 고정하며 Portable 후보 빌드만 명시적 CAD 후보를 허용합니다. 현재 Host 교체는 Revit 종료 후 ‘Revit 연결 설치 / 업데이트’로 진행하고, 저장된 리본·도구 선택을 보존합니다. 업데이트가 실행 중 Revit을 강제 종료하지 않습니다.
