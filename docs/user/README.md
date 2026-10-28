@@ -6,7 +6,7 @@
 
 1. [배포 페이지](https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/releases)에서 관리자가 안내한 버전의 Setup을 받아 설치합니다. Windows 시작 메뉴의 **RoBIM Add-in Manager**로 실행합니다.
 2. 사용할 제품이 요구하는 버전을 확인합니다. 현재 독립 Revit 모듈은 Revit 2026.5 이상, CAD 모듈은 AutoCAD 2026.1.2 이상을 대상으로 합니다. Python 도구는 Revit에 연결된 pyRevit이 필요합니다.
-3. **Revit 독립 Add-in / Revit · pyRevit / AutoCAD** 중 사용할 목록을 선택합니다.
+3. **Revit / Revit · pyRevit / AutoCAD / Navisworks** 중 사용할 목록을 선택합니다.
 4. 카드의 이름·기능 설명과 설치 상태를 확인합니다. 검색으로 도구를 찾을 수 있습니다. 카드 수는 창 너비에 따라 달라집니다.
 
 목록에 카드가 보이는 것은 설치 가능한 기능이 있다는 뜻입니다. 실제 Revit/CAD 리본에는 설치하고 적용한 명령이 표시됩니다.
@@ -259,3 +259,6 @@ Navisworks 메뉴는 등록 도구가 없는 빈 목록과 기본 경로 설치 
 
 
 preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으로 표시합니다. 내부 모듈·명령·설치 ID와 동작은 유지합니다.
+
+
+프로그램별 리본 편집: 왼쪽 Revit·AutoCAD·Navisworks 아래에 각각 리본 편집을 둡니다. Revit은 기존 탭/패널/묶음 편집과 자동 적용을, AutoCAD는 기존 CAD 구성의 버튼 이름/패널/순서와 CAD Reload 준비를 사용합니다. CAD 구성을 Revit 리본 파일에 저장하거나 Revit 적용을 호출하지 않습니다. Navisworks는 등록 도구가 없어 편집할 버튼이 없음을 표시합니다. Navisworks 저장·호스트 적용을 지원한다고 표시하지 않습니다.

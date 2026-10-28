@@ -33,13 +33,18 @@ public sealed partial class ManagerForm
     private void BuildView()
     {
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
-        var nav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 590, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("Navisworks", "Navisworks"), ("Test", "TEST 도구"), ("Ribbon", "리본 편집"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("PyRevit", "Revit · pyRevit"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Locations", "설치 위치"), ("Extensions", "도구 등록"), ("Developer", "기존 pyRevit TEST"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
             button.FlatAppearance.BorderSize = 0;
+            if (id is "Ribbon" or "CadRibbon" or "NavisworksRibbon")
+            {
+                button.Height=34; button.Padding=new(28,0,0,0); button.Font=new Font(Font.FontFamily,9F);
+                button.AccessibleName=(id=="Ribbon" ? "Revit" : id=="CadRibbon" ? "AutoCAD" : "Navisworks")+" 리본 편집";
+            }
             button.Click += (_, _) => SwitchPage(id);
             if (!preview && RevitRuntimePolicy.NativeOnly(paths) && id is "PyRevit" or "Developer" or "Locations") button.Visible = false;
             navigation.Add(button); nav.Controls.Add(button);
@@ -57,14 +62,14 @@ public sealed partial class ManagerForm
         profileLabel.Font = new Font(Font.FontFamily, 9);
         shell.Controls.Add(profileLabel, 0, 1);
         var pages = new Panel { Dock = DockStyle.Fill };
-        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage, ribbonPage, locationsPage]); shell.Controls.Add(pages, 0, 2);
+        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage, ribbonPage, cadRibbonPage, navisworksRibbonPage, locationsPage]); shell.Controls.Add(pages, 0, 2);
         footer.Font = new Font(Font.FontFamily, 9);
         footer.ForeColor = Color.FromArgb(110, 120, 135); shell.Controls.Add(footer, 0, 3);
         content.Controls.Add(shell);
         var workspace = new Panel { Dock = DockStyle.Fill };
         workspace.Controls.Add(content); workspace.Controls.Add(sidebar);
         Controls.Add(workspace); Controls.Add(brand);
-        BuildUserPage(); BuildDeveloperPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildLocationsPage();
+        BuildUserPage(); BuildDeveloperPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildHostRibbonPages(); BuildLocationsPage();
         try
         {
             var file = Path.Combine(paths.Data, "ui-preferences.json");
@@ -280,14 +285,17 @@ public sealed partial class ManagerForm
         userPage.Visible = false; developerPage.Visible = id == "Developer"; accountPage.Visible = id == "Account";
         extensionsPage.Visible = id == "Extensions";
         ribbonPage.Visible = id == "Ribbon";
+        cadRibbonPage.Visible = id == "CadRibbon";
+        navisworksRibbonPage.Visible = id == "NavisworksRibbon";
         locationsPage.Visible = id == "Locations";
         if (id == "Locations") ShowLocation();
         if (id == "Ribbon") RefreshRibbonEditor();
+        if (id == "CadRibbon") RefreshCadRibbonPage();
         productsPage.Visible = IsProductPage;
         profileLabel.Visible = id is "Revit" or "PyRevit" or "Cad" or "Developer";
         _ = RefreshProfileLabel();
-        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
-        pageSubtitle.Text = id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
+        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "Revit 리본 편집" : id == "CadRibbon" ? "AutoCAD 리본 편집" : id == "NavisworksRibbon" ? "Navisworks 리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
+        pageSubtitle.Text = id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
         foreach (var control in navigation)
         {
             var selected = (string?)control.Tag == id;
