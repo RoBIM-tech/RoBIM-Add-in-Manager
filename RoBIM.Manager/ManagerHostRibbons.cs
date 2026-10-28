@@ -19,10 +19,18 @@ public sealed partial class ManagerForm
         cadRibbonEdit.Click += async (_, _) =>
         {
             if (preview) return;
-            var owner=productRows.FirstOrDefault(x=>x.Status.Tool.Id==Catalog.Cad.Id);
-            if (owner is null || !CadConfigurable(owner)) { MessageBox.Show(this,"AutoCAD 도구를 먼저 설치하거나 설치 상태를 확인하세요.","AutoCAD 리본 편집"); return; }
-            selectedProductId=owner.Status.Tool.Id;
-            try { await ConfigureCadButtons(false); RefreshCadRibbonPage(); }
+            try
+            {
+                var owner = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id);
+                if (owner is null || !CadConfigurable(owner))
+                {
+                    MessageBox.Show(this, "AutoCAD 도구를 먼저 설치하거나 설치 상태를 확인하세요.", "AutoCAD 리본 편집");
+                    return;
+                }
+                selectedProductId = owner.Status.Tool.Id;
+                await ConfigureCadButtons(false);
+                RefreshCadRibbonPage();
+            }
             catch (Exception ex) { ReportPageFailure("CadRibbon", ex); }
         };
         cadRibbonPage.Controls.Add(cad);
