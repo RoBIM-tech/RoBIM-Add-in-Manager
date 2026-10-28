@@ -161,4 +161,25 @@ public sealed class RibbonLayouts(ManagerPaths paths)
         File.WriteAllText(temporary, JsonSerializer.Serialize(new { Id = id, session.Pid, session.StartTicks, Reload = reload })); File.Move(temporary, file, true);
         return "Revit 적용 요청 완료 · 결과 확인을 눌러 실제 적용 상태를 확인하세요.";
     }
+    public string RevitResult(Func<RevitSession?>? sessionProbe = null)
+    {
+        var session=sessionProbe is null ? NativeRevitCommands.Session() : sessionProbe();
+        if (session is null) return "저장됨 · Revit을 실행한 뒤 적용 상태를 확인하세요.";
+        var requestFile=SafeFiles.Child(paths.Data,"revit-ui-request.json");
+        if (!File.Exists(requestFile)) return "현재 Revit 세션의 리본 적용 요청이 없습니다. Revit 적용을 누르세요.";
+        using var request=JsonDocument.Parse(File.ReadAllText(requestFile));
+        var expected=request.RootElement;
+        if (expected.GetProperty("Pid").GetInt32()!=session.Pid || expected.GetProperty("StartTicks").GetInt64()!=session.StartTicks)
+            return "이전 Revit 세션의 기록입니다. 현재 Revit에 적용을 다시 요청하세요.";
+        var resultFile=SafeFiles.Child(paths.Data,"revit-ui-result.json");
+        if (!File.Exists(resultFile)) return "현재 요청 적용 대기 중 · Revit에서 실제 적용 응답을 기다리고 있습니다.";
+        using var result=JsonDocument.Parse(File.ReadAllText(resultFile));
+        var actual=result.RootElement;
+        if (!actual.TryGetProperty("Id",out var id) || id.GetString()!=expected.GetProperty("Id").GetString())
+            return "현재 요청 적용 대기 중 · 이전 적용 결과를 현재 성공으로 표시하지 않습니다.";
+        var status=actual.TryGetProperty("Status",out var state) ? state.GetString() : "";
+        var message=actual.TryGetProperty("Message",out var detail) ? detail.GetString() : "";
+        return status switch { "applied"=>"현재 Revit 리본 적용 완료 · "+message, "failed"=>"현재 Revit 리본 적용 실패 · "+message,
+            _=>"현재 요청 적용 대기 중 · "+message };
+    }
 }

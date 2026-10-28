@@ -60,6 +60,14 @@ public sealed partial class ManagerForm
         Navigate("Mine"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Selected), "My tools is per-button selection");
         Navigate("Cad"); Require(cardBindings.Count == 2 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD shows multiple actions from one loader");
         Require(!nativeReload.Visible, "Native Revit Reload hidden on AutoCAD page");
+        Navigate("CadRibbon");
+        Require(cadRibbonPage.Visible && !ribbonPage.Visible && pageTitle.Text=="AutoCAD 리본 편집", "AutoCAD ribbon editor is separate from Revit");
+        Navigate("NavisworksRibbon");
+        Require(navisworksRibbonPage.Visible && !ribbonPage.Visible && !cadRibbonPage.Visible && pageTitle.Text=="Navisworks 리본 편집", "Navisworks ribbon editor has its own empty state");
+        Navigate("Revit");
+        Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
+        Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
+        Require(navigation.First().Parent is ScrollableControl nav && !nav.HorizontalScroll.Visible, "Program ribbon navigation fits without horizontal scrolling");
         Navigate("Revit"); Require(cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Independent Revit excludes pyRevit and CAD actions");
         Require(nativeReload.Visible, "Native Revit Reload available on Revit page");
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");

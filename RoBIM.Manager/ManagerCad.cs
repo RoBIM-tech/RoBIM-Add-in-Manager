@@ -13,6 +13,7 @@ public sealed partial class ManagerForm
 
     private async Task ConfigureCadButtons(bool latestPackage, string? archivePath = null)
     {
+        if (!Allowed) { SwitchPage("Account"); return; }
         if (SelectedProduct() is not { } row || !CadConfigurable(row)) return;
         SourcePackage? downloaded = null;
         if (latestPackage || archivePath is not null)

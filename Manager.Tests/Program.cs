@@ -70,6 +70,7 @@ if (args.Contains("--device-login-only"))
 GitHubDeviceLoginTests.Run(Test);
 HostRequirementTests.Run(root, Test);
 ManagerUpdateTests.Run(root, Test);
+RibbonReceiptTests.Run(root, Test);
 if (args.Contains("--discovery-only"))
 {
     RepositoryDiscoveryTests.Run(root, Test);

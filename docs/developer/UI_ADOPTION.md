@@ -55,3 +55,15 @@ Revit Host 1.0.0-preview.8을 동봉해 자동 결합 0.1.0-test.2의 모델리�
 ## preview.51
 
 Git 없는 기기 인증창, Manager 자동 업데이트 설정/상태, Navisworks 빈 목록을 추가합니다. 기존 Manager 카드/설정 스타일과 Windows 기본 제목 표시줄을 유지합니다. .NET 검사는 버튼 없이 Setup 및 기능 설치 과정에 통합합니다. UI 렌더·인증·실제 설치 검증은 각각 별도 기록합니다.
+
+
+preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으로 표시합니다. 내부 모듈·명령·설치 ID와 동작은 유지합니다.
+
+
+프로그램별 리본 편집: 왼쪽 Revit·AutoCAD·Navisworks 아래에 각각 리본 편집을 둡니다. Revit은 기존 탭/패널/묶음 편집과 자동 적용을, AutoCAD는 기존 CAD 구성의 버튼 이름/패널/순서와 CAD Reload 준비를 사용합니다. CAD 구성을 Revit 리본 파일에 저장하거나 Revit 적용을 호출하지 않습니다. Navisworks는 등록 도구가 없어 편집할 버튼이 없음을 표시합니다. Navisworks 저장·호스트 적용을 지원한다고 표시하지 않습니다.
+
+
+설정의 Manager 업데이트 확인은 현재/최신 버전 정보만 확인합니다. 새 버전이 있으면 Manager 업데이트 버튼을 표시하며 사용자가 선택하면 검증한 Setup을 준비합니다. 자동 업데이트를 꺼도 수동 확인·설치를 사용할 수 있고, Portable은 배포 페이지를 엽니다.
+
+
+리본 결과 확인은 현재 Revit PID/시작 시각의 요청 ID와 일치한 응답만 적용 완료로 표시합니다. 이전 세션·이전 요청의 applied는 현재 성공으로 표시하지 않습니다. TEST/정식 전환은 같은 native module/command ID의 저장 배치를 보존해야 하며 별도 실제 호스트 적용 확인이 필요합니다.

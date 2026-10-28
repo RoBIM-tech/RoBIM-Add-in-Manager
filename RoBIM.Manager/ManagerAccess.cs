@@ -56,7 +56,7 @@ public sealed partial class ManagerForm
         if (teamAccess is null) return;
         UpdateLoginPage();
         var allowed = teamAccess.Allowed && !busy;
-        userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = allowed;
+        userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = cadRibbonPage.Enabled = navisworksRibbonPage.Enabled = allowed;
         toolbar.Enabled = actions.Enabled = grid.Enabled = allowed;
         foreach (var item in navigation.Where(n => (string?)n.Tag == "Test")) item.Visible = teamAccess.TestAllowed;
         foreach (var item in navigation.Where(n => (string?)n.Tag == "Developer")) item.Visible = teamAccess.TestAllowed && !RevitRuntimePolicy.NativeOnly(paths);
@@ -81,6 +81,7 @@ public sealed partial class ManagerForm
         try { startWithWindows.Checked = StartupRegistration.Enabled(Environment.ProcessPath!); } catch (Exception) { }
         try { managerAutoUpdate.Checked = AccountPreferences.Read(paths).AutoUpdate; } catch (Exception) { managerAutoUpdate.Checked = true; }
         panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows); panel.Controls.Add(managerAutoUpdate); panel.Controls.Add(managerUpdateStatus);
+        BuildManagerUpdateActions(panel);
         managerAutoUpdate.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
         automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
         startWithWindows.CheckedChanged += (_, _) =>
