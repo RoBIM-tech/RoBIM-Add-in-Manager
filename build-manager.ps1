@@ -1,4 +1,4 @@
-param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath, [string]$LibraryFeed)
+param([switch]$SkipCadBuild, [string]$CadPackagePath, [string]$RevitHostPackagePath, [string]$LibraryFeed, [switch]$SkipSetup)
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
@@ -58,6 +58,10 @@ foreach ($name in @('Install.ps1','Uninstall.ps1')) {
     [IO.File]::WriteAllText((Join-Path $output $name), [IO.File]::ReadAllText($source), [Text.UTF8Encoding]::new($true))
 }
 Compress-Archive -LiteralPath $output -DestinationPath (Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager-Portable.zip') -Force
+$portable = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager-Portable.zip'
+(Get-FileHash -LiteralPath $portable -Algorithm SHA256).Hash | Set-Content -LiteralPath ($portable + '.sha256') -Encoding ASCII
+Write-Host "Portable verified candidate: $portable"
+if ($SkipSetup) { return }
 $compiler = & (Join-Path $PSScriptRoot 'installer\Get-InnoCompiler.ps1')
 & $compiler (Join-Path $PSScriptRoot 'installer\Manager.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Windows Setup compilation failed.' }
