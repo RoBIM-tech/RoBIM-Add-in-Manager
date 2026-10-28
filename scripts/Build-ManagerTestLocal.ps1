@@ -32,8 +32,8 @@ $hostName = 'RoBIM-Host-Revit2026.zip'
 if ($RevitHostZip) {
     $hostZip = [IO.Path]::GetFullPath($RevitHostZip)
 } else {
-    & gh release download host-v1.0.0-preview.8 --repo RoBIM-tech/RoBIM-Revit-Addin --pattern "$hostName*" --dir $assets --clobber
-    if ($LASTEXITCODE -ne 0) { throw 'Revit Host preview.8 assets unavailable. Verify GitHub access.' }
+    & gh release download host-v1.0.0-preview.9 --repo RoBIM-tech/RoBIM-Revit-Addin --pattern "$hostName*" --dir $assets --clobber
+    if ($LASTEXITCODE -ne 0) { throw 'Revit Host preview.9 assets unavailable. Verify GitHub access.' }
     $hostZip = Join-Path $assets $hostName
 }
 if ($CadHotfixZip) {
