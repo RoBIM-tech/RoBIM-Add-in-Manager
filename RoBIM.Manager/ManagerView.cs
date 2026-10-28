@@ -252,8 +252,8 @@ public sealed partial class ManagerForm
             await Task.Run(() => ReloadBridge.Install(paths, Path.Combine(AppContext.BaseDirectory, "RoBIM-ReloadBridge.zip")));
             MessageBox.Show(this, "Reload 연결을 설치했습니다. Revit에서 pyRevit Reload를 한 번 누르십시오.\nRoBIM TEST → RoBIM 연결 TEST → 적용 및 Reload 버튼이 표시됩니다.", Text);
         });
-        var retirePython = MakeButton("기존 RoBIM pyRevit 연결 제거");
-        retirePython.Enabled = !preview && !RevitRuntimePolicy.NativeOnly(paths);
+        var retirePython = MakeButton("이전 RoBIM pyRevit 잔여 설치 백업 후 제거");
+        retirePython.Enabled = !preview;
         retirePython.Click += async (_, _) =>
         {
             if (!Confirm("기존 RoBIM pyRevit 버튼과 Manager용 pyRevit 연결을 백업 후 제거합니까?\n독립 Add-in과 다른 pyRevit 확장은 유지합니다. Revit을 저장하고 종료한 상태에서 실행하십시오.")) return;
@@ -269,16 +269,32 @@ public sealed partial class ManagerForm
                     return Path.Combine(paths.Data, "Backups", "PyRevitRetirement", plan.Id);
                 });
                 foreach (var navigationItem in navigation.Where(x => x.Tag is string page && page is "PyRevit" or "Developer" or "Locations")) navigationItem.Visible = false;
-                retirePython.Enabled = false; bridge.Visible = false;
+                retirePython.Enabled = false; retirePython.Visible = false; bridge.Visible = false;
                 WriteLog("RoBIM pyRevit 연결 제거 완료 · 복구 백업: " + backup);
             });
             SwitchPage("Revit");
         };
-        retirePython.Visible = false;
+        retirePython.Visible = !preview && HasManagedLegacyRevitRemnants();
         accountAdvancedPanel.Controls.Add(retirePython);
         bridge.Visible = false;
         accountAdvancedPanel.Controls.Add(bridge);
         login.Click += async (_, _) => await Run("GitHub 로그인", async () => { teamAccess?.Lock(); await LoginGitHub(); await RefreshAccountAndCatalog(); }, requiresAccess: false);
+    }
+
+    private bool HasManagedLegacyRevitRemnants()
+    {
+        // This is cleanup-only. Never offer pyRevit installation or a runtime switch.
+        try
+        {
+            return new[] { Catalog.Revit, Catalog.RevitSelected, Catalog.RevitDeveloper, Catalog.ReloadBridge }
+                .Any(tool => Directory.Exists(paths.Target(tool)));
+        }
+        catch (Exception)
+        {
+            // Leave the protected cleanup action available for a damaged
+            // legacy configuration; the retirement routine validates paths.
+            return true;
+        }
     }
 
     private void ReportPageFailure(string page, Exception error)
