@@ -40,7 +40,7 @@ public sealed partial class ManagerForm
         var importNative = MakeButton("독립 Revit 패키지 ZIP 가져오기");
         importNative.Click += async (_, _) => await ImportNativePackage();
         actions.Controls.AddRange([installPackage, importNative]); layout.Controls.Add(actions);
-        catalogInfo.Text = "지원: pyRevit .extension / AutoCAD·독립 Revit .bundle. 자동 설치 스크립트나 저장소 빌드는 실행하지 않습니다.";
+        catalogInfo.Text = "지원: AutoCAD·독립 Revit .bundle. pyRevit은 검색·설치 대상에서 제외했습니다.";
         layout.Controls.Add(catalogInfo); extensionsPage.Controls.Add(layout);
         refresh.Click += async (_, _) => await Run("애드인 저장소 조회", RefreshAccountAndCatalog);
         register.Click += async (_, _) => await Run("Git URL 확인", async () =>
@@ -64,9 +64,10 @@ public sealed partial class ManagerForm
         extensionGrid.Rows.Clear();
         foreach (var entry in availablePackages)
         {
+            if (entry.Package.Host == "pyrevit") continue;
             var tool = ExtensionCatalog.Tool(entry.Repository, entry.Package);
             var status = productRows.FirstOrDefault(x => x.Status.Tool.Id == tool.Id)?.Status;
-            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : tool.Kind == ToolKind.PyRevit ? "Revit · pyRevit" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
+            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
             extensionGrid.Rows[index].Tag = entry;
         }
     }
@@ -95,6 +96,7 @@ public sealed partial class ManagerForm
     {
         var row = selected ?? SelectedPackage(); if (row is null) return;
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
+        if (tool.Kind == ToolKind.PyRevit) { MessageBox.Show(this, "pyRevit은 지원하지 않습니다. 저장소만 보관합니다.", Text); return; }
         if (tool.Kind == ToolKind.NativeRevit)
         {
             var owner = new ProductRow(installer.Status(tool), row);
@@ -124,6 +126,7 @@ public sealed partial class ManagerForm
     {
         var row = selected ?? SelectedPackage(); if (row is null) return;
         var tool = ExtensionCatalog.Tool(row.Repository, row.Package);
+        if (tool.Kind == ToolKind.PyRevit) return;
         if (tool.Kind == ToolKind.NativeRevit)
         {
             var owner = new ProductRow(installer.Status(tool), row);

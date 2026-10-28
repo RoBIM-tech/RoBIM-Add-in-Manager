@@ -32,7 +32,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
         if (name.Length == 0 || name is "." or ".." || name.Contains("..")) throw new ArgumentException("저장소 이름 오류");
         return match.Groups[1].Value + "/" + name;
     }
-    public static bool Related(IEnumerable<string> topics) => topics.Any(x => x is "robim-addon" or "pyrevit-extension" or "autocad-plugin" or "revit-addin");
+    public static bool Related(IEnumerable<string> topics) => topics.Any(x => x is "robim-addon" or "autocad-plugin" or "revit-addin");
     public static ExtensionPackage[] ParseManifest(string text)
     {
         var manifest = JsonSerializer.Deserialize<ExtensionManifest>(text, Json) ?? throw new InvalidDataException("패키지 표시 정보가 비어 있습니다.");
@@ -45,7 +45,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (package is null || string.IsNullOrWhiteSpace(package.Name) || package.Name.Length > 120 ||
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
             if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
-            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: pyrevit, autocad, revit");
+            if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: autocad, revit (기존 pyRevit 기록은 읽기 호환만 제공)");
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             if (package.ModuleId is null || package.CommandId is null ||
                 (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&
@@ -66,12 +66,14 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
         "robim-tech/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
-        "robim-tech/robim-pyrevit" => new(repo, branch, [new("robim-revit", "RoBIM for Revit", "pyrevit", ".", "RoBIM.extension")], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
     {
         var repo = Repository(url);
+        if (repo.EndsWith("/RoBIM-pyrevit", StringComparison.OrdinalIgnoreCase) ||
+            repo.EndsWith("/RoBIM-pyrevit-extension", StringComparison.OrdinalIgnoreCase))
+            throw new NoInstallablePackagesException("pyRevit은 사용하지 않습니다. 저장소 이력만 보존합니다.");
         using var response = await GitHubSession.Request("/repos/" + repo);
         if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException("저장소를 찾을 수 없습니다. 주소와 계정·토큰의 저장소 접근 권한을 확인하십시오.");
         using var metadata = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -88,26 +90,15 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (declaration.RootElement.TryGetProperty("schemaVersion", out var schema) && schema.GetInt32() == 1 &&
                 declaration.RootElement.TryGetProperty("packages", out var entries) && entries.ValueKind == JsonValueKind.Array && entries.GetArrayLength() == 0)
                 throw new NoInstallablePackagesException("설치 도구가 없는 기반 저장소입니다.");
-            return new(canonical, branch, ParseManifest(content), "robim-package.json");
+            var parsed = ParseManifest(content);
+            if (parsed.All(x => x.Host == "pyrevit"))
+                throw new NoInstallablePackagesException("pyRevit 패키지는 지원 대상에서 제외되었습니다.");
+            return new(canonical, branch, parsed.Where(x => x.Host != "pyrevit").ToArray(), "robim-package.json");
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
-        // Existing pyRevit repositories may use native root/nested .extension bundles.
-        using var rootResponse = await GitHubSession.Request("/repos/" + canonical + "/contents?ref=" + Uri.EscapeDataString(branch));
-        if (!rootResponse.IsSuccessStatusCode) throw new IOException("저장소 구조를 확인하지 못했습니다.");
-        using var root = JsonDocument.Parse(await rootResponse.Content.ReadAsStringAsync());
-        var directories = root.RootElement.EnumerateArray().Where(x => x.GetProperty("type").GetString() == "dir").Select(x => x.GetProperty("name").GetString()!).ToArray();
-        var nested = directories.Where(x => x.EndsWith(".extension", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var folder = canonical.Split('/')[1];
-        var hasRootTab = directories.Any(x => x.EndsWith(".tab", StringComparison.OrdinalIgnoreCase));
-        if (hasRootTab || nested.Length == 1)
-        {
-            var path = hasRootTab ? "." : nested[0];
-            folder = hasRootTab ? folder.EndsWith(".extension", StringComparison.OrdinalIgnoreCase) ? folder : folder + ".extension" : nested[0];
-            var entry = new ExtensionPackage("extension", canonical.Split('/')[1], "pyrevit", path, folder);
-            ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, [entry])));
-            return new(canonical, branch, [entry], "pyRevit .tab / .extension 구조");
-        }
-        throw new IOException("지원하는 애드인 표시 정보가 없습니다. robim-package.json을 추가하십시오. 지원 설치 형식: pyRevit 확장, AutoCAD / 독립 Revit .bundle");
+        // Preserve legacy repositories on GitHub but never infer .extension packages.
+        throw new NoInstallablePackagesException("이 저장소에는 지원되는 독립 Revit/CAD 패키지가 없습니다.");
+
     }
     public ExtensionRepository[] Registered()
     {
@@ -128,7 +119,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
         var moves = BundledCatalog.Read().RepositoryMoves ?? [];
-        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => !moves.Any(move =>
+        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => package.Host != "pyrevit" && !moves.Any(move =>
             move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) &&
             !(move.ToRepositories.Length == 1 && RepositoryOwnership.Canonical(move.FromRepository).Equals(move.ToRepositories[0], StringComparison.OrdinalIgnoreCase)))).ToArray() })
             .Where(repo => repo.Packages.Length > 0)
@@ -137,6 +128,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     }
     public void Register(ExtensionRepository repository)
     {
+        if (repository.Packages.Any(p => p.Host == "pyrevit"))
+            throw new NoInstallablePackagesException("pyRevit 저장소는 등록하지 않습니다.");
         _ = Repository("https://github.com/" + repository.Repository);
         ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, repository.Packages)));
         Directory.CreateDirectory(paths.Data);

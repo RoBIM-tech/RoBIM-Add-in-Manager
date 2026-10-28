@@ -47,6 +47,7 @@ public sealed partial class ManagerForm
         var result = new List<ProductRow>();
         void Add(ToolStatus status, PackageRow? package)
         {
+            if (status.Tool.Kind == ToolKind.PyRevit || RevitRuntimePolicy.LegacyRoBIM(status.Tool)) return;
             if (!result.Any(x => x.Status.Tool.Id == status.Tool.Id)) result.Add(new(status, package));
         }
         foreach (var status in statusRows) Add(status, null);

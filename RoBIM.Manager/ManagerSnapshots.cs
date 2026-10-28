@@ -97,7 +97,7 @@ public sealed partial class ManagerForm
                 if (!snapshotVerified) throw new IOException("Local snapshot verification failed");
                 var startupMs = startup.Elapsed.TotalMilliseconds;
                 var before = inventoryScanCount; var timings = new List<object>();
-                foreach (var page in new[] { "Revit", "PyRevit", "Cad", "All", "Mine", "PyRevit", "Revit" })
+                foreach (var page in new[] { "Revit", "Cad", "CadRibbon", "All", "Mine", "Revit" })
                 {
                     var watch = Stopwatch.StartNew(); SwitchPage(page); PerformLayout();
                     timings.Add(new { Page = page, Milliseconds = watch.Elapsed.TotalMilliseconds, Cards = cardBindings.Count });
@@ -167,7 +167,7 @@ public sealed partial class ManagerForm
     private string ReadStateStamp()
     {
         // Metadata only: no package traversal, hashing, Git or network in the timer.
-        var files = new[] { "installed.json", "extension-repositories.json", "pyrevit-location.json", "reload-pending.json", "reload-result.json", "reload-profile.json",
+        var files = new[] { "installed.json", "extension-repositories.json",
             "NativeRevit/pending.json", "NativeRevit/active.json", "NativeRevit/Results", "Cad/pending.json", "Cad/active.json", "Cad/Results" };
         var stamp = string.Join("|", files.Select(relative =>
         {
@@ -191,7 +191,7 @@ public sealed partial class ManagerForm
         foreach (var feature in commands)
         {
             var enabled = true; var update = false; var legacy = false; var message = feature.Message;
-            var instruction = feature.Kind == ButtonKind.Native ? "Manager 변경 후 자동 적용 · Revit 처리 대기 시 Reload로 재시도" : feature.Kind == ButtonKind.Cad ? "AutoCAD → RoBIM → 관리 → Reload" : "Manager 변경 후 자동 적용 · pyRevit 연결 필요";
+            var instruction = feature.Kind == ButtonKind.Native ? "Manager 변경 후 자동 적용 · Revit 처리 대기 시 Reload로 재시도" : "AutoCAD → RoBIM → 관리 → Reload";
             try
             {
                 if (feature.Kind == ButtonKind.Native)

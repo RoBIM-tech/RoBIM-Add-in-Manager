@@ -7,7 +7,7 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "PyRevit" or "Cad" or "Navisworks" or "Test";
+    private bool IsProductPage => currentPage is "All" or "Mine" or "Revit" or "Cad" or "Navisworks" or "Test";
     private readonly TextBox productSearch = new() { PlaceholderText = "도구 이름 또는 기능 검색", Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
     private readonly ComboBox productSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };
@@ -38,18 +38,8 @@ public sealed partial class ManagerForm
             var page = currentPage;
             await Run("Revit Reload 적용 요청", async () =>
             {
-                if (page != "PyRevit") NativeCommands().RequestReload();
-                if (page is not ("Revit" or "Test"))
-                {
-                    if (ReloadBridge.RevitRunning()) WriteLog(new RibbonLayouts(paths).RequestRevit(true));
-                    else
-                    {
-                        var applied = await new RevitReload(paths).ApplyPendingSelectionWhenClosed(() => new RevitProfiles(paths).ApplySelection());
-                        WriteLog(applied ? "준비된 버튼 선택을 설치했습니다. 다음 Revit 시작 시 로드합니다." : "적용할 pyRevit 버튼 선택이 없습니다.");
-                        if (applied) await RefreshStatuses();
-                    }
-                }
-                else WriteLog("독립 Add-in Reload 요청 완료");
+                NativeCommands().RequestReload();
+                WriteLog("독립 Revit Add-in Reload 요청 완료");
             });
         };
         layout.Controls.Add(searchRow, 0, 0); layout.Controls.Add(productCards, 0, 1); layout.Controls.Add(productCount, 0, 2);
@@ -74,7 +64,7 @@ public sealed partial class ManagerForm
         {
             "Test" => x.CollectionChannel == "test",
             "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
-            "PyRevit" => x.Kind == ButtonKind.PyRevit,
+            
             "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
             "Navisworks" => false,
             "Mine" => x.Selected || x.Pending,
@@ -224,7 +214,7 @@ public sealed partial class ManagerForm
     private void RefreshCardActions()
     {
         nativeReload.Visible = IsProductPage && currentPage is not ("Cad" or "Navisworks");
-        nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : currentPage == "PyRevit" ? "pyRevit Reload" : "Revit 전체 Reload";
+        nativeReload.Text = currentPage is "Revit" or "Test" ? "독립 Add-in Reload" : "Revit 전체 Reload";
         var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;
         foreach (var binding in cardBindings.Values)
