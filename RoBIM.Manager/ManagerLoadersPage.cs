@@ -37,12 +37,13 @@ public sealed partial class ManagerForm
             {
                 ToolStatus state;
                 try { state = LoaderLocalState(tool); }
-                catch (Exception error) { button.Text = "상태 확인 실패"; button.Enabled = false; status.Text = error.Message; return; }
+                catch (Exception error) { button.Text = "상태 확인 실패"; button.Enabled = false; button.BackColor = Color.FromArgb(230, 233, 238); status.Text = error.Message; return; }
                 location.Text = state.Path;
                 var offers = loaderOffers.GetValueOrDefault(tool.Id);
                 var actionState = LoaderActions.Evaluate(state, offers, channel.SelectedIndex == 1 ? "test" : "stable", CanUseTest);
                 button.Text = actionState.Text;
                 button.Enabled = actionState.Enabled;
+                button.BackColor = actionState.Enabled ? Color.FromArgb(30, 91, 166) : Color.FromArgb(230, 233, 238);
                 status.Text = (state.Managed ? "설치 " + state.Version : "미설치") +
                     (offers is null ? "" : " · 정식 " + (offers.Stable?.Version ?? "없음") +
                     (CanUseTest ? " · TEST " + (offers.Test?.Version ?? "없음") : "")) +
