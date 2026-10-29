@@ -153,7 +153,7 @@ public sealed partial class ManagerForm
     {
         await Run(owner.Status.Tool.Kind == ToolKind.NativeRevit ? "업데이트 확인" : "버튼 기능 목록 확인", async () =>
         {
-            if (owner.Status.Tool.Kind == ToolKind.AutoCAD) cadButtonPackage = authenticated ? await sources.DownloadCad(CanUseTest ? null : "stable") : await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip"));
+            if (owner.Status.Tool.Kind == ToolKind.AutoCAD) cadButtonPackage = authenticated ? await sources.DownloadCad(CanUseTest ? null : "stable") : await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name));
             else if (owner.Status.Tool.Kind == ToolKind.PyRevit) revitButtonPackage = await sources.DownloadRevit();
             else if (owner.Package is not null)
             {

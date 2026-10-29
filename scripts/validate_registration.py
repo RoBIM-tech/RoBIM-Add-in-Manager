@@ -82,6 +82,7 @@ def validate_source(catalog, source, host, repository):
 
     elif host=='autocad':
         manifest=source/'package/robim-cad.json'
+        if not manifest.exists(): manifest=source/'bundle/RoBIM.Cad.Loader.bundle/Contents/Windows/robim-cad.json'
         if not manifest.exists(): manifest=source/'bundle/DelHiddenNet.bundle/Contents/Windows/robim-cad.json'
         definitions=[(m['id'],a['id']) for m in read(manifest)['modules'] for a in m['actions']]
         packageIds={p['id'] for r in catalog['repositories'] if r['repository']==repository for p in r['packages'] if p['host']=='autocad'}

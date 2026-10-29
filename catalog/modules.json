@@ -10,10 +10,10 @@
           "id": "delhidden",
           "name": "RoBIM CAD 도구",
           "host": "autocad",
-          "path": "DelHiddenNet.bundle",
-          "folder": "DelHiddenNet.bundle",
+          "path": "RoBIM.Cad.Loader.bundle",
+          "folder": "RoBIM.Cad.Loader.bundle",
           "distribution": "release",
-          "asset": "DelHiddenNet-AutoCAD2026.zip",
+          "asset": "RoBIM-CAD-Loader-AutoCAD2026.zip",
           "description": "CAD 기능별 선택 설치",
           "channel": "stable"
         }

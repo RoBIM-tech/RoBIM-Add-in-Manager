@@ -70,6 +70,23 @@ public sealed partial class ManagerForm
         Require(loaderCards.All(c => c.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<Button>().Count(b => b.Text == "저장소 확인") == 1), "One metadata check per loader");
         Require(!loaderCards.SelectMany(c => c.Controls.OfType<FlowLayoutPanel>()).SelectMany(c => c.Controls.OfType<Button>()).Any(b => b.Text is "TEST 확인" or "TEST 로더 적용"), "Loader channels share the primary action");
         Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD-Loader", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
+        var savedCadStatus=statuses.GetValueOrDefault(Catalog.Cad.Id);
+        var savedCadOffer=loaderOffers.GetValueOrDefault(Catalog.Cad.Id);
+        var cadActions=loaderCards[0].Controls.OfType<FlowLayoutPanel>().Single();
+        var cadChannel=cadActions.Controls.OfType<ComboBox>().Single();
+        var cadPrimary=cadActions.Controls.OfType<Button>().Single(b=>b.BackColor!=Color.White);
+        statuses[Catalog.Cad.Id]=new(Catalog.Cad,paths.Target(Catalog.Cad),"1.0.2-test.2",true,false,false,"");
+        loaderOffers[Catalog.Cad.Id]=new(new("1.0.3","stable"),new("1.1.0-test.3","test"));
+        cadChannel.SelectedIndex=1; RefreshLoaderStatus();
+        Require(cadPrimary.Enabled && cadPrimary.Text=="업데이트", "Screenshot TEST version pair enables loader update");
+        statuses[Catalog.Cad.Id]=statuses[Catalog.Cad.Id] with{Modified=true}; RefreshLoaderStatus();
+        Require(!cadPrimary.Enabled && cadPrimary.Text=="적용 차단" && cadLoaderStatus.Text.Contains("변경"), "Modified loader explains disabled action");
+        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size));bitmap.Save(destination+".loader-protected.png"); }
+        statuses[Catalog.Cad.Id]=statuses[Catalog.Cad.Id] with{Version="1.0.3",Modified=false};cadChannel.SelectedIndex=0;RefreshLoaderStatus();
+        Require(!cadPrimary.Enabled && cadLoaderStatus.Text.Contains("TEST를 선택"), "Latest stable loader points to optional TEST choice");
+        if(savedCadStatus is null) statuses.Remove(Catalog.Cad.Id);else statuses[Catalog.Cad.Id]=savedCadStatus;
+        if(savedCadOffer is null) loaderOffers.Remove(Catalog.Cad.Id);else loaderOffers[Catalog.Cad.Id]=savedCadOffer;
+        RefreshLoaderStatus();
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");

@@ -34,7 +34,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
 
     public static async Task CheckConnection()
     {
-        using var response = await Request("https://api.github.com/repos/RoBIM-tech/RoBIM-CAD", "application/vnd.github+json");
+        using var response = await Request("https://api.github.com/repos/RoBIM-tech/RoBIM-CAD-Loader", "application/vnd.github+json");
     }
 
     public async Task<SourcePackage> OfflineCad(string archive)
@@ -57,20 +57,20 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
     {
         var directory = NewCache();
         SafeFiles.Extract(archive, directory);
-        var package = Path.Combine(directory, Catalog.Cad.FolderName);
+        var package = CadLoaderAssets.ExtractedBundle(directory);
         InstallService.ValidatePackage(Catalog.Cad, package);
         return new(package, version);
     }
 
     public async Task<SourcePackage> DownloadCad(string? channel = null)
     {
-        var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", "DelHiddenNet-AutoCAD2026.zip");
+        var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", CadLoaderAssets.Name);
         if (channel is not null) package = package with { Channel = channel };
         var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
         requireChannel?.Invoke(offer.Channel);
         var assetId = offer.AssetId; var digest = offer.Digest; var version = offer.Version;
         var archive = Path.Combine(NewCache(), "package.zip");
-        using (var download = await Request($"https://api.github.com/repos/RoBIM-tech/RoBIM-CAD/releases/assets/{assetId}", "application/octet-stream", true))
+        using (var download = await Request($"https://api.github.com/repos/RoBIM-tech/RoBIM-CAD-Loader/releases/assets/{assetId}", "application/octet-stream", true))
         using (var input = await download.Content.ReadAsStreamAsync())
         using (var output = File.Create(archive))
         {
@@ -96,7 +96,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
         if (channel is not ("stable" or "test") || tool.Id is not ("delhidden" or "robim-revit-host"))
             throw new IOException("지원하지 않는 로더 또는 배포 채널입니다.");
         requireChannel?.Invoke(channel);
-        var asset = tool.Kind == ToolKind.AutoCAD ? "DelHiddenNet-AutoCAD2026.zip" : "RoBIM-Host-Revit2026.zip";
+        var asset = tool.Kind == ToolKind.AutoCAD ? CadLoaderAssets.Name : "RoBIM-Host-Revit2026.zip";
         using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
         if (!response.IsSuccessStatusCode) throw new IOException("로더 릴리스를 조회하지 못했습니다.");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -134,7 +134,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
         foreach (var release in releases.EnumerateArray())
         {
             if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != (channel == "test")) continue;
-            foreach (var candidate in release.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == asset))
+            foreach (var candidate in release.GetProperty("assets").EnumerateArray().Where(a => CadLoaderAssets.Matches(asset, a.GetProperty("name").GetString())).OrderByDescending(a => a.GetProperty("name").GetString() == asset))
             {
                 var digest = candidate.TryGetProperty("digest", out var d) ? d.GetString() : null;
                 if (digest is null || !System.Text.RegularExpressions.Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") || candidate.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024)
@@ -155,7 +155,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
     }
     public async Task<ReleaseChannels> CheckLoader(ToolSpec tool, bool includeTest)
     {
-        var asset = tool.Id == Catalog.Cad.Id ? "DelHiddenNet-AutoCAD2026.zip" : tool.Id == Catalog.RevitHost.Id ? "RoBIM-Host-Revit2026.zip" : throw new IOException("로더 ID 오류");
+        var asset = tool.Id == Catalog.Cad.Id ? CadLoaderAssets.Name : tool.Id == Catalog.RevitHost.Id ? "RoBIM-Host-Revit2026.zip" : throw new IOException("로더 ID 오류");
         using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         ReleaseOffer? stable = null, test = null; string? stableError = null, testError = null;

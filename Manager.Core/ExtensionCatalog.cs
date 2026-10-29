@@ -65,7 +65,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     }
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
-        "robim-tech/robim-cad-loader" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
+        "robim-tech/robim-cad-loader" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", CadLoaderAssets.BundleName, CadLoaderAssets.BundleName, "release", CadLoaderAssets.Name)], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
@@ -119,7 +119,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     private static ExtensionRepository[] CurrentSources(IEnumerable<ExtensionRepository> repositories)
     {
         var moves = BundledCatalog.Read().RepositoryMoves ?? [];
-        return repositories.Select(repo => repo with { Packages = repo.Packages.Where(package => package.Host != "pyrevit" && !moves.Any(move =>
+        return repositories.Select(repo => repo with { Packages = repo.Packages.Select(p => RepositoryOwnership.Canonical(repo.Repository).Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && p.Id == Catalog.Cad.Id && p.Host == "autocad" && CadLoaderAssets.IsBundle(p.Path) && CadLoaderAssets.IsBundle(p.Folder) ? p with { Path = CadLoaderAssets.BundleName, Folder = CadLoaderAssets.BundleName, Asset = CadLoaderAssets.Name } : p).Where(package => package.Host != "pyrevit" && !moves.Any(move =>
             move.FromRepository.Equals(repo.Repository, StringComparison.OrdinalIgnoreCase) && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) &&
             !(move.ToRepositories.Length == 1 && RepositoryOwnership.Canonical(move.FromRepository).Equals(move.ToRepositories[0], StringComparison.OrdinalIgnoreCase)))).ToArray() })
             .Where(repo => repo.Packages.Length > 0)
@@ -173,9 +173,9 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
         var moved = moves.FirstOrDefault(move => move.FromRepository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase)
             && move.PackageId.Equals(package.Id, StringComparison.OrdinalIgnoreCase) && move.ToRepositories.Length == 1);
         repository = repository with { Repository = RepositoryOwnership.Canonical(moved?.ToRepositories[0] ?? repository.Repository) };
-        if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Cad.FolderName) return Catalog.Cad;
+        if (repository.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && package.Id == Catalog.Cad.Id && CadLoaderAssets.IsBundle(package.Folder)) return Catalog.Cad;
         if (repository.Repository.Equals(Catalog.Revit.Repository, StringComparison.OrdinalIgnoreCase) && package.Folder == Catalog.Revit.FolderName) return Catalog.Revit;
-        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
+        if (new[] { Catalog.Revit.FolderName, Catalog.RevitDeveloper.FolderName, Catalog.RevitSelected.FolderName, Catalog.Cad.FolderName, CadLoaderAssets.LegacyBundleName, Catalog.ReloadBridge.FolderName }.Contains(package.Folder, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("RoBIM 기본 도구의 예약 폴더명은 다른 저장소에서 사용할 수 없습니다.");
         // A one-to-one repository move keeps the legacy installation record key.
         // Module/command IDs continue to identify Native selections and ribbon state.
@@ -188,8 +188,10 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     public static ExtensionPackage CurrentPackage(ExtensionPackage previous, ExtensionRepository current)
     {
         var package = current.Packages.SingleOrDefault(p => p.Id == previous.Id) ?? throw new IOException("기존 패키지 ID가 저장소에 없습니다.");
-        if (package.Host != previous.Host || package.Path != previous.Path || package.Folder != previous.Folder ||
-            package.Distribution != previous.Distribution || package.Asset != previous.Asset ||
+        var loaderMove = package.Id == Catalog.Cad.Id && current.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) &&
+            CadLoaderAssets.IsBundle(previous.Path) && CadLoaderAssets.IsBundle(package.Path) && CadLoaderAssets.IsBundle(previous.Folder) && CadLoaderAssets.IsBundle(package.Folder);
+        if (package.Host != previous.Host || (!loaderMove && (package.Path != previous.Path || package.Folder != previous.Folder)) ||
+            package.Distribution != previous.Distribution || (package.Asset != previous.Asset && !(package.Id == Catalog.Cad.Id && current.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase) && CadLoaderAssets.Matches(previous.Asset, package.Asset))) ||
             previous.ModuleId.Length > 0 && (package.ModuleId != previous.ModuleId || package.CommandId != previous.CommandId))
             throw new IOException("패키지 설치 경로나 배포 파일 정의가 변경되었습니다. 등록 정보를 검토하십시오.");
         return package;
@@ -235,7 +237,8 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (!SafeFiles.Hash(zip).Equals(digest[7..], StringComparison.OrdinalIgnoreCase)) throw new IOException("ZIP SHA-256 불일치");
             root = System.IO.Path.Combine(cache, "extracted"); SafeFiles.Extract(zip, root);
         }
-        var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
+        var source = package.Id == Catalog.Cad.Id && refreshed.Repository.Equals(Catalog.Cad.Repository, StringComparison.OrdinalIgnoreCase)
+            ? CadLoaderAssets.ExtractedBundle(root) : package.Path == "." ? root : SafeFiles.Child(root, package.Path);
         var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
         if (CadFeaturePackages.IsFeature(package))
         {

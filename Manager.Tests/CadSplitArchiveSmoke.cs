@@ -9,7 +9,7 @@ internal static class CadSplitArchiveSmoke
         Directory.CreateDirectory(directory);
         var paths=new ManagerPaths(Path.Combine(directory,"data"),Path.Combine(directory,"plugins"),Path.Combine(directory,"revit"));
         var loader=Path.Combine(directory,"loader");SafeFiles.Extract(loaderZip,loader);
-        var installer=new InstallService(paths);installer.Install(Catalog.Cad,new(Path.Combine(loader,Catalog.Cad.FolderName),"1.1.0-test.1"));
+        var installer=new InstallService(paths);installer.Install(Catalog.Cad,new(CadLoaderAssets.ExtractedBundle(loader),"1.1.0-test.1"));
         var service=new CadFeaturePackages(paths);var selected=new List<string>();CadRequest? request=null;
         var packages=new List<ExtensionPackage>();
         foreach(var zip in featureZips)
