@@ -90,7 +90,7 @@ public sealed partial class ManagerForm
         {
             if (preview) return;
             new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked, allowPrerelease.Checked).Save(paths);
-            manuallyCheckedManagerUpdate = null; managerUpdateNow.Visible = false;
+            manuallyCheckedManagerUpdate = null; pendingManagerUpdate = null; managerUpdateChecked = default; managerUpdateNow.Visible = false;
             managerUpdateCheck.PerformClick();
         };
         startWithWindows.CheckedChanged += (_, _) =>

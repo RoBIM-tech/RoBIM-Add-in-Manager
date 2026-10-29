@@ -290,3 +290,7 @@ release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하
 ## Manager preview.56 · Host preview.9
 
 TEST 빌드는 검증된 Revit Host 1.0.0-preview.9 ZIP과 SHA-256을 동봉합니다. 고정 Host 갱신에는 Revit 종료가 필요합니다. 기존 관리 기록과 실제 파일이 다르면 덮어쓰지 않으며, 실제 설치·적용 여부는 별도 확인합니다.
+
+## Cross-host ribbon TEST
+
+AutoCAD and Navisworks use separate visual ribbon layouts. AutoCAD layout edits are saved independently; applying prepares the existing selection for ROBIMRELOAD. A saved layout does not itself mean the host applied it. Navisworks host rendering is not implemented. Manager prerelease update opt-in defaults off; version ordering still prevents downgrades. CAD host UI and model-command verification remain pending.
