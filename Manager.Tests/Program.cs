@@ -359,6 +359,28 @@ Test("ProfileBlockedWhenHostRunning", () =>
     var service = new RevitProfiles(Paths("activate-host"), () => throw new IOException("host running"), (_, _) => { called = true; return Task.CompletedTask; }, _ => true);
     Reject(() => service.Apply(true).GetAwaiter().GetResult()); Require(!called, "Profile modified while host running");
 });
+Test("LoaderZipSupportsBothPathSeparatorsAndRejectsDuplicates", () =>
+{
+    var path = Path.Combine(root, "loader-separators.zip");
+    using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
+    {
+        using var writer = new StreamWriter(zip.CreateEntry("bundle\\Contents\\loader.dll").Open()); writer.Write("test loader");
+    }
+    var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("test loader")));
+    Require(Sources.LoaderDllHash(path, "bundle/Contents/loader.dll") == expected, "Backslash entry not found");
+    using (var zip = ZipFile.Open(path, ZipArchiveMode.Update))
+    {
+        using var writer = new StreamWriter(zip.CreateEntry("bundle/Contents/loader.dll").Open()); writer.Write("duplicate");
+    }
+    Reject(() => Sources.LoaderDllHash(path, "bundle/Contents/loader.dll"));
+});
+Test("LoaderRepositoryChannelsRemainSeparate", () =>
+{
+    using var data = JsonDocument.Parse("""[{"draft":false,"prerelease":true,"assets":[{"name":"loader.zip","id":2,"size":10,"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]},{"draft":false,"prerelease":false,"assets":[{"name":"loader.zip","id":1,"size":10,"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}]""");
+    Require(Sources.SelectLoaderAsset(data.RootElement, "loader.zip", "stable").Id == 1, "Stable selected test loader");
+    Require(Sources.SelectLoaderAsset(data.RootElement, "loader.zip", "test").Id == 2, "Test loader not selected");
+    Reject(() => Sources.SelectLoaderAsset(data.RootElement, "missing.zip", "stable"));
+});
 Test("EditableManagementAndFeatureFallback", () =>
 {
     var native = new RibbonTool("native:tool:run", "기능", "RoBIM 관리", "", true);

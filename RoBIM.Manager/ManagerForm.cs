@@ -152,8 +152,7 @@ public sealed partial class ManagerForm : Form
                         throw new IOException("기존 Revit 설치가 있어 중복 설치하지 않습니다. 상태를 새로 고치십시오.");
                 }
                 var package = row.Tool.Kind == ToolKind.PyRevit ? await sources.DownloadRevit()
-                    : bundled ? await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip"))
-                    : await sources.DownloadCad(CanUseTest ? null : "stable");
+                    : await sources.DownloadCad("stable");
                 if (row.Tool.Kind == ToolKind.PyRevit)
                     package = await Task.Run(() => RevitPackages.Prepare(package, SafeFiles.Child(paths.Data, "Prepared/" + Guid.NewGuid().ToString("N")), false));
                 RequirePackageAccess(row.Tool, package);
