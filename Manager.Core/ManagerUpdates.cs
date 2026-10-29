@@ -87,7 +87,6 @@ public static class ManagerUpdates
                 if (!parent.WaitForExit(60000)) throw new IOException("Manager 종료를 기다리고 있습니다. 업데이트를 다시 시도하세요.");
             }
             catch (ArgumentException) { }
-            EnvironmentProbe.EnsureHostClosed(Catalog.RevitHost); EnvironmentProbe.EnsureHostClosed(Catalog.Cad);
             SafeFiles.NoLinks(request.Installer);
             using var file = new FileStream(request.Installer, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (!string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file)),request.Digest,StringComparison.OrdinalIgnoreCase)) throw new IOException("Manager 업데이트 파일 검증 실패");

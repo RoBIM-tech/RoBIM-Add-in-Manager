@@ -93,3 +93,6 @@ release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하
 ## Manager preview.58 · CAD Loader 1.0.2-test.1
 
 이 TEST 버전은 RoBIM-tech/RoBIM-CAD v1.0.2-test.1 ZIP과 SHA-256을 동봉합니다. 프로그램 로더 페이지는 동봉 파일을 적용합니다. AutoCAD 종료와 TEST 권한이 필요하며, 관리 기록과 실제 파일이 다르거나 외부 설치인 경우 덮어쓰지 않습니다. 설치 후 기존 선택 재준비가 실패하면 별도로 알립니다. CAD 실제 UI와 사용자 PC 업데이트·적용은 검증 전입니다.
+
+
+CAD 리본 편집에서 Reload와 Manager 버튼의 위치·이름·묶음을 편집할 수 있습니다. Manager 자체 업데이트는 Revit/AutoCAD 실행과 독립적이지만 실행 중인 호스트의 고정 로더 교체는 종료 후 적용합니다. 이전 Manager의 업데이트 프로그램은 기존 종료 검사를 유지할 수 있습니다. 실제 호스트 적용은 별도 검증이 필요합니다.
