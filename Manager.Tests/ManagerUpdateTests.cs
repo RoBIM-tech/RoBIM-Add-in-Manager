@@ -13,6 +13,8 @@ internal static class ManagerUpdateTests
         test("ManagerUpdateSelectsNewestVerifiedSetupIndependentOfApiOrder",()=>Require(Select("1.0.0-preview.50",Release("1.0.0-preview.52"),Release("1.0.0-preview.51"))?.Version=="1.0.0-preview.52"));
         test("ManagerUpdateNeverDowngradesOrReinstallsCurrent",()=>Require(Select("1.0.0-preview.51",Release("1.0.0-preview.50"),Release("1.0.0-preview.51")) is null));
         test("ManagerStableDoesNotAutomaticallyInstallPrerelease",()=>Require(Select("1.0.0",Release("2.0.0-test.1")) is null));
+        test("ManagerStableCanOptIntoNewerPrerelease",()=>{ using var json=JsonDocument.Parse("["+Release("2.0.0-test.1")+"]"); Require(ManagerUpdates.Select(json.RootElement,"1.0.0",true)?.Version=="2.0.0-test.1"); });
+        test("ManagerPrereleaseOptInDoesNotDowngrade",()=>{ using var json=JsonDocument.Parse("["+Release("0.1.0-test.1")+"]"); Require(ManagerUpdates.Select(json.RootElement,"1.0.0",true) is null); });
         test("ManagerPreviewCanPromoteToStable",()=>Require(Select("1.0.0-preview.51",Release("1.0.0",prerelease:false))?.Version=="1.0.0"));
         test("ManagerUpdateRejectsDraftAndMissingDigest",()=>Require(Select("1.0.0-preview.50",Release("1.0.0-preview.51",draft:true),Release("1.0.0-preview.52",digest:"invalid")) is null));
         test("ManagerAutoUpdateCannotClaimUnmanagedDirectory",()=>
