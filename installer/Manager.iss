@@ -34,7 +34,7 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.0.1.0
+VersionInfoVersion=1.1.0.3
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"

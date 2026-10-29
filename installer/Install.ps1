@@ -98,7 +98,9 @@ try {
         foreach ($name in $changed) {
             $saved = Join-Path $backupPath $name
             $target = Join-Path $Destination $name
-            if (Test-Path -LiteralPath $saved) { Copy-Item -LiteralPath $saved -Destination $target -Force }
+            if (Test-Path -LiteralPath $saved) {
+                if (!(Test-Path -LiteralPath $target) -or (Get-FileHash -LiteralPath $saved).Hash -ne (Get-FileHash -LiteralPath $target).Hash) { Copy-Item -LiteralPath $saved -Destination $target -Force }
+            }
             elseif (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
         }
         throw
