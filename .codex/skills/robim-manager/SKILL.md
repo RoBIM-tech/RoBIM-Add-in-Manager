@@ -255,3 +255,6 @@ AutoCAD and Navisworks use separate visual ribbon layouts. AutoCAD layout edits 
 
 
 CAD 리본 편집에서 Reload와 Manager 버튼의 위치·이름·묶음을 편집할 수 있습니다. Manager 자체 업데이트는 Revit/AutoCAD 실행과 독립적이지만 실행 중인 호스트의 고정 로더 교체는 종료 후 적용합니다. 이전 Manager의 업데이트 프로그램은 기존 종료 검사를 유지할 수 있습니다. 실제 호스트 적용은 별도 검증이 필요합니다.
+
+
+프로그램 로더는 Manager 버전과 별도로 각 GitHub 저장소의 정식 또는 명시적으로 선택한 TEST 릴리스를 조회하고 SHA-256 검증 후 적용합니다. 로더 교체는 호스트 종료와 기존 설치 소유권 확인이 필요합니다. 테스트 채널은 권한이 필요합니다.

@@ -89,6 +89,57 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
         return ExtractCad(archive, version!);
     }
 
+    // Each host loader has an independent GitHub release lifecycle. Fetch only the
+    // explicitly requested channel and verify GitHub's asset digest before use.
+    public async Task<string> DownloadLoader(ToolSpec tool, string channel)
+    {
+        if (channel is not ("stable" or "test") || tool.Id is not ("delhidden" or "robim-revit-host"))
+            throw new IOException("지원하지 않는 로더 또는 배포 채널입니다.");
+        requireChannel?.Invoke(channel);
+        var asset = tool.Kind == ToolKind.AutoCAD ? "DelHiddenNet-AutoCAD2026.zip" : "RoBIM-Host-Revit2026.zip";
+        using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
+        if (!response.IsSuccessStatusCode) throw new IOException("로더 릴리스를 조회하지 못했습니다.");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var (assetId, digest) = SelectLoaderAsset(json.RootElement, asset, channel);
+        var archive = Path.Combine(NewCache(), asset);
+        using (var download = await Request("https://api.github.com/repos/" + tool.Repository + "/releases/assets/" + assetId, "application/octet-stream", true))
+        using (var input = await download.Content.ReadAsStreamAsync())
+        using (var output = File.Create(archive))
+        {
+            var buffer = new byte[81920]; long total = 0; int count;
+            while ((count = await input.ReadAsync(buffer)) != 0)
+            {
+                total += count; if (total > 128L * 1024 * 1024) throw new IOException("로더 다운로드 크기 제한 초과");
+                await output.WriteAsync(buffer.AsMemory(0, count));
+            }
+        }
+        if (!SafeFiles.Hash(archive).Equals(digest[7..], StringComparison.OrdinalIgnoreCase)) throw new IOException("로더 SHA-256 검증 실패");
+        File.WriteAllText(archive + ".sha256", digest[7..]);
+        return archive;
+    }
+
+    public static string LoaderDllHash(string archive, string expected)
+    {
+        using var zip = System.IO.Compression.ZipFile.OpenRead(archive);
+        var entries = zip.Entries.Where(e => e.FullName.Replace('\\', '/') == expected).ToArray();
+        if (entries.Length != 1 || entries[0].Length is <= 0 or > 128L * 1024 * 1024)
+            throw new IOException("저장소 로더 DLL이 없거나 중복됩니다.");
+        using var input = entries[0].Open();
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(input));
+    }
+
+    public static (long Id, string Digest) SelectLoaderAsset(JsonElement releases, string asset, string channel)
+    {
+        if (channel is not ("stable" or "test")) throw new IOException("로더 채널 오류");
+        var release = releases.EnumerateArray().Where(r => !r.GetProperty("draft").GetBoolean() && r.GetProperty("prerelease").GetBoolean() == (channel == "test"))
+            .SelectMany(r => r.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == asset)).FirstOrDefault();
+        if (release.ValueKind == JsonValueKind.Undefined) throw new IOException("선택한 채널에 로더 릴리스가 없습니다.");
+        var digest = release.TryGetProperty("digest", out var d) ? d.GetString() : null;
+        if (digest is null || !System.Text.RegularExpressions.Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") || release.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024)
+            throw new IOException("로더 릴리스의 크기 또는 SHA-256 정보가 올바르지 않습니다.");
+        return (release.GetProperty("id").GetInt64(), digest);
+    }
+
     public async Task<IReadOnlyList<string>> RevitBranches()
     {
         var result = await ProcessRunner.Run("git", ["ls-remote", "--heads", "https://github.com/" + Catalog.Revit.Repository + ".git"]);

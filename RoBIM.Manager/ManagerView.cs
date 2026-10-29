@@ -264,7 +264,7 @@ public sealed partial class ManagerForm
                     EnvironmentProbe.EnsureHostClosed(Catalog.Revit);
                     var retirement = new PyRevitRetirement(paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyRevit", "pyRevit_config.ini"));
                     var plan = retirement.Prepare();
-                    NativeCommands().InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+                    RequireInstalledRevitLoader();
                     retirement.Apply(plan);
                     return Path.Combine(paths.Data, "Backups", "PyRevitRetirement", plan.Id);
                 });

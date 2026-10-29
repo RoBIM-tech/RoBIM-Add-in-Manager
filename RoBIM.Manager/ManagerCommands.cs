@@ -275,8 +275,7 @@ public sealed partial class ManagerForm
                     source = enable ? manager.Cache(input) : input;
                 }
                 EnsureHostRuntime(cad: false);
-                var hostZip = Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip");
-                manager.InstallHost(hostZip, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+                RequireInstalledRevitLoader();
                 if (enable)
                 {
                     RequirePackageAccess(card.Owner.Status.Tool, source);

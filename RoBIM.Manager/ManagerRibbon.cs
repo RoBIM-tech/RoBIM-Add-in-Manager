@@ -17,36 +17,21 @@ public sealed partial class ManagerForm
         connectionBar.Controls.Add(connection);
         connectionBar.Controls.Add(Note("리본 편집이 적용되지 않으면 Revit을 저장하고 종료한 뒤 연결을 업데이트하세요."));
         ribbonPage.Controls.Add(connectionBar);
-        connection.Click += async (_, _) =>
-        {
-            if (preview) return;
-            await Run("Revit 리본 연결 업데이트", () =>
-            {
-                EnvironmentProbe.EnsureHostClosed(Catalog.RevitHost);
-                InstallRibbonHost();
-                WriteLog("Revit 연결 업데이트 완료 · 저장된 리본 배치는 다음 Revit 시작 시 적용됩니다.");
-                return Task.CompletedTask;
-            }, requiresAccess: false);
-        };
+        connection.Click += (_, _) => { if (!preview) SwitchPage("Loaders"); };
         ribbonEditor.RefreshRequested = async () => { if (!preview) await Run("리본 목록 확인", RefreshStatuses); RefreshRibbonEditor(); };
         ribbonEditor.ApplyRequested = async layout =>
         {
             await Task.Yield();
-            if (RevitRuntimePolicy.NativeOnly(paths))
-            {
-                if (!ReloadBridge.RevitRunning()) InstallRibbonHost();
-                else if (!NativeHostPackage.Matches(paths, RibbonHostArchive))
-                    return "배치 저장 완료 · Revit 연결 업데이트가 필요합니다. Revit을 저장하고 종료한 뒤 위의 ‘Revit 연결 설치 / 업데이트’를 누르세요. 현재 Revit에는 아직 적용되지 않았습니다.";
-            }
+            if (RevitRuntimePolicy.NativeOnly(paths)) RequireInstalledRevitLoader();
             return RequestAutomaticRevitApply(native: true, pyRevit: false, layout: true);
         };
     }
-    private string RibbonHostArchive => Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip");
-    private void InstallRibbonHost()
+    private void RequireInstalledRevitLoader()
     {
-        EnsureHostRuntime(cad: false);
-        NativeCommands().InstallHost(RibbonHostArchive,
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026"));
+        var host = installer.Status(Catalog.RevitHost);
+        var dll = Path.Combine(host.Path, "Contents", "2026", "RoBIM.Revit.Host.dll");
+        if (!host.Managed || host.Modified || host.External || !File.Exists(dll))
+            throw new IOException("프로그램 로더 화면에서 Revit 로더 설치 상태를 확인하고 적용하십시오.");
     }
     private void RefreshRibbonEditor()
     {

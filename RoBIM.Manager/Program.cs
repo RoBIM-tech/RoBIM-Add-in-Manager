@@ -184,7 +184,7 @@ internal static class Program
         }
         if (args.Contains("--install-native-reload-host"))
         {
-            new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser()).InstallHost(Path.Combine(AppContext.BaseDirectory, "RoBIM-Host-Revit2026.zip"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026")); return 0;
+            MessageBox.Show("프로그램 로더 화면에서 저장소의 Revit 로더를 선택하여 적용하십시오.", "RoBIM Manager"); return 1;
         }
         if (args.Length == 5 && args[0] == "--native-toggle")
         {
