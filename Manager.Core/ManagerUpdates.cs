@@ -10,14 +10,14 @@ public sealed record ManagerUpdateRequest(string Installer, string Digest, strin
 public static class ManagerUpdates
 {
     private const string Repository = "/repos/RoBIM-tech/RoBIM-Add-in-Manager";
-    public static ManagerUpdate? Select(JsonElement releases, string current)
+    public static ManagerUpdate? Select(JsonElement releases, string current, bool allowPrerelease = false)
     {
         ManagerUpdate? selected = null;
         foreach (var release in releases.EnumerateArray())
         {
             if (release.GetProperty("draft").GetBoolean()) continue;
             var prerelease = release.GetProperty("prerelease").GetBoolean();
-            if (prerelease && !current.Contains('-')) continue;
+            if (prerelease && !allowPrerelease && !current.Contains('-')) continue;
             var version = (release.GetProperty("tag_name").GetString() ?? "").TrimStart('v');
             if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$")) continue;
             if (!ReleaseUpdates.IsNewer(current, "", new(version, prerelease ? "test" : "stable"))) continue;
@@ -29,11 +29,11 @@ public static class ManagerUpdates
         }
         return selected;
     }
-    public static async Task<ManagerUpdate?> Check(string current)
+    public static async Task<ManagerUpdate?> Check(string current, bool allowPrerelease = false)
     {
         using var response = await GitHubSession.Request(Repository + "/releases?per_page=100");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return Select(json.RootElement, current);
+        return Select(json.RootElement, current, allowPrerelease);
     }
     public static async Task<string> Download(ManagerPaths paths, ManagerUpdate update)
     {

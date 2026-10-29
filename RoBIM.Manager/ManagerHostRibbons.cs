@@ -1,4 +1,4 @@
-using System.Drawing;
+using RoBIM.Cad.Configuration;
 using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
@@ -7,52 +7,53 @@ public sealed partial class ManagerForm
 {
     private readonly Panel cadRibbonPage = new() { Dock = DockStyle.Fill };
     private readonly Panel navisworksRibbonPage = new() { Dock = DockStyle.Fill };
-    private readonly Label cadRibbonSummary = new() { AutoSize = true, MaximumSize = new Size(850,0) };
-    private readonly Button cadRibbonEdit = MakeButton("버튼 이름 · 패널 · 순서 편집", true);
+    private readonly Label cadRibbonSummary = new() { Dock = DockStyle.Top, AutoSize = true };
+    private RibbonEditorControl? cadRibbonEditor;
+    private bool cadEditorLoaded;
+    private RibbonEditorControl? navisworksRibbonEditor;
 
     private void BuildHostRibbonPages()
     {
-        var cad = new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,AutoScroll=true };
-        cad.Controls.Add(Note("AutoCAD에 설치한 버튼의 이름·패널·순서를 편집합니다. Revit 리본 설정과 별도로 보관합니다."));
-        cad.Controls.Add(cadRibbonSummary); cad.Controls.Add(cadRibbonEdit);
-        cad.Controls.Add(Note("설정은 적용 준비 후 AutoCAD의 RoBIM → 관리 → Reload에서 반영합니다."));
-        cadRibbonEdit.Click += async (_, _) =>
+        var store = new RibbonLayouts(paths);
+        cadRibbonEditor = new RibbonEditorControl(store, preview, "AutoCAD");
+        navisworksRibbonEditor = new RibbonEditorControl(store, preview, "Navisworks");
+        cadRibbonPage.Controls.Add(cadRibbonEditor);
+        cadRibbonPage.Controls.Add(cadRibbonSummary);
+        navisworksRibbonPage.Controls.Add(navisworksRibbonEditor);
+        navisworksRibbonPage.Controls.Add(new Label { Dock = DockStyle.Top, AutoSize = true, Text = "등록된 Navisworks 도구가 없습니다." });
+        navisworksRibbonEditor.LoadTools([]);
+        navisworksRibbonEditor.ApplyRequested = _ => Task.FromResult("배치를 저장했습니다. Navisworks 호스트 연결은 아직 제공되지 않습니다.");
+        cadRibbonEditor.RefreshRequested = () => { cadEditorLoaded = false; RefreshCadRibbonPage(); return Task.CompletedTask; };
+        cadRibbonEditor.ApplyRequested = layout =>
         {
-            if (preview) return;
-            try
-            {
-                var owner = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id);
-                if (owner is null || !CadConfigurable(owner))
-                {
-                    MessageBox.Show(this, "AutoCAD 도구를 먼저 설치하거나 설치 상태를 확인하세요.", "AutoCAD 리본 편집");
-                    return;
-                }
-                selectedProductId = owner.Status.Tool.Id;
-                await ConfigureCadButtons(false);
-                RefreshCadRibbonPage();
-            }
-            catch (Exception ex) { ReportPageFailure("CadRibbon", ex); }
+            var owner = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id);
+            if (owner is null || !CadConfigurable(owner)) throw new IOException("관리 중인 AutoCAD 도구를 먼저 확인하세요.");
+            var bridge = new CadReload(paths);
+            var source = bridge.Source(owner.Status.Path, preferInstalled: true) ?? throw new IOException("CAD 패키지가 없습니다.");
+            var selected = source.Previous?.SelectedActions ?? [];
+            var sessions = CadReload.Sessions();
+            if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하고 다시 시도하세요.");
+            bridge.Prepare(owner.Status.Tool, source.Bundle, source.Catalog, selected, sessions.SingleOrDefault(), source.Previous);
+            return Task.FromResult("배치를 저장하고 적용을 준비했습니다. AutoCAD에서 ROBIMRELOAD를 실행하세요.");
         };
-        cadRibbonPage.Controls.Add(cad);
-        var navisworks=new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false };
-        navisworks.Controls.Add(Note("등록된 Navisworks 도구가 없습니다. 편집할 리본 버튼이 없습니다."));
-        navisworks.Controls.Add(Note("Revit·AutoCAD의 리본 설정은 각 프로그램의 리본 편집에서 관리하세요."));
-        navisworksRibbonPage.Controls.Add(navisworks);
     }
+
     private void RefreshCadRibbonPage()
     {
-        var owner=productRows.FirstOrDefault(x=>x.Status.Tool.Id==Catalog.Cad.Id);
         try
         {
-            var configurable = preview || owner is not null && CadConfigurable(owner);
-            cadRibbonEdit.Enabled = !busy && configurable;
-            var count = CommandInventory().Count(x => x.Kind == ButtonKind.Cad && x.Selected);
-            cadRibbonSummary.Text = count + "개 버튼 설치됨" + (configurable ? " · AutoCAD 전용 배치" : " · 도구 설치 후 편집할 수 있습니다.");
+            if (cadEditorLoaded) return;
+            var owner = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id);
+            if (owner is null || !CadConfigurable(owner)) { cadRibbonEditor?.LoadTools([]); return; }
+            var source = new CadReload(paths).Source(owner.Status.Path, preferInstalled: true);
+            if (source is null) { cadRibbonEditor?.LoadTools([]); return; }
+            var selected = source.Previous?.SelectedActions.ToHashSet(StringComparer.Ordinal) ?? [];
+            var tools = source.Catalog.Modules.SelectMany(m => m.Actions.Select(a =>
+                new RibbonTool("cad:" + CadFiles.Key(m, a), a.Title, "RoBIM", a.Panel,
+                    selected.Contains(CadFiles.Key(m, a)), a.Icon is null ? null : CadFiles.Child(source.Root, a.Icon))));
+            cadRibbonEditor?.LoadTools(tools);
+            cadEditorLoaded = true;
         }
-        catch (Exception error)
-        {
-            cadRibbonEdit.Enabled = false;
-            ReportPageFailure("CadRibbon", error);
-        }
+        catch (Exception error) { ReportPageFailure("CadRibbon", error); }
     }
 }

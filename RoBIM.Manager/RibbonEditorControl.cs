@@ -14,6 +14,7 @@ internal sealed partial class RibbonEditorControl : UserControl
     private readonly ToolTip tips = new();
     private readonly RibbonLayouts store;
     private readonly bool example;
+    private readonly string host;
     private List<RibbonTool> tools = [];
     private bool updating;
     private sealed record StackNode(string Id, int Rows);
@@ -24,9 +25,9 @@ internal sealed partial class RibbonEditorControl : UserControl
     internal bool PreviewSpansEditorWidth => preview.Width >= ClientSize.Width - 20 && preview.Top < tree.Parent!.Top;
     internal Func<RibbonLayout, Task<string>>? ApplyRequested;
     internal Func<Task>? RefreshRequested;
-    public RibbonEditorControl(RibbonLayouts store, bool example)
+    public RibbonEditorControl(RibbonLayouts store, bool example, string host = "Revit")
     {
-        this.store = store; this.example = example; Dock = DockStyle.Fill;
+        this.store = store; this.example = example; this.host = host; Dock = DockStyle.Fill;
         Disposed += (_, _) => tips.Dispose();
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
         root.ColumnStyles.Add(new(SizeType.Percent, 100));
@@ -39,13 +40,13 @@ internal sealed partial class RibbonEditorControl : UserControl
         Add("＋ 구분선", () => AddSeparator());
         Add("↑", () => MoveSelected(-1)); Add("↓", () => MoveSelected(1));
         Add("배치 삭제", () => { tree.SelectedNode?.Remove(); Changed(); });
-        Add("기본 배치", () => { if (MessageBox.Show(this, "편집 중인 배치를 설치된 버튼의 기본 위치로 되돌립니까?", "기본 배치", MessageBoxButtons.YesNo) == DialogResult.Yes) LoadLayout(RibbonLayouts.Defaults("Revit", tools)); });
+        Add("기본 배치", () => { if (MessageBox.Show(this, "편집 중인 배치를 설치된 버튼의 기본 위치로 되돌립니까?", "기본 배치", MessageBoxButtons.YesNo) == DialogResult.Yes) LoadLayout(RibbonLayouts.Defaults(host, tools)); });
         var refresh = Add("새로 읽기", () => { }); refresh.Click += async (_, _) => { if (RefreshRequested is not null) await RefreshRequested(); };
-        var save = Add("저장", () => { var layout = Snapshot(); if (!example) store.Save(layout); status.Text = example ? "미리보기 예시입니다." : "저장했습니다. ‘Revit에 적용’을 누르면 반영합니다."; });
-        var apply = Add("Revit 적용", () => { }); apply.BackColor = Color.FromArgb(30, 91, 166); apply.ForeColor = Color.White;
+        var save = Add("저장", () => { var layout = Snapshot(); if (!example) store.Save(layout); status.Text = example ? "미리보기 예시입니다." : "저장했습니다. 적용 버튼을 눌러 반영하세요."; });
+        var apply = Add(host + " 적용", () => { }); apply.BackColor = Color.FromArgb(30, 91, 166); apply.ForeColor = Color.White;
         actions.Controls.SetChildIndex(save, 0); actions.Controls.SetChildIndex(apply, 1);
-        apply.Click += async (_, _) => { try { var layout = Snapshot(); if (example) { status.Text = "미리보기 예시입니다."; return; } store.Save(layout); if (ApplyRequested is not null) status.Text = await ApplyRequested(layout); } catch (Exception e) { MessageBox.Show(this, e.Message, "리본 적용"); } };
-        Add("결과 확인", () => status.Text = store.RevitResult());
+        apply.Click += async (_, _) => { var saved = false; try { var layout = Snapshot(); if (example) { status.Text = "미리보기 예시입니다."; return; } store.Save(layout); saved = true; if (ApplyRequested is not null) status.Text = await ApplyRequested(layout); } catch (Exception e) { status.Text = saved ? "배치는 저장되었으나 적용 준비에 실패했습니다." : "배치를 저장하지 못했습니다."; MessageBox.Show(this, status.Text + "\n" + e.Message, "리본 적용"); } };
+        if (host == "Revit") Add("결과 확인", () => status.Text = store.RevitResult());
         root.Controls.Add(preview, 0, 0);
         root.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 0, 0, 10), Text = "큰 버튼은 한 칸을 사용합니다. 2단·3단 묶음을 만든 뒤 그 안으로 버튼을 드래그하면 한 칸에 세로로 쌓입니다.\n패널과 버튼 묶음은 가로로 배치됩니다. 미설치 버튼은 회색이며 배치를 저장해도 설치하지 않습니다." }, 0, 1);
         var columns = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
@@ -165,12 +166,12 @@ internal sealed partial class RibbonEditorControl : UserControl
             }
             return result.ToArray();
         }
-        var layout = new RibbonLayout(1, "Revit", tree.Nodes.Cast<TreeNode>().Select(t => new RibbonTabLayout(t.Text.Trim(), t.Nodes.Cast<TreeNode>().Select(p => new RibbonPanelLayout(p.Text.Trim(), Buttons(p))).ToArray())).ToArray()); RibbonLayouts.Validate(layout); return layout;
+        var layout = new RibbonLayout(1, host, tree.Nodes.Cast<TreeNode>().Select(t => new RibbonTabLayout(t.Text.Trim(), t.Nodes.Cast<TreeNode>().Select(p => new RibbonPanelLayout(p.Text.Trim(), Buttons(p))).ToArray())).ToArray()); RibbonLayouts.Validate(layout); return layout;
     }
     public void LoadTools(IEnumerable<RibbonTool> values)
     {
         tools = values.ToList(); bank.Items.Clear(); foreach (var tool in tools) bank.Items.Add(new BankTool(tool));
-        var saved = example || !File.Exists(store.FilePath("Revit")) ? RibbonLayouts.Defaults("Revit", tools) : store.Read("Revit");
+        var saved = example || !File.Exists(store.FilePath(host)) ? RibbonLayouts.Defaults(host, tools) : store.Read(host);
         LoadLayout(RibbonLayouts.IncludeMissingManagement(saved, tools)); status.Text = tools.Count(x => x.Installed && !x.Id.StartsWith("manager:")) + "개 설치됨 · 관리 버튼도 이동·이름·묶음을 편집할 수 있습니다.";
     }
     internal void LoadLayout(RibbonLayout layout)
@@ -253,6 +254,6 @@ internal sealed partial class RibbonEditorControl : UserControl
             var addPanel = new Button { Text = "＋ 패널", Width = 80, Height = 105, Margin = new(4) }; addPanel.Click += (_, _) => { var panel = new TreeNode(Unique("새 패널", tab.Nodes)) { Tag = "Panel" }; tab.Nodes.Add(panel); tree.SelectedNode = panel; Changed(); }; strip.Controls.Add(addPanel);
             preview.Controls.Add(strip);
         }
-        status.Text = "미리보기에서 드래그: 배치 이동 · 이름 클릭: 수정 · 선택한 탭 이름 재클릭: 수정 · 저장 후 Revit에 적용";
+        status.Text = "미리보기에서 드래그: 배치 이동 · 이름 클릭: 수정 · 선택한 탭 이름 재클릭: 수정 · 저장 후 적용";
     }
 }

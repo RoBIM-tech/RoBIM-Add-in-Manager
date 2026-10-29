@@ -9,6 +9,7 @@ public sealed partial class ManagerForm
     private NotifyIcon? tray;
     private bool exitRequested, checkingAccess, sessionStarted;
     private readonly SemaphoreSlim accountRefreshGate = new(1, 1);
+    private readonly CheckBox allowPrerelease = new() { Text = "테스트(Pre-release) 업데이트 수신", AutoSize = true };
     private readonly CheckBox automaticLogin = new() { Text = "자동 로그인", AutoSize = true };
     private readonly CheckBox startWithWindows = new() { Text = "Windows 로그인 시 알림 영역에서 자동 시작", AutoSize = true };
     private bool Allowed => teamAccess is null || teamAccess.Allowed;
@@ -80,10 +81,18 @@ public sealed partial class ManagerForm
         try { automaticLogin.Checked = AccountPreferences.Read(paths).AutoLogin; } catch (Exception) { automaticLogin.Checked = true; }
         try { startWithWindows.Checked = StartupRegistration.Enabled(Environment.ProcessPath!); } catch (Exception) { }
         try { managerAutoUpdate.Checked = AccountPreferences.Read(paths).AutoUpdate; } catch (Exception) { managerAutoUpdate.Checked = true; }
-        panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows); panel.Controls.Add(managerAutoUpdate); panel.Controls.Add(managerUpdateStatus);
+        try { allowPrerelease.Checked = AccountPreferences.Read(paths).AllowPrerelease; } catch (Exception) { allowPrerelease.Checked = false; }
+        panel.Controls.Add(automaticLogin); panel.Controls.Add(startWithWindows); panel.Controls.Add(managerAutoUpdate); panel.Controls.Add(allowPrerelease); panel.Controls.Add(managerUpdateStatus);
         BuildManagerUpdateActions(panel);
-        managerAutoUpdate.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
-        automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked).Save(paths); };
+        managerAutoUpdate.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked, allowPrerelease.Checked).Save(paths); };
+        automaticLogin.CheckedChanged += (_, _) => { if (!preview) new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked, allowPrerelease.Checked).Save(paths); };
+        allowPrerelease.CheckedChanged += (_, _) =>
+        {
+            if (preview) return;
+            new AccountPreferences(automaticLogin.Checked, managerAutoUpdate.Checked, allowPrerelease.Checked).Save(paths);
+            manuallyCheckedManagerUpdate = null; managerUpdateNow.Visible = false;
+            managerUpdateCheck.PerformClick();
+        };
         startWithWindows.CheckedChanged += (_, _) =>
         {
             if (preview) return;

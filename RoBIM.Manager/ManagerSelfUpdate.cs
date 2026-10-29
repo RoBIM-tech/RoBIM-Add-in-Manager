@@ -26,7 +26,7 @@ public sealed partial class ManagerForm
             checkingManagerUpdate=true;
             try
             {
-                manuallyCheckedManagerUpdate=await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0]);
+                manuallyCheckedManagerUpdate=await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0], AccountPreferences.Read(paths).AllowPrerelease && CanUseTest);
                 managerUpdateNow.Visible=manuallyCheckedManagerUpdate is not null;
                 managerUpdateStatus.Text=manuallyCheckedManagerUpdate is { } update ? "Manager "+Application.ProductVersion.Split('+')[0]+" → "+update.Version+" 업데이트 가능" : "현재 Manager "+Application.ProductVersion.Split('+')[0]+" · 최신 버전입니다.";
             }
@@ -63,7 +63,7 @@ public sealed partial class ManagerForm
             if (pendingManagerUpdate is null && (force || DateTimeOffset.UtcNow - managerUpdateChecked > TimeSpan.FromHours(6)))
             {
                 managerUpdateChecked = DateTimeOffset.UtcNow;
-                var offer = await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0]);
+                var offer = await ManagerUpdates.Check(Application.ProductVersion.Split('+')[0], AccountPreferences.Read(paths).AllowPrerelease && CanUseTest);
                 if (offer is null) { managerUpdateStatus.Text = "Manager 최신 버전입니다."; return; }
                 var failed=SafeFiles.Child(paths.Data,"ManagerUpdates/failed-digest.txt");
                 if (!force && File.Exists(failed) && File.ReadAllText(failed)==offer.Digest)
