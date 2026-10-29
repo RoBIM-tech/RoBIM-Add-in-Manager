@@ -85,3 +85,7 @@ AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 c
 preview.54 이하의 일부 Manager 배포는 동봉 Host를 preview.8로 문서화했지만 실제 ZIP은 preview.1이었습니다. 로컬 SHA-256과 sidecar만 일치해도 빌드가 허용된 것이 원인입니다. preview.55는 GitHub 공식 host-v1.0.0-preview.8의 ZIP 해시 e4371baf…로 고정하고 실제 DLL 버전 preview.8을 확인했습니다. CAD stable1.0.1은 기존 공식 배포와 일치했습니다.
 
 release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하며, 빌드는 구형 Host ZIP과 그에 맞는 로컬 sidecar 조합도 거부합니다. 정식 Setup 빌드의 CAD도 고정하며 Portable 후보 빌드만 명시적 CAD 후보를 허용합니다. 현재 Host 교체는 Revit 종료 후 ‘Revit 연결 설치 / 업데이트’로 진행하고, 저장된 리본·도구 선택을 보존합니다. 업데이트가 실행 중 Revit을 강제 종료하지 않습니다.
+
+## 프로그램 로더 관리
+
+프로그램 로더 페이지에서 RoBIM CAD 로더(RoBIM-tech/RoBIM-CAD)와 RoBIM Revit Host 로더(RoBIM-tech/RoBIM-Revit-Addin)의 설치 경로와 동봉 DLL 일치 여부를 확인하고 적용할 수 있습니다. 로더 적용 전 해당 호스트를 종료해야 합니다. 관리되지 않거나 변경된 설치는 덮어쓰지 않으며 기존 설치와 선택은 보호합니다. CAD 선택 재준비 실패는 로더 설치와 별도로 표시합니다. Navisworks 로더는 준비 중입니다. 현재 적용 대상은 실행 중 Manager에 동봉된 검증 ZIP이며 GitHub 최신본을 자동 다운로드하지 않습니다. 실제 AutoCAD·Revit 적용 확인은 별도입니다.

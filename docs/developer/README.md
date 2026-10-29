@@ -286,3 +286,7 @@ TEST 빌드는 검증된 Revit Host 1.0.0-preview.9 ZIP과 SHA-256을 동봉합�
 ## Cross-host ribbon TEST
 
 AutoCAD and Navisworks use separate visual ribbon layouts. AutoCAD layout edits are saved independently; applying prepares the existing selection for ROBIMRELOAD. A saved layout does not itself mean the host applied it. Navisworks host rendering is not implemented. Manager prerelease update opt-in defaults off; version ordering still prevents downgrades. CAD host UI and model-command verification remain pending.
+
+## 프로그램 로더 관리
+
+프로그램 로더 페이지에서 RoBIM CAD 로더(RoBIM-tech/RoBIM-CAD)와 RoBIM Revit Host 로더(RoBIM-tech/RoBIM-Revit-Addin)의 설치 경로와 동봉 DLL 일치 여부를 확인하고 적용할 수 있습니다. 로더 적용 전 해당 호스트를 종료해야 합니다. 관리되지 않거나 변경된 설치는 덮어쓰지 않으며 기존 설치와 선택은 보호합니다. CAD 선택 재준비 실패는 로더 설치와 별도로 표시합니다. Navisworks 로더는 준비 중입니다. 현재 적용 대상은 실행 중 Manager에 동봉된 검증 ZIP이며 GitHub 최신본을 자동 다운로드하지 않습니다. 실제 AutoCAD·Revit 적용 확인은 별도입니다.

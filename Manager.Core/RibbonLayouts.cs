@@ -14,7 +14,11 @@ public sealed class RibbonLayouts(ManagerPaths paths)
     public static RibbonTool DefaultLocation(RibbonTool tool)
     {
         var reserved = !tool.Id.StartsWith("manager:", StringComparison.Ordinal) && (tool.Tab.Trim() == "RoBIM 관리" || tool.Panel.Trim() == "관리");
-        return tool with { Tab = reserved || string.IsNullOrWhiteSpace(tool.Tab) ? "RoBIM 도구" : tool.Tab.Trim(),
+        var tab = tool.Tab.Trim();
+        if (tab is "RoBIM TEST" or "RoBIM 도구" or "RoBIM 기본") tab = "RoBIM";
+        if (tab == "RoBIM 도면") tab = "RoBIM View/Sheet";
+        if (tool.Id.StartsWith("native:sheets:", StringComparison.Ordinal) || tool.Id.StartsWith("native:view-duplicate:", StringComparison.Ordinal) || tool.Id.StartsWith("native:view-rotation:", StringComparison.Ordinal)) tab = "RoBIM View/Sheet";
+        return tool with { Tab = reserved || string.IsNullOrWhiteSpace(tab) ? "RoBIM" : tab,
             Panel = reserved || string.IsNullOrWhiteSpace(tool.Panel) ? "도구" : tool.Panel.Trim() };
     }
     public static RibbonTool FromGroup(string id, string title, string group, bool installed, string? icon = null)

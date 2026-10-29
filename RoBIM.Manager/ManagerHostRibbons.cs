@@ -19,6 +19,11 @@ public sealed partial class ManagerForm
         navisworksRibbonEditor = new RibbonEditorControl(store, preview, "Navisworks");
         cadRibbonPage.Controls.Add(cadRibbonEditor);
         cadRibbonPage.Controls.Add(cadRibbonSummary);
+        var loaderBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
+        loaderBar.Controls.Add(cadLoaderBanner);
+        var loaderLink = new LinkLabel { Text = "로더 관리 바로가기", AutoSize = true };
+        loaderLink.LinkClicked += (_, _) => SwitchPage("Loaders"); loaderBar.Controls.Add(loaderLink);
+        cadRibbonPage.Controls.Add(loaderBar);
         navisworksRibbonPage.Controls.Add(navisworksRibbonEditor);
         navisworksRibbonPage.Controls.Add(new Label { Dock = DockStyle.Top, AutoSize = true, Text = "등록된 Navisworks 도구가 없습니다." });
         navisworksRibbonEditor.LoadTools([]);
@@ -42,6 +47,7 @@ public sealed partial class ManagerForm
     {
         try
         {
+            RefreshLoaderStatus();
             if (cadEditorLoaded) return;
             var owner = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id);
             if (owner is null || !CadConfigurable(owner)) { cadRibbonEditor?.LoadTools([]); return; }

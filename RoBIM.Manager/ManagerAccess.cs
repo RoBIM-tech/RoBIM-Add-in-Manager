@@ -57,7 +57,7 @@ public sealed partial class ManagerForm
         if (teamAccess is null) return;
         UpdateLoginPage();
         var allowed = teamAccess.Allowed && !busy;
-        userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = cadRibbonPage.Enabled = navisworksRibbonPage.Enabled = allowed;
+        userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = cadRibbonPage.Enabled = navisworksRibbonPage.Enabled = loadersPage.Enabled = allowed;
         toolbar.Enabled = actions.Enabled = grid.Enabled = allowed;
         foreach (var item in navigation.Where(n => (string?)n.Tag == "Test")) item.Visible = teamAccess.TestAllowed;
         foreach (var item in navigation.Where(n => (string?)n.Tag == "Developer")) item.Visible = teamAccess.TestAllowed && !RevitRuntimePolicy.NativeOnly(paths);
