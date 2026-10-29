@@ -5,7 +5,8 @@ using RoBIM.Access;
 
 namespace RoBIM.Manager.Core;
 
-public sealed record TeamAccessResult(bool Allowed, string Login, string Detail, bool TestAllowed = false, string Role = "");
+public enum AccountAccessState { SignedOut, Ready, RetryPending, ReauthenticationRequired, TeamDenied }
+public sealed record TeamAccessResult(bool Allowed, string Login, string Detail, bool TestAllowed = false, string Role = "", AccountAccessState State = AccountAccessState.SignedOut);
 
 public sealed class TeamAccess : IDisposable
 {
@@ -62,24 +63,29 @@ public sealed class TeamAccess : IDisposable
                 var user = await identify();
                 if (!System.Text.RegularExpressions.Regex.IsMatch(user.Login, "^[A-Za-z0-9-]{1,39}$")) throw new IOException("GitHub 계정명 오류");
                 var activeTeams = new List<string>();
+                var lookupFailed = false;
                 foreach (var team in Teams)
                 {
                     try
                     {
                         using var response = await request($"/orgs/{Organization}/teams/{team}/memberships/{user.Login}");
-                        if (!response.IsSuccessStatusCode) continue;
+                        if (!response.IsSuccessStatusCode) { if (response.StatusCode != System.Net.HttpStatusCode.NotFound) lookupFailed = true; continue; }
                         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
                         if (json.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("state", out var membership) &&
                             membership.ValueKind == JsonValueKind.String && membership.GetString() == "active") activeTeams.Add(team);
                     }
-                    catch (Exception error) when (error is IOException or HttpRequestException or JsonException or OperationCanceledException) { }
+                    catch (GitHubAuthenticationException) { throw; }
+                    catch (Exception error) when (error is IOException or HttpRequestException or JsonException or OperationCanceledException) { lookupFailed = true; }
                 }
                 var role = activeTeams.Contains("robim-admin") ? "관리자" : activeTeams.Contains("robim-dev") ? "개발자" : activeTeams.Contains("robim-test") ? "TEST 사용자" : activeTeams.Contains(Team) ? "일반 사용자" : "";
                 var test = activeTeams.Any(t => t != Team);
-                result = new(activeTeams.Count > 0, user.Login, activeTeams.Count > 0 ? $"{role} · 정식" + (test ? " + TEST 사용 가능" : " 도구 사용 가능") : "RoBIM 팀의 활성 구성원만 사용할 수 있습니다. 팀 초대 수락·접근 권한을 확인하십시오.", test, role);
+                result = new(activeTeams.Count > 0, user.Login, activeTeams.Count > 0 ? $"{role} · 정식" + (test ? " + TEST 사용 가능" : " 도구 사용 가능") : "RoBIM 팀의 활성 구성원만 사용할 수 있습니다. 팀 초대 수락·접근 권한을 확인하십시오.", test, role, activeTeams.Count > 0 ? AccountAccessState.Ready : lookupFailed ? AccountAccessState.RetryPending : AccountAccessState.TeamDenied);
+                if (activeTeams.Count == 0 && lookupFailed) result = result with { Detail = "저장된 계정 유지 · 팀 권한 조회를 자동 재시도합니다. 연결이 복구될 때까지 도구는 잠깁니다." };
             }
+            catch (GitHubAuthenticationException error)
+            { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", error.Message, State: AccountAccessState.ReauthenticationRequired); }
             catch (Exception error) when (error is IOException or HttpRequestException or JsonException or System.ComponentModel.Win32Exception or OperationCanceledException)
-            { result = new(false, "", "GitHub 팀 인증을 확인하지 못했습니다. 인터넷 연결·계정 권한(read:org)·조직 접근 승인을 확인하십시오."); }
+            { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", "저장된 계정 유지 · GitHub 연결을 자동 재시도합니다. 연결이 복구될 때까지 도구는 잠깁니다.", State: AccountAccessState.RetryPending); }
             lock (stateSync)
                 if (started == generation) Volatile.Write(ref state, new(result, Stopwatch.GetTimestamp()));
             return Result;

@@ -45,18 +45,18 @@ public sealed partial class ManagerForm
         var checks = new List<string>();
         void Require(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); checks.Add(name); }
         ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000); Show(); Application.DoEvents();
-        Require(currentPage == "Revit" && cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Default Revit shows independent Add-ins only");
+        Require(currentPage == "Revit" && cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Revit includes stable and TEST independent Add-ins");
         Require(!navigation.Any(x => (string?)x.Tag is "PyRevit" or "Developer" or "Locations"), "Retired pyRevit pages are absent");
         Require(nativeReload.Text == "독립 Add-in Reload", "Independent Add-in Reload label");
         Require(UpdateTargets().All(p => p.Package.Host != "pyrevit"), "Retired pyRevit is excluded from update queries");
         SwitchPage("PyRevit"); Require(currentPage == "Revit", "Historical pyRevit page routes safely to Revit");
         void Navigate(string id) { ((Button)navigation.Single(x => (string?)x.Tag == id)).PerformClick(); Application.DoEvents(); }
-        Navigate("Test"); Require(cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST has separate collection");
-        Require(cardBindings.Values.Single().Row.ReleaseLabel.StartsWith("TEST"), "TEST badge includes version");
+        Navigate("Test"); Require(cardBindings.Count == 2 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST index contains Revit and CAD TEST commands");
+        Require(cardBindings.Values.All(x => x.Row.ReleaseLabel.StartsWith("TEST")), "TEST badge includes version");
         Navigate("All"); Require(cardBindings.Count == 6, "All lists buttons from both hosts");
         Require(productCards.ClientSize.Height > 200, "Full content height without profile note");
         Navigate("Mine"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Selected), "My tools is per-button selection");
-        Navigate("Cad"); Require(cardBindings.Count == 2 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD shows multiple actions from one loader");
+        Navigate("Cad"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD includes stable and TEST commands");
         Require(!nativeReload.Visible, "Native Revit Reload hidden on AutoCAD page");
         Navigate("CadRibbon");
         Require(cadRibbonPage.Visible && !ribbonPage.Visible && pageTitle.Text=="AutoCAD 리본 편집", "AutoCAD ribbon editor is separate from Revit");
@@ -67,7 +67,9 @@ public sealed partial class ManagerForm
         Require(navigation.Any(x => (string?)x.Tag == "Loaders"), "Loader navigation visible");
         var loaderCards = loadersPage.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<FlowLayoutPanel>().ToArray();
         Require(loaderCards.Length == 2, "CAD and Revit loader cards visible");
-        Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
+        Require(loaderCards.All(c => c.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<Button>().Count(b => b.Text == "저장소 확인") == 1), "One metadata check per loader");
+        Require(!loaderCards.SelectMany(c => c.Controls.OfType<FlowLayoutPanel>()).SelectMany(c => c.Controls.OfType<Button>()).Any(b => b.Text is "TEST 확인" or "TEST 로더 적용"), "Loader channels share the primary action");
+        Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD-Loader", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
@@ -77,7 +79,7 @@ public sealed partial class ManagerForm
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");
         productSearch.Clear(); Navigate("Revit"); productSearch.Text = "파라미터"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Title == "파라미터 복사", "Search button title and description");
         productSearch.Clear(); Navigate("Revit");
-        productSearch.Text = "독립"; Require(cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
+        productSearch.Text = "독립"; Require(cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
         productSearch.Clear(); Navigate("All"); productSort.SelectedIndex = 2;
         Require(cardBindings.Values.Take(3).All(x => x.Row.Selected), "Selected-first sorting");
         productSort.SelectedIndex = 1; var names = cardBindings.Values.Select(x => x.Row.Title).ToArray();
@@ -308,7 +310,7 @@ public sealed partial class ManagerForm
         Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
         using (var stableBitmap=new Bitmap(Width,Height)) { DrawToBitmap(stableBitmap,new Rectangle(Point.Empty,Size)); stableBitmap.Save(destination+".stable.png"); }
         typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
-        Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
+        Require(currentPage=="Revit" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool within Revit");
         using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
         using (var owners = new RepositoryPublishersDialog(new(1,true,[new("alice","user"),new("team","organization")])))
         {

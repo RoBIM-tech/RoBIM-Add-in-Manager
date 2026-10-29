@@ -73,6 +73,8 @@ public sealed partial class ManagerForm
             loginPage.BringToFront();
             loginMessage.Text = busy ? "GitHub 로그인과 팀 권한을 확인하고 있습니다…" : refreshingSnapshot ? "설치 정보를 확인하고 있습니다…" : teamAccess.Result.Detail;
             loginPrimary.Enabled = loginSaved.Enabled = !busy && !checkingAccess && !refreshingSnapshot;
+            loginSaved.Text = teamAccess.Result.State == AccountAccessState.RetryPending ? "연결 다시 확인" : "저장된 계정으로 로그인";
+            loginPrimary.Text = teamAccess.Result.State == AccountAccessState.ReauthenticationRequired ? "GitHub 재로그인" : "GitHub로 로그인";
         }
         else if (showingLogin) SwitchPage("Revit");
         showingLogin = show;

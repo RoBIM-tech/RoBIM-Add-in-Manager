@@ -6,7 +6,7 @@ public sealed partial class ManagerForm
 {
     private Dictionary<string, ReleaseOffer> updateOffers = [];
     private readonly Dictionary<string, string> updateErrors = [];
-    private bool RemoteUpdate(ButtonCard card) => card.Selected && (card.Kind == ButtonKind.Native
+    private bool RemoteUpdate(ButtonCard card) => card.Selected && (IndependentRelease(card)
         ? SelectedInView(card) && NativeReleaseState(card).Update is not null
         : OfferFor(card) is { } offer && ReleaseUpdates.IsNewer(card.SelectedVersion, card.SelectedChannel, offer));
 
@@ -69,7 +69,7 @@ public sealed partial class ManagerForm
                         try
                         {
                             var package = ExtensionCatalog.CurrentPackage(previous.Package, repository);
-                            if (package.Host == "revit" && package.Distribution == "release" && package.Channel is "stable" or "test")
+                            if ((package.Host == "revit" || CadFeaturePackages.IsFeature(package)) && package.Distribution == "release" && package.Channel is "stable" or "test")
                             {
                                 var channels = await ReleaseUpdates.CheckChannels(repository, package);
                                 var offer = package.Channel == "test" ? channels.Test : channels.Stable;

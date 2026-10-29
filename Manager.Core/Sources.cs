@@ -65,7 +65,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
     public async Task<SourcePackage> DownloadCad(string? channel = null)
     {
         var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", "DelHiddenNet-AutoCAD2026.zip");
-        if (channel is not null) package = ExtensionCatalog.ReleaseChannel(package, channel);
+        if (channel is not null) package = package with { Channel = channel };
         var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
         requireChannel?.Invoke(offer.Channel);
         var assetId = offer.AssetId; var digest = offer.Digest; var version = offer.Version;
@@ -128,16 +128,40 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(input));
     }
 
+    public static ReleaseOffer? LoaderOffer(JsonElement releases, string asset, string channel)
+    {
+        ReleaseOffer? newest = null;
+        foreach (var release in releases.EnumerateArray())
+        {
+            if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != (channel == "test")) continue;
+            foreach (var candidate in release.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == asset))
+            {
+                var digest = candidate.TryGetProperty("digest", out var d) ? d.GetString() : null;
+                if (digest is null || !System.Text.RegularExpressions.Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") || candidate.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024)
+                    throw new IOException("로더 릴리스 검증 정보 오류");
+                var version = release.GetProperty("tag_name").GetString()!;
+                if (version.StartsWith("host-v")) version = version[6..];
+                else if (version.StartsWith('v')) version = version[1..];
+                newest = NativeReleasePolicy.Newest(newest, new(version, channel, candidate.GetProperty("id").GetInt64(), digest));
+            }
+        }
+        return newest;
+    }
     public static (long Id, string Digest) SelectLoaderAsset(JsonElement releases, string asset, string channel)
     {
         if (channel is not ("stable" or "test")) throw new IOException("로더 채널 오류");
-        var release = releases.EnumerateArray().Where(r => !r.GetProperty("draft").GetBoolean() && r.GetProperty("prerelease").GetBoolean() == (channel == "test"))
-            .SelectMany(r => r.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == asset)).FirstOrDefault();
-        if (release.ValueKind == JsonValueKind.Undefined) throw new IOException("선택한 채널에 로더 릴리스가 없습니다.");
-        var digest = release.TryGetProperty("digest", out var d) ? d.GetString() : null;
-        if (digest is null || !System.Text.RegularExpressions.Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") || release.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024)
-            throw new IOException("로더 릴리스의 크기 또는 SHA-256 정보가 올바르지 않습니다.");
-        return (release.GetProperty("id").GetInt64(), digest);
+        var offer = LoaderOffer(releases, asset, channel) ?? throw new IOException("선택한 채널에 로더 릴리스가 없습니다.");
+        return (offer.AssetId, offer.Digest);
+    }
+    public async Task<ReleaseChannels> CheckLoader(ToolSpec tool, bool includeTest)
+    {
+        var asset = tool.Id == Catalog.Cad.Id ? "DelHiddenNet-AutoCAD2026.zip" : tool.Id == Catalog.RevitHost.Id ? "RoBIM-Host-Revit2026.zip" : throw new IOException("로더 ID 오류");
+        using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        ReleaseOffer? stable = null, test = null; string? stableError = null, testError = null;
+        try { stable = LoaderOffer(json.RootElement, asset, "stable"); } catch (IOException error) { stableError = error.Message; }
+        if (includeTest) try { test = LoaderOffer(json.RootElement, asset, "test"); } catch (IOException error) { testError = error.Message; }
+        return new(stable, test, stableError, testError);
     }
 
     public async Task<IReadOnlyList<string>> RevitBranches()

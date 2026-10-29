@@ -10,7 +10,7 @@ internal static class RepositoryOwnershipTests
         void Require(bool value, string reason) { if (!value) throw new Exception(reason); }
         test("TransferredPrivateApiRoutesUseNewOwnerBeforeAuthentication", () =>
         {
-            Require(RepositoryOwnership.ApiRoute("/repos/gagaggan/RoBIM-CAD/releases/assets/123?x=1") == "/repos/RoBIM-tech/RoBIM-CAD/releases/assets/123?x=1", "Asset route not canonicalized");
+            Require(RepositoryOwnership.ApiRoute("/repos/gagaggan/RoBIM-CAD/releases/assets/123?x=1") == "/repos/RoBIM-tech/RoBIM-CAD-Loader/releases/assets/123?x=1", "Asset route not canonicalized");
             Require(RepositoryOwnership.ApiRoute("/repos/gagaggan/RoBIM-Revit-Sheets") == "/repos/RoBIM-tech/RoBIM-Revit-Sheets", "Metadata route not canonicalized");
             foreach (var route in new[] { "/repos/other/RoBIM-CAD", "/repos/gagaggan/Other", "/repos/gagaggan/RoBIM-Future", "/user/repos" })
                 Require(RepositoryOwnership.ApiRoute(route) == route, "Untransferred repository was redirected");

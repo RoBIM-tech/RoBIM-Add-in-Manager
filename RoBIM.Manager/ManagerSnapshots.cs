@@ -202,6 +202,7 @@ public sealed partial class ManagerForm
                 else if (feature.Kind == ButtonKind.Cad)
                 {
                     enabled = !feature.Owner.Status.Modified && !feature.Owner.Status.External;
+                    if (CadFeaturePackages.IsFeature(feature.Owner.Package?.Package)) instruction = "CAD 로더 설치 후 기능을 준비하고 AutoCAD에서 Reload하십시오.";
                     if (!feature.Selected && new CadReload(paths).SourceForAction(feature.Owner.Status.Path, feature.CommandId, cadButtonPackage) is { } source && source.NeedsConnection(feature.Owner.Status))
                     { instruction = "연결 모듈 업데이트 필요 · AutoCAD 종료 후 설치"; enabled &= !HostRunning(ToolKind.AutoCAD); }
                 }

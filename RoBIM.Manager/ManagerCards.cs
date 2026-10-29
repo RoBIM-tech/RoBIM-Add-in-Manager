@@ -63,9 +63,9 @@ public sealed partial class ManagerForm
         rows = rows.Where(x => currentPage switch
         {
             "Test" => x.CollectionChannel == "test",
-            "Revit" => x.CollectionChannel != "test" && x.Kind == ButtonKind.Native,
+            "Revit" => x.Kind == ButtonKind.Native,
             
-            "Cad" => x.CollectionChannel != "test" && x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
+            "Cad" => x.Owner.Status.Tool.Kind == ToolKind.AutoCAD,
             "Navisworks" => false,
             "Mine" => x.Selected || x.Pending,
             _ => x.CollectionChannel != "test"

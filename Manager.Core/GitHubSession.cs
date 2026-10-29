@@ -4,6 +4,8 @@ using System.Text.Json;
 
 namespace RoBIM.Manager.Core;
 
+public sealed class GitHubAuthenticationException(string message) : IOException(message);
+
 public sealed record GitHubIdentity(string Login, string Mode);
 public sealed record GitHubAuth(string Mode = "Browser", string Login = "");
 
@@ -49,7 +51,7 @@ public static class GitHubSession
         // Older Browser/GCM connections require one explicit sign-in; never invoke Git.
         await Task.CompletedTask;
         try { return WindowsTokenStore.Get(auth.Login); }
-        catch (IOException) { throw new IOException("GitHub로 다시 로그인하십시오. 이 버전부터 Git 없이 로그인합니다."); }
+        catch (IOException) { throw new GitHubAuthenticationException("저장된 인증이 없습니다. GitHub로 다시 로그인하십시오."); }
     }
     public static async Task<HttpResponseMessage> Request(string relative, string accept = "application/vnd.github+json", string? token = null)
     {
@@ -65,7 +67,7 @@ public static class GitHubSession
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
         if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.NotFound)
-        { var code = (int)response.StatusCode; response.Dispose(); throw new IOException($"GitHub 접근 실패 ({code}). 계정·토큰 권한 또는 API 제한을 확인하십시오."); }
+        { var code = (int)response.StatusCode; response.Dispose(); if (code == 401) throw new GitHubAuthenticationException("GitHub 인증이 만료되거나 철회됐습니다. 다시 로그인하십시오."); throw new IOException($"GitHub 접근 실패 ({code}). 계정·토큰 권한 또는 API 제한을 확인하십시오."); }
         return response;
     }
     private static async Task<string> Login(string token)

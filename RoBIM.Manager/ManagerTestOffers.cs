@@ -4,10 +4,12 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
+    private string hostTestCard = "";
     private Dictionary<string, ReleaseOffer> testOffers = [];
     private Dictionary<string, ReleaseOffer> stableOffers = [];
     private Dictionary<string, string> testOfferErrors = [];
     private Dictionary<string, string> stableOfferErrors = [];
+    private static bool IndependentRelease(ButtonCard card) => card.Kind == ButtonKind.Native || CadFeaturePackages.IsFeature(card.Owner.Package?.Package);
     private ReleaseOffer? ChannelOffer(ButtonCard card, string channel)
     {
         var id = card.Owner.Status.Tool.Id;
@@ -19,16 +21,16 @@ public sealed partial class ManagerForm
     }
     private NativeReleaseStatus NativeReleaseState(ButtonCard card) => NativeReleasePolicy.Evaluate(
         card.SelectedVersion, card.SelectedChannel, ChannelOffer(card, "stable"), ChannelOffer(card, "test"));
-    private ReleaseOffer? OfferFor(ButtonCard card) => card.Kind == ButtonKind.Native && card.Selected
+    private ReleaseOffer? OfferFor(ButtonCard card) => IndependentRelease(card) && card.Selected
         ? NativeReleaseState(card).Update : (card.TestView ? testOffers : updateOffers).GetValueOrDefault(card.Owner.Status.Tool.Id);
     private bool SelectedInView(ButtonCard card) => card.Selected && (!card.TestView || card.SelectedChannel == "test");
     private bool NewTestAvailable(ButtonCard card)
     {
-        if (card.Kind != ButtonKind.Native || (!card.Selected && card.Channel != "stable") || card.TestView || (card.Selected && card.SelectedChannel != "stable")) return false;
+        if (!IndependentRelease(card) || (!card.Selected && card.Channel != "stable") || card.TestView || (card.Selected && card.SelectedChannel != "stable")) return false;
         return new ReleaseChannels(ChannelOffer(card, "stable"), ChannelOffer(card, "test"))
             .HasNewTest(card.Selected ? card.SelectedVersion : "");
     }
-    private bool ListTestOffer(ButtonCard card) => NewTestAvailable(card) || card.Kind == ButtonKind.Native &&
+    private bool ListTestOffer(ButtonCard card) => NewTestAvailable(card) || IndependentRelease(card) &&
         card.Channel == "stable" && card.Selected && card.SelectedChannel == "test";
     private IEnumerable<ButtonCard> ProductCommands(string page, IEnumerable<ButtonCard>? inventory = null)
     {
@@ -36,20 +38,20 @@ public sealed partial class ManagerForm
         foreach (var original in inventory ?? CommandInventory())
         {
             var card = original;
-            if (!CanUseTest && card.Kind == ButtonKind.Native && card.CollectionChannel != "stable" && page != "Mine")
+            if (!CanUseTest && IndependentRelease(card) && card.CollectionChannel != "stable" && page != "Mine")
             {
                 var stable = ChannelOffer(card, "stable");
                 if (stable is null) continue;
                 card = card with { Channel = "stable", ViewChannel = "", Selected = false, Pending = false,
                     SelectedChannel = "", SelectedVersion = "", ReleaseLabel = "정식 · " + stable.Version, CachedOffer = stable };
             }
-            if (card.Kind == ButtonKind.Native && card.Selected && card.SelectedChannel is "stable" or "test")
+            if (IndependentRelease(card) && card.Selected && card.SelectedChannel is "stable" or "test")
                 card = card with { ReleaseLabel = (card.SelectedChannel == "test" ? "TEST" : "정식") + " · " + card.SelectedVersion + (card.Pending ? " (적용 준비)" : " (설치됨)") };
-            if (page == "Mine" && card.Kind == ButtonKind.Native && card.SelectedChannel == "test")
+            if (page == "Mine" && IndependentRelease(card) && card.SelectedChannel == "test")
                 card = card with { ViewChannel = "test" };
-            if (page == "Test" && card.CollectionChannel != "test")
+            if ((page == "Test" || card.Id == hostTestCard && page is "Revit" or "Cad") && card.CollectionChannel != "test")
             {
-                if (!ListTestOffer(card)) continue;
+                if (!ListTestOffer(card)) { if (page != "Test") yield return card; continue; }
                 var offer = ChannelOffer(card, "test");
                 yield return card with { ViewChannel = "test", ReleaseLabel = card.Selected && card.SelectedChannel == "test" ? card.ReleaseLabel :
                     "TEST · " + (offer?.Version ?? "제공 확인 필요") + (card.Selected ? " · 현재 정식 " + card.SelectedVersion : "") };
@@ -61,7 +63,7 @@ public sealed partial class ManagerForm
     {
         var value = appearanceSnapshot.GetValueOrDefault(card.Id) ?? new(true, false, false, card.Message, "");
         var id = card.Owner.Status.Tool.Id;
-        if (card.Kind == ButtonKind.Native && !value.Legacy)
+        if (IndependentRelease(card) && !value.Legacy)
         {
             var target = card.Selected && SelectedInView(card) ? NativeReleaseState(card).Update : null;
             value = value with { Update = target is not null, Message = card.Message };
@@ -98,20 +100,20 @@ public sealed partial class ManagerForm
         if (appearance.Legacy) return "전환하기";
         if (card.TestView && !SelectedInView(card)) return "TEST 설치";
         if (appearance.Update)
-            return card.Kind == ButtonKind.Native && card.SelectedChannel == "test"
+            return IndependentRelease(card) && card.SelectedChannel == "test"
                 ? NativeReleaseState(card).Update?.Channel == "stable" ? "정식 업데이트" : "TEST 업데이트" : "업데이트";
         return card.Selected ? "제거" : "설치하기";
     }
     private async Task PrimaryCardAction(ButtonCard card)
     {
         if (!CanUseTest && card.Selected && card.SelectedChannel != "stable") { await ToggleButton(card, false); return; }
-        if (!CanUseTest && card.Kind == ButtonKind.Native && !card.Selected && card.Channel == "stable") { await ToggleButton(card, true, "stable"); return; }
+        if (!CanUseTest && IndependentRelease(card) && !card.Selected && card.Channel == "stable") { await ToggleButton(card, true, "stable"); return; }
         if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test");
         else await ToggleButton(card);
     }
     private void ShowTestOffer(ButtonCard card)
     {
         if (!CanUseTest) return;
-        SwitchPage("Test"); productSearch.Text = card.Title; RenderProductCards();
+        hostTestCard = card.Id; SwitchPage(card.Kind == ButtonKind.Cad ? "Cad" : "Revit"); productSearch.Text = card.Title; RenderProductCards();
     }
 }

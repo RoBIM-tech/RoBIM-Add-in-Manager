@@ -22,7 +22,7 @@ public sealed partial class ManagerForm
 
     private CadButtonSource? CadButtons(ProductRow owner, bool preferInstalled = false)
     {
-        return new CadReload(paths).Source(owner.Status.Path, cadButtonPackage, preferInstalled);
+        return new CadReload(paths).Source(CadFeaturePackages.IsFeature(owner.Package?.Package) ? paths.Target(Catalog.Cad) : owner.Status.Path, cadButtonPackage, preferInstalled);
     }
     private (string? Root, RevitButton[] Buttons, string[] Selected, bool Pending) RevitInventory(ProductRow owner)
     {
@@ -41,6 +41,19 @@ public sealed partial class ManagerForm
         foreach (var owner in owners.Where(x => x.Status.Tool.Kind != ToolKind.NativeRevitHost && (!RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(x.Status.Tool))))
         {
             var cards = new List<ButtonCard>();
+            if (owner.Package is { } registeredCad && CadFeaturePackages.IsFeature(registeredCad.Package))
+            {
+                var package = registeredCad.Package;
+                var current = new CadReload(paths).Source(paths.Target(Catalog.Cad), preferInstalled: true);
+                var selectedModule = current?.Catalog.Modules.SingleOrDefault(m => m.Id == package.ModuleId);
+                var key = package.ModuleId + ":" + package.CommandId;
+                var state = CadButtonState(owner, key);
+                var release = selectedModule is null || current is null ? null : ModuleReleases.Cad(current.Root, selectedModule.Id, selectedModule.Version);
+                yield return new("cad:" + key, package.Name, package.Description, "AutoCAD", null, owner, ButtonKind.Cad,
+                    state.Selected, state.Pending, state.Message, null, key, package.ModuleId, package.Channel,
+                    release?.Label ?? "설치 시 버전 확인", SelectedChannel: release?.Channel ?? "", SelectedVersion: selectedModule?.Version ?? "");
+                continue;
+            }
             try
             {
                 if (owner.Status.Tool.Kind == ToolKind.AutoCAD)
@@ -50,7 +63,9 @@ public sealed partial class ManagerForm
                         foreach (var module in source.Catalog.Modules)
                             foreach (var command in module.Actions.OrderBy(x => x.Order))
                             {
-                                var key = CadFiles.Key(module, command); var state = CadButtonState(owner, key);
+                                var key = CadFiles.Key(module, command);
+                                if (key == "delhidden:preview" || owners.Any(o => o.Package is { } p && CadFeaturePackages.IsFeature(p.Package) && p.Package.ModuleId + ":" + p.Package.CommandId == key)) continue;
+                                var state = CadButtonState(owner, key);
                                 var release = ModuleReleases.Cad(source.Root, module.Id, module.Version);
                                 cards.Add(new("cad:" + key, command.Title, command.Description, command.Panel + " / " + module.Name, command.Icon is null ? null : CadFiles.Child(source.Root, command.Icon), owner, ButtonKind.Cad, state.Selected, state.Pending, state.Message, source.Bundle, key, module.Id, release.Channel, release.Label, release.Detail, SelectedVersion: CadSelectedVersion(owner, module.Id)));
                             }
@@ -96,6 +111,7 @@ public sealed partial class ManagerForm
                 }
             }
             catch (Exception ex) { WriteLog(owner.Status.Tool.Name + " 버튼 목록: " + ex.Message); }
+            if (cards.Count == 0 && owner.Status.Tool.Id == Catalog.Cad.Id && owners.Any(o => CadFeaturePackages.IsFeature(o.Package?.Package))) continue;
             if (cards.Count == 0 && owner.Status.Tool.Kind == ToolKind.NativeRevit && owner.Package is { } registered)
             {
                 cards.Add(RegisteredNativeCard(owner));
@@ -122,7 +138,7 @@ public sealed partial class ManagerForm
     }
     private (bool Selected, bool Pending, string Message) CadButtonState(ProductRow owner, string key)
     {
-        var bridge = new CadReload(paths); var desired = bridge.Desired(owner.Status.Path);
+        var bridge = new CadReload(paths); var desired = bridge.Desired(CadFeaturePackages.IsFeature(owner.Package?.Package) ? paths.Target(Catalog.Cad) : owner.Status.Path);
         if (desired is null) return (false, false, "설치 안 됨");
         var selected = desired.SelectedActions.Contains(key); var file = CadFiles.Child(bridge.Data, "Results/" + desired.Id + ".json");
         var result = File.Exists(file) ? CadFiles.Read<CadReceipt>(file) : null;
@@ -174,7 +190,7 @@ public sealed partial class ManagerForm
         if (card.Kind == ButtonKind.Discover) { await LoadButtonCatalog(card.Owner); return; }
         if (releaseChannel is not null)
         {
-            if (card.Kind != ButtonKind.Native || card.Owner.Package is null || installChoice != true) return;
+            if (!IndependentRelease(card) || card.Owner.Package is null || installChoice != true) return;
             card = card with { Channel = releaseChannel };
         }
         var currentSelected = card.Kind == ButtonKind.Native ? NativeCommands().State(card.ModuleId, card.CommandId).Selected : card.Kind == ButtonKind.Cad ? CadButtonState(card.Owner, card.CommandId).Selected : RevitInventory(card.Owner).Selected.Contains(card.CommandId);
@@ -185,7 +201,22 @@ public sealed partial class ManagerForm
         if (!Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? update ? " 버튼을 업데이트합니까?" : " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + channelMessage + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 실행 중인 Revit에 자동 적용을 요청합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 자동 적용을 요청합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
         await Run("버튼 " + (enable ? update ? "업데이트" : "설치" : "제거") + " 준비", async () =>
         {
-            if (card.Kind == ButtonKind.Cad)
+            if (card.Kind == ButtonKind.Cad && card.Owner.Package is { } feature && CadFeaturePackages.IsFeature(feature.Package))
+            {
+                SourcePackage? input = null;
+                var selectedChannel = releaseChannel ?? (currentSelected ? NativeReleaseState(card).Update?.Channel ?? card.SelectedChannel : card.Channel);
+                if (enable)
+                {
+                    RequireChannelAccess(selectedChannel);
+                    input = await ExtensionSources().Download(feature.Repository, feature.Package, selectedChannel);
+                }
+                var sessions = CadReload.Sessions();
+                if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하십시오.");
+                var package = feature.Package with { Channel = selectedChannel };
+                new CadFeaturePackages(paths).Set(package, input, enable, sessions.SingleOrDefault());
+                WriteLog("독립 CAD 버튼 준비 완료 · AutoCAD에서 Reload하십시오.");
+            }
+            else if (card.Kind == ButtonKind.Cad)
             {
                 if (enable) RequireChannelAccess(card.Channel);
                 if (enable && update) cadButtonPackage = await sources.DownloadCad(CanUseTest ? null : "stable");
@@ -331,6 +362,7 @@ public sealed partial class ManagerForm
         yield return new("native:auto-join:run", "자동 결합", "선택 요소의 결합과 절단 순서를 검토합니다.", "RoBIM / Element", null, native, ButtonKind.Native, true, false, "설치됨", null, "run", "auto-join", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:parameter-copy:copy", "파라미터 복사", "선택 요소 사이에서 파라미터 값을 복사합니다.", "RoBIM / Parameter", null, native, ButtonKind.Native, true, false, "설치됨", null, "copy", "parameter-copy", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:view-duplicate:run", "뷰 복제", "선택한 Revit 뷰를 복제합니다.", "RoBIM View/Sheet / View", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "run", "view-duplicate", "stable", "정식 · 예시 버전");
+        yield return new("cad:sample:run", "CAD TEST 예시", "CAD 독립 기능 TEST 예시", "AutoCAD", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "sample:run", "sample", "test", "TEST · 1.1.0-test.1");
         yield return new("cad:delhidden:cleanup", "숨김 레이어 정리", "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.", "정리 / 레이어 정리", null, cad, ButtonKind.Cad, true, false, "설치됨 · CAD 적용 완료", null, "delhidden:cleanup");
         yield return new("cad:ezsplit:split", "도면 분할", "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.", "도면 / 도면 분할", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "ezsplit:split");
     }

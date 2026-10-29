@@ -26,7 +26,7 @@ public sealed partial class ManagerForm
         var publishers = MakeButton("제작자·조직"); publishers.Click += (_, _) => EditRepositoryPublishers();
         top.Controls.AddRange([refresh, publishers, catalogIdentity]); layout.Controls.Add(top);
         layout.Controls.Add(Note("애드인 토픽 또는 RoBIM 기본 도구만 자동 표시합니다. 다른 저장소는 Git URL로 구조를 확인하여 등록할 수 있습니다."));
-        foreach (var (name, title, weight) in new[] { ("Name", "패키지", 125), ("Host", "제품", 65), ("Repo", "저장소", 180), ("Branch", "브랜치", 75), ("Status", "설치 상태", 150) })
+        foreach (var (name, title, weight) in new[] { ("Name", "패키지", 125), ("Host", "제품", 65), ("Repo", "저장소", 180), ("Branch", "브랜치", 75), ("Role", "역할 / 배포", 130), ("Status", "설치 상태", 150) })
             extensionGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = name, HeaderText = title, FillWeight = weight, SortMode = DataGridViewColumnSortMode.NotSortable });
         extensionGrid.ColumnHeadersHeight = 38; extensionGrid.EnableHeadersVisualStyles = false;
         extensionGrid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(239, 243, 249);
@@ -67,7 +67,9 @@ public sealed partial class ManagerForm
             if (entry.Package.Host == "pyrevit") continue;
             var tool = ExtensionCatalog.Tool(entry.Repository, entry.Package);
             var status = productRows.FirstOrDefault(x => x.Status.Tool.Id == tool.Id)?.Status;
-            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, status?.Detail ?? "설치 상태 확인 전");
+            var command = commandSnapshot.FirstOrDefault(c => c.Owner.Status.Tool.Id == tool.Id);
+            var detail = command is null ? status?.Detail ?? "설치 상태 확인 전" : command.ReleaseLabel + " · " + command.Message;
+            var index = extensionGrid.Rows.Add(entry.Package.Name, tool.Kind == ToolKind.AutoCAD ? "AutoCAD" : "Revit · 독립", entry.Repository.Repository, entry.Repository.Branch, (tool.Id == Catalog.Cad.Id ? "로더 / 기존 통합 호환" : CadFeaturePackages.IsFeature(entry.Package) ? "독립 CAD 버튼" : "독립 Revit 버튼") + " · " + entry.Package.Channel, detail);
             extensionGrid.Rows[index].Tag = entry;
         }
     }

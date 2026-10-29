@@ -227,3 +227,8 @@ CAD 리본 편집에서 Reload와 Manager 버튼의 위치·이름·묶음을 �
 
 
 Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료를 요구하지 않습니다. 기존 버전에서 처음 전환할 때는 기존 검사에 따라 종료가 필요할 수 있습니다. 고정 로더 교체에는 해당 호스트 종료가 필요합니다.
+
+
+## CAD 독립 버튼 TEST 전환 · 2026-10-29
+
+현재 분리 작업은 [전환 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/codex/cad-loader-button-split/docs/developer/CAD_INDEPENDENT_PACKAGES.md)을 따릅니다. CAD 로더 저장소는 RoBIM-CAD-Loader로 변경됐으며 기능 4개는 별도 저장소입니다. 후보 조회는 제외합니다. 기존 설치·명령 ID와 정식 Release는 보존합니다. 새로운 패키지는 TEST이며 실제 호스트 검증과 main 병합·정식 승격은 별도입니다. 이전 통합 CAD 공급 설명보다 이 전환 계약이 우선합니다.

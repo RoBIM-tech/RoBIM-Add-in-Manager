@@ -5,9 +5,10 @@ namespace RoBIM.Manager;
 public sealed partial class ManagerForm
 {
     private TeamAccess? teamAccess;
-    private readonly System.Windows.Forms.Timer accessTimer = new() { Interval = 120000 };
+    private readonly System.Windows.Forms.Timer accessTimer = new() { Interval = 30000 };
     private NotifyIcon? tray;
     private bool exitRequested, checkingAccess, sessionStarted;
+    private DateTimeOffset lastAccountRefresh;
     private readonly SemaphoreSlim accountRefreshGate = new(1, 1);
     private readonly CheckBox allowPrerelease = new() { Text = "테스트(Pre-release) 업데이트 수신", AutoSize = true };
     private readonly CheckBox automaticLogin = new() { Text = "자동 로그인", AutoSize = true };
@@ -20,7 +21,9 @@ public sealed partial class ManagerForm
         ApplyAccessState();
         accessTimer.Tick += async (_, _) =>
         {
-            if (checkingAccess || busy || teamAccess is null || !sessionStarted) return;
+            if (checkingAccess || teamAccess is null || !sessionStarted) return;
+            if (teamAccess.Allowed && DateTimeOffset.UtcNow - lastAccountRefresh < TimeSpan.FromMinutes(2)) return;
+            if (teamAccess.Result.State == AccountAccessState.ReauthenticationRequired) return;
             if (GitHubSession.Current().Login.Length == 0) return;
             await RefreshAccount();
         };

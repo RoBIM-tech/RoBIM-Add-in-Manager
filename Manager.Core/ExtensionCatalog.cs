@@ -49,7 +49,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
             if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             if (package.ModuleId is null || package.CommandId is null ||
                 (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&
-                (package.Host != "revit" || !Regex.IsMatch(package.ModuleId, "^[a-z][a-z0-9.-]{0,63}$") || !Regex.IsMatch(package.CommandId, "^[a-z][a-z0-9.-]{0,63}$")))
+                (package.Host is not ("revit" or "autocad") || !Regex.IsMatch(package.ModuleId, "^[a-z][a-z0-9.-]{0,63}$") || !Regex.IsMatch(package.CommandId, "^[a-z][a-z0-9.-]{0,63}$")))
                 throw new InvalidDataException("모듈·명령 ID를 함께 지정해야 합니다.");
             var suffix = package.Host == "pyrevit" ? ".extension" : ".bundle";
             if (package.Folder is null || !Regex.IsMatch(package.Folder, @"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,100}$") ||
@@ -65,7 +65,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     }
     private static ExtensionRepository? BuiltIn(string repo, string branch) => repo.ToLowerInvariant() switch
     {
-        "robim-tech/robim-cad" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
+        "robim-tech/robim-cad-loader" => new(repo, branch, [new("delhidden", "DELHIDDEN .NET", "autocad", "DelHiddenNet.bundle", "DelHiddenNet.bundle", "release", "DelHiddenNet-AutoCAD2026.zip")], "RoBIM 기본 도구"),
         _ => null
     };
     public async Task<ExtensionRepository> Inspect(string url)
@@ -196,7 +196,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     }
     public static ExtensionPackage ReleaseChannel(ExtensionPackage package, string channel)
     {
-        if (package.Host != "revit" || package.Distribution != "release" || channel is not ("test" or "stable"))
+        if ((package.Host != "revit" && !CadFeaturePackages.IsFeature(package)) || package.Distribution != "release" || channel is not ("test" or "stable"))
             throw new IOException("독립 Revit 도구의 TEST 또는 정식 배포를 선택하십시오.");
         return package with { Channel = channel };
     }
@@ -237,7 +237,12 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
         }
         var source = package.Path == "." ? root : SafeFiles.Child(root, package.Path);
         var prepared = System.IO.Path.Combine(cache, "runtime", package.Folder); SafeFiles.Copy(source, prepared, false);
-        InstallService.ValidatePackage(Tool(refreshed, package), prepared);
+        if (CadFeaturePackages.IsFeature(package))
+        {
+            _ = CadFeaturePackages.Validate(prepared, package);
+            new CadFeaturePackages(paths).Cache(package, new(prepared, version));
+        }
+        else InstallService.ValidatePackage(Tool(refreshed, package), prepared);
         if (package.Host == "revit")
         {
             var module = RoBIM.Revit.Reload.NativeProtocol.Module(prepared);

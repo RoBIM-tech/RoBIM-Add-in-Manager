@@ -23,7 +23,7 @@ def validate_catalog(catalog):
         declared=[c for c in catalog['commands'] if c['repository'].lower()==name]
         if any(p['host']=='revit' for p in repo['packages']):
             if len(repo['packages'])!=1 or len(declared)!=1: raise ValueError('One native button/package per repository required: '+repo['repository'])
-        elif name!='robim-tech/robim-cad' and (len(repo['packages'])!=1 or len(declared)!=1):
+        elif name not in ('robim-tech/robim-cad','robim-tech/robim-cad-loader') and (len(repo['packages'])!=1 or len(declared)!=1):
             raise ValueError('New button repositories must own one command')
     for command in catalog['commands']:
         key=(command['host'],command['moduleId'],command['commandId'])
@@ -81,13 +81,23 @@ def validate_source(catalog, source, host, repository):
                     if not re.fullmatch(r'\[[^,\[\]*]+\]',version) or libraries.get(name)!=version[1:-1]: raise ValueError('RoBIM dependency must be exactly pinned and declared: '+name)
 
     elif host=='autocad':
-        manifest=source/'bundle/DelHiddenNet.bundle/Contents/Windows/robim-cad.json'
+        manifest=source/'package/robim-cad.json'
+        if not manifest.exists(): manifest=source/'bundle/DelHiddenNet.bundle/Contents/Windows/robim-cad.json'
         definitions=[(m['id'],a['id']) for m in read(manifest)['modules'] for a in m['actions']]
         packageIds={p['id'] for r in catalog['repositories'] if r['repository']==repository for p in r['packages'] if p['host']=='autocad'}
+        if (source/'robim-package.json').exists():
+            descriptor=read(source/'robim-package.json')
+            if len(descriptor['packages'])!=1 or len(definitions)!=1: raise ValueError('Independent CAD package must own one command')
+            package=descriptor['packages'][0]
+            if (package.get('moduleId'),package.get('commandId'))!=definitions[0]: raise ValueError('CAD descriptor identity mismatch')
+            self_described=True;central=[r for r in catalog['repositories'] if r['repository']==repository]
+            for project in source.rglob('*.csproj'):
+                if 'obj' in project.parts: continue
+                if 'ProjectReference' in project.read_text(encoding='utf-8-sig'): raise ValueError('Independent CAD feature cannot reference another project')
     else: raise ValueError('New pyRevit commands are not accepted; use a native module')
     registered={(c['moduleId'],c['commandId']) for c in catalog['commands'] if c['host']==host and c['repository']==repository and c['packageId'] in packageIds}
     missing=set(definitions)-registered
-    if missing and not (host=='revit' and self_described and not central): raise ValueError('Manager registration missing: '+repr(sorted(missing)))
+    if missing and not (host in ('revit','autocad') and self_described and not central): raise ValueError('Manager registration missing: '+repr(sorted(missing)))
     if len(definitions)!=len(set(definitions)): raise ValueError('Duplicate command ID in source')
     return len(definitions)
 

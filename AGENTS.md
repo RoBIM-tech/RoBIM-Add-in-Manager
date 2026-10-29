@@ -66,3 +66,8 @@ RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리
 - RoBIM은 pyRevit을 사용하지 않습니다. 기존 `RoBIM-pyrevit`, `RoBIM-pyrevit-extension` GitHub 저장소는 보관하며 신규 검색·리본·설치·TEST·개발 스킬의 운영 대상에 포함하지 않습니다.
 - 이전 pyRevit 로컬 설치·백업·사용자 설정을 자동으로 삭제하지 않습니다. Native Revit Host와 독립 버튼만 사용합니다.
 - CAD 패널 오류가 발생하면 Manager 데이터 폴더의 `cad-panel-errors.log`, AutoCAD의 `%LOCALAPPDATA%\\RoBIM\\Cad\\ribbon-errors.log`를 확인합니다. 권한 서비스 장애 시 CAD 리본 명령은 안전하게 비활성화합니다.
+
+
+## CAD 독립 버튼 TEST 전환 · 2026-10-29
+
+현재 분리 작업은 [전환 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/codex/cad-loader-button-split/docs/developer/CAD_INDEPENDENT_PACKAGES.md)을 따릅니다. CAD 로더 저장소는 RoBIM-CAD-Loader로 변경됐으며 기능 4개는 별도 저장소입니다. 후보 조회는 제외합니다. 기존 설치·명령 ID와 정식 Release는 보존합니다. 새로운 패키지는 TEST이며 실제 호스트 검증과 main 병합·정식 승격은 별도입니다. 이전 통합 CAD 공급 설명보다 이 전환 계약이 우선합니다.

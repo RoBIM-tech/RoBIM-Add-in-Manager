@@ -374,13 +374,19 @@ public sealed partial class ManagerForm
     {
         await accountRefreshGate.WaitAsync();
         checkingAccess = true;
+        lastAccountRefresh = DateTimeOffset.UtcNow;
         sessionStarted = true;
         try
         {
             savedAccounts.Items.Clear();
             try { savedAccounts.Items.AddRange((await GitHubAccount.SavedAccounts()).Cast<object>().ToArray()); } catch (IOException) { }
             var access = teamAccess is null ? null : await teamAccess.Refresh();
-            if (access is { Allowed: false }) throw new IOException(access.Detail);
+            if (access is { Allowed: false })
+            {
+                authenticated = false; connectedLogin = access.Login;
+                accountStatus.Text = access.Detail; catalogIdentity.Text = access.Detail;
+                return;
+            }
             var identity = access is null ? await GitHubSession.Identify() : new GitHubIdentity(access.Login, GitHubSession.Current().Mode);
             authenticated = true; connectedLogin = identity.Login;
             accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (access?.Role ?? "계정 연결");
