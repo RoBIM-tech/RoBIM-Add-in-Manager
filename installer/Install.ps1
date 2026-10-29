@@ -58,10 +58,10 @@ try {
             $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMManager'
             New-Item -Path $key -Force | Out-Null
             $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion='1.0.0-preview.60'; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('"' + $powerShell + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
+            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion='1.0.0'; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('"' + $powerShell + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
             foreach ($entry in $values.GetEnumerator()) { New-ItemProperty -Path $key -Name $entry.Key -Value $entry.Value -PropertyType String -Force | Out-Null }
         }
-        @{ Product='RoBIM.Manager'; Version='1.0.0-preview.60'; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
+        @{ Product='RoBIM.Manager'; Version='1.0.0'; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
         if (!$SkipIntegration) {
             foreach ($legacy in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'RoBIM Manager.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'RoBIM Manager\RoBIM Manager.lnk'))) {
                 Assert-NoLinks $legacy
