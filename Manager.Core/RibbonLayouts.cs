@@ -50,7 +50,7 @@ public sealed class RibbonLayouts(ManagerPaths paths)
         return layout with { Tabs = tabs.ToArray() };
     }
     public string FilePath(string host) => SafeFiles.Child(paths.Data, "ribbon-layout-" + Host(host).ToLowerInvariant() + ".json");
-    private static string Host(string host) => host is "Revit" or "AutoCAD" ? host : throw new IOException("지원하지 않는 리본 호스트");
+    private static string Host(string host) => host is "Revit" or "AutoCAD" or "Navisworks" ? host : throw new IOException("지원하지 않는 리본 호스트");
     public static void Validate(RibbonLayout layout)
     {
         _ = Host(layout.Host);
