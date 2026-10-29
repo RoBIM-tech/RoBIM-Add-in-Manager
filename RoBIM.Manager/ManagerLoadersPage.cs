@@ -83,6 +83,8 @@ public sealed partial class ManagerForm
             RequirePackageAccess(Catalog.Cad, package);
             var newRoot = CadReload.WindowsDirectory(package.Path);
             var version = FileVersionInfo.GetVersionInfo(Path.Combine(newRoot, "RoBIM.Cad.Loader.dll")).ProductVersion?.Split('+')[0];
+            if (string.IsNullOrWhiteSpace(version)) throw new IOException("동봉 CAD 로더 버전을 확인할 수 없습니다.");
+            if (version.Contains('-')) RequireChannelAccess("test");
             if (!string.IsNullOrWhiteSpace(version)) package = package with { Version = version };
             if (oldSource is not null) CadFiles.Validate(newRoot, oldSource.Catalog);
             await Task.Run(() => installer.Install(Catalog.Cad, package));
