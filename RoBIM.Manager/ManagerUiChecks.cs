@@ -65,6 +65,9 @@ public sealed partial class ManagerForm
         Navigate("Loaders");
         Require(loadersPage.Visible && !ribbonPage.Visible && !cadRibbonPage.Visible && pageTitle.Text == "프로그램 로더 관리", "Loader page is separate");
         Require(navigation.Any(x => (string?)x.Tag == "Loaders"), "Loader navigation visible");
+        var loaderCards = loadersPage.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<FlowLayoutPanel>().ToArray();
+        Require(loaderCards.Length == 2, "CAD and Revit loader cards visible");
+        Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
