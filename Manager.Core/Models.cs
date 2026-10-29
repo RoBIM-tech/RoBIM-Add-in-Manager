@@ -7,13 +7,13 @@ public sealed record ToolSpec(string Id, string Name, ToolKind Kind, string Repo
 
 public static class Catalog
 {
-    public static readonly ToolSpec RevitHost = new("robim-revit-host", "RoBIM 독립 Add-in 로더", ToolKind.NativeRevitHost,
-        "RoBIM-tech/RoBIM-Revit-Addin", "main", "RoBIM.Revit.Host.bundle", "실행 중 Revit의 독립 모듈 Reload 연결");
+    public static readonly ToolSpec RevitHost = new("robim-revit-host", "RoBIM Revit Host 로더", ToolKind.NativeRevitHost,
+        "RoBIM-tech/RoBIM-Revit-Addin", "main", "RoBIM.Revit.Host.bundle", "Revit 독립 Add-in 호스트 로더 (RoBIM-tech/RoBIM-Revit-Addin)");
     public static readonly ToolSpec RevitSelected = new("robim-revit-selected", "RoBIM 버튼 선택 설치", ToolKind.PyRevit,
         "RoBIM-tech/RoBIM-pyrevit", "main", "RoBIM-Selected.extension", "기존 원본과 공용 의존성을 보존하는 버튼별 설치 프로필");
-    public static readonly ToolSpec Cad = new("delhidden", "RoBIM CAD 연결 모듈", ToolKind.AutoCAD,
+    public static readonly ToolSpec Cad = new("delhidden", "RoBIM CAD 로더", ToolKind.AutoCAD,
         "RoBIM-tech/RoBIM-CAD", "main", "DelHiddenNet.bundle",
-        "AutoCAD 2026.1.2+ / .NET 10 · 최초 설치 후 필요한 버튼 선택 → CAD Reload");
+        "AutoCAD 리본 및 .NET 기능 로더 (RoBIM-tech/RoBIM-CAD)");
     public static readonly ToolSpec Revit = new("robim-revit", "RoBIM for Revit", ToolKind.PyRevit,
         "RoBIM-tech/RoBIM-pyrevit", "main", "RoBIM.extension",
         "pyRevit 확장 · 기본·도면·관리·TEST 탭 · pyRevit 사전 설치 필요");

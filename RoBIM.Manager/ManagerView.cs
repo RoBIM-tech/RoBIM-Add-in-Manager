@@ -35,7 +35,7 @@ public sealed partial class ManagerForm
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
         var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Extensions", "도구 등록"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Extensions", "도구 등록"), ("Loaders", "프로그램 로더"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
@@ -67,14 +67,14 @@ public sealed partial class ManagerForm
         profileLabel.Font = new Font(Font.FontFamily, 9);
         shell.Controls.Add(profileLabel, 0, 1);
         var pages = new Panel { Dock = DockStyle.Fill };
-        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage, ribbonPage, cadRibbonPage, navisworksRibbonPage, locationsPage]); shell.Controls.Add(pages, 0, 2);
+        pages.Controls.AddRange([userPage, developerPage, accountPage, extensionsPage, productsPage, ribbonPage, cadRibbonPage, navisworksRibbonPage, loadersPage, locationsPage]); shell.Controls.Add(pages, 0, 2);
         footer.Font = new Font(Font.FontFamily, 9);
         footer.ForeColor = Color.FromArgb(110, 120, 135); shell.Controls.Add(footer, 0, 3);
         content.Controls.Add(shell);
         var workspace = new Panel { Dock = DockStyle.Fill };
         workspace.Controls.Add(content); workspace.Controls.Add(sidebar);
         Controls.Add(workspace); Controls.Add(brand);
-        BuildUserPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildHostRibbonPages();
+        BuildUserPage(); BuildAccountPage(); BuildExtensionsPage(); BuildProductsPage(); BuildRibbonPage(); BuildHostRibbonPages(); BuildLoadersPage();
         try
         {
             var file = Path.Combine(paths.Data, "ui-preferences.json");
@@ -329,6 +329,8 @@ public sealed partial class ManagerForm
         ribbonPage.Visible = id == "Ribbon";
         cadRibbonPage.Visible = id == "CadRibbon";
         navisworksRibbonPage.Visible = id == "NavisworksRibbon";
+        loadersPage.Visible = id == "Loaders";
+        if (id == "Loaders") RefreshLoaderStatus();
         locationsPage.Visible = id == "Locations";
 
         if (id == "Ribbon") RefreshRibbonEditor();
@@ -336,8 +338,8 @@ public sealed partial class ManagerForm
         productsPage.Visible = IsProductPage;
         profileLabel.Visible = id is "Revit" or "Cad";
         _ = RefreshProfileLabel();
-        pageTitle.Text = id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "Revit 리본 편집" : id == "CadRibbon" ? "AutoCAD 리본 편집" : id == "NavisworksRibbon" ? "Navisworks 리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
-        pageSubtitle.Text = id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
+        pageTitle.Text = id == "Loaders" ? "프로그램 로더 관리" : id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "Revit 리본 편집" : id == "CadRibbon" ? "AutoCAD 리본 편집" : id == "NavisworksRibbon" ? "Navisworks 리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
+        pageSubtitle.Text = id == "Loaders" ? "호스트별 로더 설치 상태와 적용을 관리합니다." : id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
         foreach (var control in navigation)
         {
             var selected = (string?)control.Tag == id;

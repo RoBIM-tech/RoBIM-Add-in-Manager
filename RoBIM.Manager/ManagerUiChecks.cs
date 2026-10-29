@@ -62,6 +62,9 @@ public sealed partial class ManagerForm
         Require(cadRibbonPage.Visible && !ribbonPage.Visible && pageTitle.Text=="AutoCAD 리본 편집", "AutoCAD ribbon editor is separate from Revit");
         Navigate("NavisworksRibbon");
         Require(navisworksRibbonPage.Visible && !ribbonPage.Visible && !cadRibbonPage.Visible && pageTitle.Text=="Navisworks 리본 편집", "Navisworks ribbon editor has its own empty state");
+        Navigate("Loaders");
+        Require(loadersPage.Visible && !ribbonPage.Visible && !cadRibbonPage.Visible && pageTitle.Text == "프로그램 로더 관리", "Loader page is separate");
+        Require(navigation.Any(x => (string?)x.Tag == "Loaders"), "Loader navigation visible");
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
