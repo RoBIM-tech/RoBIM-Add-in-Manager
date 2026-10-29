@@ -9,9 +9,9 @@
   },
   "cad": {
     "repository": "RoBIM-tech/RoBIM-CAD",
-    "tag": "v1.0.2-test.1",
-    "version": "1.0.2-test.1",
+    "tag": "v1.0.2-test.2",
+    "version": "1.0.2-test.2",
     "asset": "DelHiddenNet-AutoCAD2026.zip",
-    "sha256": "742ea37c82b79371e23a64935a5b78a9321e681723c1b8217217bf9ad05f339a"
+    "sha256": "bfb450b4d9f87ca25db83641465816d91cc7b28b06709b2fa850ec2c9d38149a"
   }
 }
