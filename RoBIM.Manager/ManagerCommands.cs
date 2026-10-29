@@ -325,14 +325,13 @@ public sealed partial class ManagerForm
     private IEnumerable<ButtonCard> PreviewCommands()
     {
         if (productRows.Count == 0) yield break;
-        var revit = productRows.First(x => x.Status.Tool.Id == Catalog.Revit.Id);
         var cad = productRows.First(x => x.Status.Tool.Id == Catalog.Cad.Id);
         var native = productRows.First(x => x.Status.Tool.Kind == ToolKind.NativeRevit);
         yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets", "stable", "실사용 · 0.2.0 · 예시 버전");
         yield return new("native:sample-test:sample", "신규 기능 TEST", "독립 Add-in 검증용 예시입니다.", "RoBIM TEST / 독립 도구", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "sample", "sample-test", "test", "TEST · 0.1.0-test.2", "화면 확인용 예시");
-        yield return new("revit:auto-join", "AutoJoin", "선택 요소·현재 뷰·프로젝트에서 카테고리별 조인과 절단 순서를 정리합니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "auto-join");
-        yield return new("revit:beam-to-slab", "보 슬래브 높이 맞춤", "보와 겹치는 슬래브를 찾아 이동량을 검토하고, 선택한 보의 높이를 맞춥니다.", "RoBIM 기본 / 요소 수정", null, revit, ButtonKind.PyRevit, true, false, "설치됨", null, "beam-to-slab");
-        yield return new("revit:cad-dimensions", "CAD 치수 도면화", "CAD 선과 기준을 검토하여 Revit 도면 치수를 작성합니다.", "RoBIM 도면 / 치수", null, revit, ButtonKind.PyRevit, false, false, "설치 안 됨", null, "cad-dimensions");
+        yield return new("native:auto-join:run", "자동 결합", "선택 요소의 결합과 절단 순서를 검토합니다.", "RoBIM / Element", null, native, ButtonKind.Native, true, false, "설치됨", null, "run", "auto-join", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
+        yield return new("native:parameter-copy:copy", "파라미터 복사", "선택 요소 사이에서 파라미터 값을 복사합니다.", "RoBIM / Parameter", null, native, ButtonKind.Native, true, false, "설치됨", null, "copy", "parameter-copy", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
+        yield return new("native:view-duplicate:run", "뷰 복제", "선택한 Revit 뷰를 복제합니다.", "RoBIM View/Sheet / View", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "run", "view-duplicate", "stable", "정식 · 예시 버전");
         yield return new("cad:delhidden:cleanup", "숨김 레이어 정리", "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.", "정리 / 레이어 정리", null, cad, ButtonKind.Cad, true, false, "설치됨 · CAD 적용 완료", null, "delhidden:cleanup");
         yield return new("cad:ezsplit:split", "도면 분할", "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.", "도면 / 도면 분할", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "ezsplit:split");
     }

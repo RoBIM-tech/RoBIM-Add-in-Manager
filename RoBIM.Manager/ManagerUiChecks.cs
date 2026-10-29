@@ -45,13 +45,11 @@ public sealed partial class ManagerForm
         var checks = new List<string>();
         void Require(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); checks.Add(name); }
         ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000); Show(); Application.DoEvents();
-        Require(currentPage == "Revit" && cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Default Revit shows independent Add-ins only");
-        Require(navigation.Any(x => (string?)x.Tag == "PyRevit"), "Separate pyRevit navigation");
+        Require(currentPage == "Revit" && cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Default Revit shows independent Add-ins only");
+        Require(!navigation.Any(x => (string?)x.Tag is "PyRevit" or "Developer" or "Locations"), "Retired pyRevit pages are absent");
         Require(nativeReload.Text == "독립 Add-in Reload", "Independent Add-in Reload label");
-        Require(UpdateTargets().Count(p => ExtensionCatalog.Tool(p.Repository,p.Package).Id == Catalog.Revit.Id) == 1, "Built-in pyRevit participates in refresh without duplicate registration");
-        Navigate("PyRevit"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.PyRevit), "pyRevit page excludes independent Add-ins and CAD");
-        Require(nativeReload.Visible && nativeReload.Text == "pyRevit Reload", "pyRevit Reload label");
-        Require(cardBindings.Values.Count(x => x.Row.Kind == ButtonKind.PyRevit) == 3, "Multiple buttons share one pyRevit package");
+        Require(UpdateTargets().All(p => p.Package.Host != "pyrevit"), "Retired pyRevit is excluded from update queries");
+        SwitchPage("PyRevit"); Require(currentPage == "Revit", "Historical pyRevit page routes safely to Revit");
         void Navigate(string id) { ((Button)navigation.Single(x => (string?)x.Tag == id)).PerformClick(); Application.DoEvents(); }
         Navigate("Test"); Require(cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST has separate collection");
         Require(cardBindings.Values.Single().Row.ReleaseLabel.StartsWith("TEST"), "TEST badge includes version");
@@ -71,9 +69,9 @@ public sealed partial class ManagerForm
         Navigate("Revit"); Require(cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Independent Revit excludes pyRevit and CAD actions");
         Require(nativeReload.Visible, "Native Revit Reload available on Revit page");
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");
-        productSearch.Clear(); Navigate("PyRevit"); productSearch.Text = "슬래브"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Title == "보 슬래브 높이 맞춤", "Search button title and description");
+        productSearch.Clear(); Navigate("Revit"); productSearch.Text = "파라미터"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Title == "파라미터 복사", "Search button title and description");
         productSearch.Clear(); Navigate("Revit");
-        productSearch.Text = "독립"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Kind == ButtonKind.Native, "Native versus pyRevit search");
+        productSearch.Text = "독립"; Require(cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
         productSearch.Clear(); Navigate("All"); productSort.SelectedIndex = 2;
         Require(cardBindings.Values.Take(3).All(x => x.Row.Selected), "Selected-first sorting");
         productSort.SelectedIndex = 1; var names = cardBindings.Values.Select(x => x.Row.Title).ToArray();
@@ -90,7 +88,7 @@ public sealed partial class ManagerForm
         busy = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled), "Busy disables all feature mutations"); busy = false; RefreshCardActions();
         refreshingSnapshot = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled && !x.More.Enabled), "Snapshot verification blocks stale card actions and menus"); refreshingSnapshot = false; RefreshCardActions();
         var scans = inventoryScanCount;
-        Navigate("PyRevit"); Navigate("Revit"); Navigate("All"); productSearch.Text = "AutoJoin"; productSearch.Clear();
+        Navigate("Cad"); Navigate("Revit"); Navigate("All"); productSearch.Text = "자동 결합"; productSearch.Clear();
         Require(inventoryScanCount == scans, "Navigation and search never rescan installed packages");
         Require(CardColumnCount(380, 96) == 1 && CardColumnCount(900, 96) == 2 && CardColumnCount(1400, 96) == 3, "Responsive one/two/three column breakpoints");
         Require(CardColumnCount(2100, 144) == 3 && CardColumnCount(900, 144) == 1, "DPI-aware column breakpoints");
@@ -218,10 +216,9 @@ public sealed partial class ManagerForm
         ribbonEditor.LoadTools([new("test:uninstalled", "미설치", "RoBIM", "도구", false)]);
         Require(ribbonEditor.Snapshot().Tabs.Length == 0, "Zero installed tools produce no default tabs");
         Navigate("Account"); Require(accountPage.Visible && !productsPage.Visible && accountPage.Height > 350, "GitHub settings retains content height");
-        Navigate("Developer"); Require(developerPage.Visible, "Developer screen preserved");
+        SwitchPage("Developer"); Require(currentPage == "Revit" && !developerPage.Visible, "Historical developer page cannot reopen retired tools");
         Navigate("Extensions"); Require(extensionsPage.Visible, "Registration screen preserved");
-        Navigate("Locations"); Require(locationsPage.Visible && !productsPage.Visible && pyRevitRootInput.Text.Contains("RoBIM"), "Dedicated pyRevit installation location page");
-        Require(!applyLocation.Enabled, "Preview cannot migrate actual installations");
+        SwitchPage("Locations"); Require(currentPage == "Revit" && !locationsPage.Visible, "Historical pyRevit location page stays retired");
         foreach (var repository in BundledCatalog.Read().Repositories.Where(r => r.Packages.SingleOrDefault()?.Host == "revit"))
         {
             var package = repository.Packages.Single(); var tool = ExtensionCatalog.Tool(repository, package);

@@ -262,3 +262,23 @@ preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으
 리본 편집 위의 **Revit 연결 설치 / 업데이트**는 독립 Revit 연결을 설치하거나 Manager에 동봉된 검증 버전으로 갱신합니다. Revit에서 작업을 저장하고 종료한 뒤 실행하고, 다시 Revit을 시작하면 저장한 배치를 자동 적용합니다. 연결을 갱신해도 도구 선택과 리본 배치는 유지합니다.
 
 독립 모드의 Revit 적용은 설치된 연결과 동봉 패키지의 실제 파일 해시를 비교합니다. 연결이 오래된 채로 Revit이 실행 중이면 적용 완료로 표시하지 않고 연결 업데이트 절차를 안내합니다. Revit이 종료되어 있으면 적용 요청 과정에서 연결을 먼저 설치/갱신합니다. 실행 중 Revit의 연결 DLL을 교체하거나 Revit을 강제 종료하지 않습니다.
+
+## Preview 54: Native 전용 Manager 업데이트
+
+Revit 도구·검색·새 설치·리본은 독립 C# Add-in만 사용합니다. pyRevit 메뉴와 연결 신규 설치는 제공하지 않으며, 기존 소유 잔여 설치가 있으면 설정의 고급 항목에서 백업 후 제거할 수 있습니다. 업데이트 자체는 이전 pyRevit 파일이나 사용자 리본을 자동 삭제하지 않습니다. Revit 리본 연결 업데이트와 Manager 업데이트 확인 버튼을 유지합니다.
+
+AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 cad-panel-errors.log에 기록합니다. Navisworks는 빈 도구/리본 안내를 유지합니다. Manager의 미리보기 예시도 Native 도구로 바꾸어 제거된 pyRevit 제품을 찾다가 실패하지 않게 했습니다.
+
+### Native 전용 검사 범위
+
+Manager.Tests는 Native/CAD·인증·Manager 업데이트·설치 보존·리본·잔여 설치 제거를 검사합니다. retired-pyrevit-tests.json의 과거 pyRevit 신규 설치/프로필/Reload 성공 시나리오는 현재 운영에서 종료되어 기본 실행에서 제외하며 통과 수에 포함하지 않습니다. 별도 retired-tests.json에 이름과 이유를 기록합니다. 과거 동작을 조사할 때만 --include-retired-pyrevit을 사용하며 현재 정책에서 실패하는 것이 정상입니다. 기존 설치의 제거/백업/동시 변경 방지 검사는 구형 설치 기록을 직접 준비하여 계속 실행합니다. NativeOnlyPolicyTests는 실제 Manager.Core를 대상으로 신규 pyRevit 설치/등록 차단 및 기존 파일 보존을 검사합니다.
+
+## Preview 55: 동봉 Revit 연결 패키지 수정
+
+preview.54 이하의 일부 Manager 배포는 동봉 Host를 preview.8로 문서화했지만 실제 ZIP은 preview.1이었습니다. 로컬 SHA-256과 sidecar만 일치해도 빌드가 허용된 것이 원인입니다. preview.55는 GitHub 공식 host-v1.0.0-preview.8의 ZIP 해시 e4371baf…로 고정하고 실제 DLL 버전 preview.8을 확인했습니다. CAD stable1.0.1은 기존 공식 배포와 일치했습니다.
+
+release-packages.lock.json이 동봉 버전·공식 tag·ZIP 해시를 기록하며, 빌드는 구형 Host ZIP과 그에 맞는 로컬 sidecar 조합도 거부합니다. 정식 Setup 빌드의 CAD도 고정하며 Portable 후보 빌드만 명시적 CAD 후보를 허용합니다. 현재 Host 교체는 Revit 종료 후 ‘Revit 연결 설치 / 업데이트’로 진행하고, 저장된 리본·도구 선택을 보존합니다. 업데이트가 실행 중 Revit을 강제 종료하지 않습니다.
+
+## Manager preview.56 · Host preview.9
+
+TEST 빌드는 검증된 Revit Host 1.0.0-preview.9 ZIP과 SHA-256을 동봉합니다. 고정 Host 갱신에는 Revit 종료가 필요합니다. 기존 관리 기록과 실제 파일이 다르면 덮어쓰지 않으며, 실제 설치·적용 여부는 별도 확인합니다.

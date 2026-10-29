@@ -4,4 +4,5 @@
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Manager.Core\Manager.Core.csproj" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="retired-pyrevit-tests.json" LogicalName="retired-pyrevit-tests.json" /></ItemGroup>
 </Project>

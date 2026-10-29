@@ -30,6 +30,9 @@ var root = Path.GetFullPath(args.FirstOrDefault(x => !x.StartsWith("--")) ?? Pat
 Directory.CreateDirectory(root);
 var results = new List<object>();
 var failures = 0;
+using var retiredReader = new StreamReader(System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("retired-pyrevit-tests.json")!);
+var retiredPyRevit = JsonSerializer.Deserialize<HashSet<string>>(retiredReader.ReadToEnd())!;
+var retiredCases = new List<string>();
 void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 void Reject(Action action)
 {
@@ -58,6 +61,14 @@ string Package(string name, string content, ToolSpec? tool = null)
 }
 void Test(string name, Action action)
 {
+    if (!args.Contains("--include-retired-pyrevit") && retiredPyRevit.Contains(name))
+    {
+        // These historical cases require successful installation/operation of the
+        // retired runtime. Keep them discoverable, but never count them as passes.
+        retiredCases.Add(name);
+        File.WriteAllText(Path.Combine(root, "retired-tests.json"), JsonSerializer.Serialize(new { Reason = "pyRevit installation, profiles and Reload are no longer supported; removal remains tested", Cases = retiredCases }));
+        Console.WriteLine("RETIRED " + name); return;
+    }
     try { action(); results.Add(new { Name = name, Passed = true, Error = "" }); Console.WriteLine("PASS " + name); }
     catch (Exception ex) { failures++; results.Add(new { Name = name, Passed = false, Error = ex.ToString() }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
 }
@@ -71,6 +82,7 @@ GitHubDeviceLoginTests.Run(Test);
 HostRequirementTests.Run(root, Test);
 ManagerUpdateTests.Run(root, Test);
 RibbonReceiptTests.Run(root, Test);
+NativeOnlyPolicyTests.Run(root, Test);
 if (args.Contains("--discovery-only"))
 {
     RepositoryDiscoveryTests.Run(root, Test);
@@ -796,4 +808,5 @@ NativeRevitTests.Run(Test, Paths, Require, root);
 ButtonTests.Run(Test, Paths, Require, root);
 File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"{results.Count - failures}/{results.Count} passed. Report: {Path.Combine(root, "results.json")}");
+Console.WriteLine($"{retiredCases.Count} retired pyRevit operation cases excluded; details: {Path.Combine(root, "retired-tests.json")}");
 return failures == 0 ? 0 : 1;
