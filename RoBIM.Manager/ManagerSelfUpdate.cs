@@ -73,12 +73,6 @@ public sealed partial class ManagerForm
                 pendingManagerUpdate = (offer,installer);
             }
             if (pendingManagerUpdate is not { } pending || busy || IsDisposed || !teamAccess.Allowed) return;
-            var running = Process.GetProcessesByName("Revit").Concat(Process.GetProcessesByName("acad")).Concat(Process.GetProcessesByName("accoreconsole")).ToArray();
-            try
-            {
-                if (running.Length > 0) { managerUpdateStatus.Text = "Manager " + pending.Offer.Version + " 준비됨 · Revit·AutoCAD를 종료하면 자동 업데이트합니다."; return; }
-            }
-            finally { foreach (var process in running) process.Dispose(); }
             ManagerUpdates.Launch(paths,pending.Installer,pending.Offer.Digest);
             exitRequested = true; Close();
         }
