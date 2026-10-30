@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "repositories": [
     {
-      "repository": "RoBIM-tech/RoBIM-CAD",
+      "repository": "RoBIM-tech/RoBIM-CAD-Loader",
       "branch": "main",
       "recognition": "RoBIM 중앙 등록",
       "packages": [
         {
-          "id": "delhidden",
-          "name": "RoBIM CAD 도구",
+          "id": "robim-cad-loader",
+          "name": "RoBIM CAD 로더",
           "host": "autocad",
-          "path": "DelHiddenNet.bundle",
-          "folder": "DelHiddenNet.bundle",
+          "path": "RoBIM.Cad.Loader.bundle",
+          "folder": "RoBIM.Cad.Loader.bundle",
           "distribution": "release",
-          "asset": "DelHiddenNet-AutoCAD2026.zip",
+          "asset": "RoBIM-CAD-Loader-AutoCAD2026.zip",
           "description": "CAD 기능별 선택 설치",
           "channel": "stable"
         }
@@ -79,44 +79,93 @@
           "channel": "test"
         }
       ]
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-LayerCleanup",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 독립 CAD 버튼",
+      "packages": [
+        {
+          "id": "cad-layercleanup",
+          "name": "숨김 레이어 정리",
+          "host": "autocad",
+          "path": "RoBIM.Cad.LayerCleanup.bundle",
+          "folder": "RoBIM.Cad.LayerCleanup.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-CAD-LayerCleanup-AutoCAD2026.zip",
+          "description": "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.",
+          "channel": "stable",
+          "moduleId": "delhidden",
+          "commandId": "cleanup"
+        }
+      ]
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-DrawingSplit",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 독립 CAD 버튼",
+      "packages": [
+        {
+          "id": "cad-drawingsplit",
+          "name": "도면 분할",
+          "host": "autocad",
+          "path": "RoBIM.Cad.DrawingSplit.bundle",
+          "folder": "RoBIM.Cad.DrawingSplit.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-CAD-DrawingSplit-AutoCAD2026.zip",
+          "description": "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.",
+          "channel": "stable",
+          "moduleId": "ezsplit",
+          "commandId": "split"
+        }
+      ]
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-BlockExplode",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 독립 CAD 버튼",
+      "packages": [
+        {
+          "id": "cad-blockexplode",
+          "name": "블록 분해 (EXBX)",
+          "host": "autocad",
+          "path": "RoBIM.Cad.BlockExplode.bundle",
+          "folder": "RoBIM.Cad.BlockExplode.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-CAD-BlockExplode-AutoCAD2026.zip",
+          "description": "XCLIP 블록을 보존하고 선택 블록을 한 단계 또는 중첩 전체 분해합니다. 속성 문자의 현재 값을 보존합니다.",
+          "channel": "stable",
+          "moduleId": "exbx",
+          "commandId": "explode"
+        }
+      ]
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-XclipCut",
+      "branch": "main",
+      "role": "button",
+      "recognition": "RoBIM 독립 CAD 버튼",
+      "packages": [
+        {
+          "id": "cad-xclipcut",
+          "name": "XCLIP 절단",
+          "host": "autocad",
+          "path": "RoBIM.Cad.XclipCut.bundle",
+          "folder": "RoBIM.Cad.XclipCut.bundle",
+          "distribution": "release",
+          "asset": "RoBIM-CAD-XclipCut-AutoCAD2026.zip",
+          "description": "선택 XCLIP 블록의 선·곡선·해치를 실제 절단합니다. 경계에 걸친 문자·주석은 전체 유지하며 미지원 형상은 해당 블록을 변경하지 않습니다.",
+          "channel": "stable",
+          "moduleId": "xclip",
+          "commandId": "cut"
+        }
+      ]
     }
   ],
   "commands": [
-    {
-      "repository": "RoBIM-tech/RoBIM-CAD",
-      "packageId": "delhidden",
-      "moduleId": "delhidden",
-      "commandId": "cleanup",
-      "host": "autocad"
-    },
-    {
-      "repository": "RoBIM-tech/RoBIM-CAD",
-      "packageId": "delhidden",
-      "moduleId": "delhidden",
-      "commandId": "preview",
-      "host": "autocad"
-    },
-    {
-      "repository": "RoBIM-tech/RoBIM-CAD",
-      "packageId": "delhidden",
-      "moduleId": "ezsplit",
-      "commandId": "split",
-      "host": "autocad"
-    },
-    {
-      "repository": "RoBIM-tech/RoBIM-CAD",
-      "packageId": "delhidden",
-      "moduleId": "exbx",
-      "commandId": "explode",
-      "host": "autocad"
-    },
-    {
-      "repository": "RoBIM-tech/RoBIM-CAD",
-      "packageId": "delhidden",
-      "moduleId": "xclip",
-      "commandId": "cut",
-      "host": "autocad"
-    },
     {
       "repository": "RoBIM-tech/RoBIM-Revit-Sheets",
       "packageId": "robim-revit-sheets",
@@ -137,12 +186,40 @@
       "moduleId": "parameter-bulk-edit",
       "commandId": "bulk-edit",
       "host": "revit"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-LayerCleanup",
+      "packageId": "cad-layercleanup",
+      "moduleId": "delhidden",
+      "commandId": "cleanup",
+      "host": "autocad"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-DrawingSplit",
+      "packageId": "cad-drawingsplit",
+      "moduleId": "ezsplit",
+      "commandId": "split",
+      "host": "autocad"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-BlockExplode",
+      "packageId": "cad-blockexplode",
+      "moduleId": "exbx",
+      "commandId": "explode",
+      "host": "autocad"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-CAD-XclipCut",
+      "packageId": "cad-xclipcut",
+      "moduleId": "xclip",
+      "commandId": "cut",
+      "host": "autocad"
     }
   ],
   "repositoryPolicy": {
     "default": "one-button-per-repository",
     "legacyAggregates": [
-      "RoBIM-tech/RoBIM-CAD"
+      "RoBIM-tech/RoBIM-CAD-Loader"
     ]
   },
   "repositoryMoves": [
@@ -165,7 +242,7 @@
       "fromRepository": "gagaggan/RoBIM-CAD",
       "packageId": "delhidden",
       "toRepositories": [
-        "RoBIM-tech/RoBIM-CAD"
+        "RoBIM-tech/RoBIM-CAD-Loader"
       ]
     },
     {

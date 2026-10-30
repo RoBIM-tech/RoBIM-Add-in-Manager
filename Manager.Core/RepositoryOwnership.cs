@@ -12,8 +12,15 @@ public static class RepositoryOwnership
         "RoBIM-Revit-ParameterCopy", "RoBIM-Revit-ParameterBulkEdit", "RoBIM-Revit-CentralClone",
         "RoBIM-Revit-RelinkPaths", "RoBIM-Revit-AutoJoin", "RoBIM-Revit-ViewDuplicate", "RoBIM-Revit-ViewRotation"
     };
-    public static string Canonical(string repository) => ChangeOwner(repository, "gagaggan", "RoBIM-tech");
-    public static string LegacyIdentity(string repository) => ChangeOwner(repository, "RoBIM-tech", "gagaggan");
+    public static string Canonical(string repository)
+    {
+        var name = ChangeOwner(repository, "gagaggan", "RoBIM-tech");
+        return name.Equals("RoBIM-tech/RoBIM-CAD", StringComparison.OrdinalIgnoreCase)
+            ? "RoBIM-tech/RoBIM-CAD-Loader" : name;
+    }
+    public static string LegacyIdentity(string repository) =>
+        Canonical(repository).Equals("RoBIM-tech/RoBIM-CAD-Loader", StringComparison.OrdinalIgnoreCase)
+            ? "gagaggan/RoBIM-CAD" : ChangeOwner(repository, "RoBIM-tech", "gagaggan");
     private static string ChangeOwner(string repository, string from, string to)
     {
         var parts = repository.Split('/');

@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "revitHost": {
     "repository": "RoBIM-tech/RoBIM-Revit-Addin",
-    "tag": "host-v1.0.0-preview.9",
-    "version": "1.0.0-preview.9",
+    "tag": "host-v1.0.0",
+    "version": "1.0.0",
     "asset": "RoBIM-Host-Revit2026.zip",
-    "sha256": "580DD546724975DABF42A5BFC953C19B63CF6D3F3115BA1761B2F94961E680CD"
+    "sha256": "9da5e77f6d6e388e983fa832691eec89efadcb102d7d6ab3336f971ef3111dbc"
   },
   "cad": {
-    "repository": "RoBIM-tech/RoBIM-CAD",
-    "tag": "v1.0.2",
-    "version": "1.0.2",
-    "asset": "DelHiddenNet-AutoCAD2026.zip",
-    "sha256": "f9cd2c4e5e491c2c5a9d7514d1b5a3239900d07b31114977e907351f7b55b254"
+    "repository": "RoBIM-tech/RoBIM-CAD-Loader",
+    "tag": "v1.1.0",
+    "version": "1.1.0",
+    "asset": "RoBIM-CAD-Loader-AutoCAD2026.zip",
+    "sha256": "67c95ca50e071e70294e131f6701069a21c4dfd93b7ab7d76d281011cc1c18e1"
   }
 }

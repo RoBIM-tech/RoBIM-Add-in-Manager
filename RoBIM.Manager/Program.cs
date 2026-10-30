@@ -192,7 +192,7 @@ internal static class Program
             var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser(), requireChannel: permission.Require);
             var package = manager.Cached(args[1]) ?? throw new IOException("Native module catalog entry missing.");
             var module = RoBIM.Revit.Reload.NativeProtocol.Module(package.Path);
-            var tool = new Core.ToolSpec("native-local-" + module.Id, module.Commands[0].Title, Core.ToolKind.NativeRevit, "", "main", Path.GetFileName(package.Path), "독립 모듈", true);
+            var tool = new Core.ToolSpec("native-local-" + module.Id, module.Commands[0].Title, Core.ToolKind.NativeRevit, "", "main", Path.GetFileName(package.Path), "도구 모듈", true);
             manager.ToggleWithMigration(tool, package.Path, args[2], bool.Parse(args[3]));
             File.WriteAllText(args[4], System.Text.Json.JsonSerializer.Serialize(manager.Desired())); return 0;
         }

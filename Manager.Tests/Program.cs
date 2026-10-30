@@ -2,6 +2,11 @@ using System.IO.Compression;
 using System.Text.Json;
 using RoBIM.Manager.Core;
 
+if (args.Length == 7 && args[0] == "--check-cad-split-archives")
+{
+    CadSplitArchiveSmoke.Run(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), args.Skip(3).Select(Path.GetFullPath).ToArray()); return 0;
+}
+
 if (args.Length == 2 && args[0] == "--check-organization-transfer")
 {
     await RepositoryOwnershipTests.Live(Path.GetFullPath(args[1])); return 0;
@@ -78,6 +83,9 @@ if (args.Contains("--device-login-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} device login checks passed"); return failures==0?0:1;
 }
+CadBundleMigrationTests.Run(root,Test);
+LoaderActionTests.Run(Test);
+CadFeaturePackageTests.Run(root, Test);
 GitHubDeviceLoginTests.Run(Test);
 HostRequirementTests.Run(root, Test);
 ManagerUpdateTests.Run(root, Test);
@@ -376,7 +384,7 @@ Test("LoaderZipSupportsBothPathSeparatorsAndRejectsDuplicates", () =>
 });
 Test("LoaderRepositoryChannelsRemainSeparate", () =>
 {
-    using var data = JsonDocument.Parse("""[{"draft":false,"prerelease":true,"assets":[{"name":"loader.zip","id":2,"size":10,"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]},{"draft":false,"prerelease":false,"assets":[{"name":"loader.zip","id":1,"size":10,"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}]""");
+    using var data = JsonDocument.Parse("""[{"draft":false,"prerelease":true,"tag_name":"v1.1.0-test.1","assets":[{"name":"loader.zip","id":2,"size":10,"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]},{"draft":false,"prerelease":false,"tag_name":"v1.0.3","assets":[{"name":"loader.zip","id":1,"size":10,"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}]""");
     Require(Sources.SelectLoaderAsset(data.RootElement, "loader.zip", "stable").Id == 1, "Stable selected test loader");
     Require(Sources.SelectLoaderAsset(data.RootElement, "loader.zip", "test").Id == 2, "Test loader not selected");
     Reject(() => Sources.SelectLoaderAsset(data.RootElement, "missing.zip", "stable"));

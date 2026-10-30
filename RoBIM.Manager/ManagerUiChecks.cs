@@ -45,18 +45,15 @@ public sealed partial class ManagerForm
         var checks = new List<string>();
         void Require(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); checks.Add(name); }
         ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000); Show(); Application.DoEvents();
-        Require(currentPage == "Revit" && cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Default Revit shows independent Add-ins only");
+        Require(currentPage == "Revit" && cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Revit includes stable and TEST independent Add-ins");
         Require(!navigation.Any(x => (string?)x.Tag is "PyRevit" or "Developer" or "Locations"), "Retired pyRevit pages are absent");
-        Require(nativeReload.Text == "독립 Add-in Reload", "Independent Add-in Reload label");
+        Require(!nativeReload.Visible, "Product page has no duplicate Reload");
+        Require(!navigation.Any(x => (string?)x.Tag is "All" or "Mine" or "Test"), "Aggregate pages removed");
         Require(UpdateTargets().All(p => p.Package.Host != "pyrevit"), "Retired pyRevit is excluded from update queries");
         SwitchPage("PyRevit"); Require(currentPage == "Revit", "Historical pyRevit page routes safely to Revit");
         void Navigate(string id) { ((Button)navigation.Single(x => (string?)x.Tag == id)).PerformClick(); Application.DoEvents(); }
-        Navigate("Test"); Require(cardBindings.Count == 1 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST has separate collection");
-        Require(cardBindings.Values.Single().Row.ReleaseLabel.StartsWith("TEST"), "TEST badge includes version");
-        Navigate("All"); Require(cardBindings.Count == 6, "All lists buttons from both hosts");
-        Require(productCards.ClientSize.Height > 200, "Full content height without profile note");
-        Navigate("Mine"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Selected), "My tools is per-button selection");
-        Navigate("Cad"); Require(cardBindings.Count == 2 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD shows multiple actions from one loader");
+        foreach(var oldPage in new[]{"All","Mine","Test"}) { SwitchPage(oldPage); Require(currentPage=="Revit","Old page maps to program "+oldPage); }
+        Navigate("Cad"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD includes stable and TEST commands");
         Require(!nativeReload.Visible, "Native Revit Reload hidden on AutoCAD page");
         Navigate("CadRibbon");
         Require(cadRibbonPage.Visible && !ribbonPage.Visible && pageTitle.Text=="AutoCAD 리본 편집", "AutoCAD ribbon editor is separate from Revit");
@@ -67,19 +64,38 @@ public sealed partial class ManagerForm
         Require(navigation.Any(x => (string?)x.Tag == "Loaders"), "Loader navigation visible");
         var loaderCards = loadersPage.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<FlowLayoutPanel>().ToArray();
         Require(loaderCards.Length == 2, "CAD and Revit loader cards visible");
-        Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
+        Require(loaderCards.All(c => c.Controls.OfType<FlowLayoutPanel>().Single().Controls.OfType<Button>().Count(b => b.Text == "저장소 확인") == 1), "One metadata check per loader");
+        Require(!loaderCards.SelectMany(c => c.Controls.OfType<FlowLayoutPanel>()).SelectMany(c => c.Controls.OfType<Button>()).Any(b => b.Text is "TEST 확인" or "TEST 로더 적용"), "Loader channels share the primary action");
+        Require(loaderCards.SelectMany(card => card.Controls.OfType<LinkLabel>()).Select(link => link.Text).Order().SequenceEqual(new[] { "RoBIM-tech/RoBIM-CAD-Loader", "RoBIM-tech/RoBIM-Revit-Addin" }.Order()), "Loader repository links identify actual repositories");
+        var savedCadStatus=statuses.GetValueOrDefault(Catalog.Cad.Id);
+        var savedCadOffer=loaderOffers.GetValueOrDefault(Catalog.Cad.Id);
+        var cadActions=loaderCards[0].Controls.OfType<FlowLayoutPanel>().Single();
+        var cadChannel=cadActions.Controls.OfType<ComboBox>().Single();
+        var cadPrimary=cadActions.Controls.OfType<Button>().Single(b=>b.BackColor!=Color.White);
+        statuses[Catalog.Cad.Id]=new(Catalog.Cad,paths.Target(Catalog.Cad),"1.0.2-test.2",true,false,false,"");
+        loaderOffers[Catalog.Cad.Id]=new(new("1.0.3","stable"),new("1.1.0-test.3","test"));
+        cadChannel.SelectedIndex=1; RefreshLoaderStatus();
+        Require(cadPrimary.Enabled && cadPrimary.Text=="업데이트", "Screenshot TEST version pair enables loader update");
+        statuses[Catalog.Cad.Id]=statuses[Catalog.Cad.Id] with{Modified=true}; RefreshLoaderStatus();
+        Require(!cadPrimary.Enabled && cadPrimary.Text=="적용 차단" && cadLoaderStatus.Text.Contains("변경"), "Modified loader explains disabled action");
+        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size));bitmap.Save(destination+".loader-protected.png"); }
+        statuses[Catalog.Cad.Id]=statuses[Catalog.Cad.Id] with{Version="1.0.3",Modified=false};cadChannel.SelectedIndex=0;RefreshLoaderStatus();
+        Require(!cadPrimary.Enabled && cadLoaderStatus.Text.Contains("TEST를 선택"), "Latest stable loader points to optional TEST choice");
+        if(savedCadStatus is null) statuses.Remove(Catalog.Cad.Id);else statuses[Catalog.Cad.Id]=savedCadStatus;
+        if(savedCadOffer is null) loaderOffers.Remove(Catalog.Cad.Id);else loaderOffers[Catalog.Cad.Id]=savedCadOffer;
+        RefreshLoaderStatus();
         Navigate("Revit");
         Require(pageTitle.Text=="Revit" && navigation.Single(x=>(string?)x.Tag=="Revit").Text=="Revit", "Revit menu and page use simple display name");
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
         Require(navigation.First().Parent is ScrollableControl nav && !nav.HorizontalScroll.Visible, "Program ribbon navigation fits without horizontal scrolling");
         Navigate("Revit"); Require(cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Independent Revit excludes pyRevit and CAD actions");
-        Require(nativeReload.Visible, "Native Revit Reload available on Revit page");
+        Require(!nativeReload.Visible, "Reload belongs to ribbon editor");
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");
         productSearch.Clear(); Navigate("Revit"); productSearch.Text = "파라미터"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Title == "파라미터 복사", "Search button title and description");
         productSearch.Clear(); Navigate("Revit");
-        productSearch.Text = "독립"; Require(cardBindings.Count == 4 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
-        productSearch.Clear(); Navigate("All"); productSort.SelectedIndex = 2;
-        Require(cardBindings.Values.Take(3).All(x => x.Row.Selected), "Selected-first sorting");
+        productSearch.Text = "도구"; Require(cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
+        productSearch.Clear(); Navigate("Revit"); productSort.SelectedIndex = 2;
+        Require(cardBindings.Values.Take(2).All(x => x.Row.Selected), "Selected-first sorting");
         productSort.SelectedIndex = 1; var names = cardBindings.Values.Select(x => x.Row.Title).ToArray();
         Require(names.SequenceEqual(names.OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase)), "Button name sorting");
         foreach (var binding in cardBindings.Values)
@@ -94,7 +110,7 @@ public sealed partial class ManagerForm
         busy = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled), "Busy disables all feature mutations"); busy = false; RefreshCardActions();
         refreshingSnapshot = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled && !x.More.Enabled), "Snapshot verification blocks stale card actions and menus"); refreshingSnapshot = false; RefreshCardActions();
         var scans = inventoryScanCount;
-        Navigate("Cad"); Navigate("Revit"); Navigate("All"); productSearch.Text = "자동 결합"; productSearch.Clear();
+        Navigate("Cad"); Navigate("Revit"); Navigate("Revit"); productSearch.Text = "자동 결합"; productSearch.Clear();
         Require(inventoryScanCount == scans, "Navigation and search never rescan installed packages");
         Require(CardColumnCount(380, 96) == 1 && CardColumnCount(900, 96) == 2 && CardColumnCount(1400, 96) == 3, "Responsive one/two/three column breakpoints");
         Require(CardColumnCount(2100, 144) == 3 && CardColumnCount(900, 144) == 1, "DPI-aware column breakpoints");
@@ -105,7 +121,7 @@ public sealed partial class ManagerForm
             var available = Math.Max(100, productCards.ClientSize.Width - productCards.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 2);
             var expected = Math.Min(cards.Length, CardColumnCount(available, DeviceDpi));
             Require(cards.Count(x => x.Top == cards[0].Top) == expected, "Responsive first row at width " + formWidth);
-            Require(cards.All(x => x.Height <= 89 * DeviceDpi / 96), "Compact card height at width " + formWidth);
+            Require(cards.All(x => x.Height <= 97 * DeviceDpi / 96), "Compact card height at width " + formWidth);
             Require(!productCards.HorizontalScroll.Visible, "No horizontal scrollbar at width " + formWidth);
             foreach (var binding in cardBindings.Values)
             {
@@ -127,7 +143,7 @@ public sealed partial class ManagerForm
             {
                 foreach (Control child in container.Controls)
                 {
-                    if (child is Button) Require(child.Right <= container.ClientSize.Width && child.Bottom <= container.ClientSize.Height, "Action fits card " + child.Text);
+                    if (child is Button && child.Visible) Require(child.Right <= container.ClientSize.Width && child.Bottom <= container.ClientSize.Height, "Action fits card " + child.Text);
                     CheckBounds(child);
                 }
             }
@@ -271,7 +287,7 @@ public sealed partial class ManagerForm
         var projected=ProductCommands("Test",[stableCard]).Single();
         Require(projected.TestView && projected.Id==stableCard.Id && projected.CommandId==stableCard.CommandId && stableCard.Channel=="stable", "TEST view preserves canonical button identity and default channel");
         Require(!SelectedInView(projected) && PrimaryText(projected,AppearanceFor(projected))=="TEST 설치", "Installed stable offers explicit TEST install instead of removal");
-        Require(AppearanceFor(stableCard).Message.Contains("TEST 보기") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
+        Require(AppearanceFor(stableCard).Message.Contains("새 TEST 제공") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
         using var testCard=CreateCommandCard(projected); RefreshCardActions();
         Require(cardBindings[projected.Id].Action.Text=="TEST 설치" && cardBindings[projected.Id].State.Text.Contains("정식 0.2.0"),"TEST card explains currently installed stable version");
         var selectedTest=projected with { SelectedChannel="test",SelectedVersion="0.2.5-test.1" };
@@ -301,15 +317,18 @@ public sealed partial class ManagerForm
         Require(fullCache.Stables![stableId].Version=="0.3.0" && fullCache.StableErrors![stableId]=="offline", "Stable promotion offers and errors survive display cache");
         stableOffers.Clear(); stableOfferErrors.Clear();
         // Exercise navigation from the actual link against the preview fixture's stable card.
-        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable");
+        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable" && c.Selected);
         updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");
         productSearch.Clear(); Navigate("Revit");
-        var notice=(LinkLabel)cardBindings[sample.Id].State;
-        Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
-        using (var stableBitmap=new Bitmap(Width,Height)) { DrawToBitmap(stableBitmap,new Rectangle(Point.Empty,Size)); stableBitmap.Save(destination+".stable.png"); }
-        typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
-        Require(currentPage=="Test" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool in TEST collection");
-        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
+        var optionalBinding=cardBindings[sample.Id];
+        Require(optionalBinding.TestInstall.Visible && optionalBinding.TestInstall.Enabled,"Prominent TEST install is visible alongside stable update");
+        Require(optionalBinding.Action.Text=="업데이트" && optionalBinding.TestInstall.Text=="TEST 설치","Stable and TEST actions are both available");
+        updateOffers[sample.Owner.Status.Tool.Id]=new(sample.SelectedVersion,"stable");RenderProductCards();
+        optionalBinding=cardBindings[sample.Id];
+        Require(optionalBinding.Card.BackColor==Color.FromArgb(255,251,222),"Sixth color identifies installed stable with newer optional TEST");
+        Require(optionalBinding.TestInstall.Visible && optionalBinding.State.Text.Contains("새 TEST 제공"),"Optional TEST version has a visible install button and label");
+        busy=true;RefreshCardActions();Require(!optionalBinding.TestInstall.Enabled,"Busy prevents TEST mutation");busy=false;RefreshCardActions();
+        using(var bitmap=new Bitmap(Width,Height)){DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size));bitmap.Save(destination+".optional-test.png");}
         using (var owners = new RepositoryPublishersDialog(new(1,true,[new("alice","user"),new("team","organization")])))
         {
             owners.ShowInTaskbar=false;owners.StartPosition=FormStartPosition.Manual;owners.Location=new(-20000,-20000);owners.Show();Application.DoEvents();
@@ -326,6 +345,20 @@ public sealed partial class ManagerForm
             using(var bitmap=new Bitmap(owners.Width,owners.Height)){owners.DrawToBitmap(bitmap,new Rectangle(Point.Empty,owners.Size));bitmap.Save(destination+".publishers.png");}
             controls.OfType<Button>().Single(b=>b.Text=="저장").PerformClick();
             Require(owners.Result is { IncludeConnectedAccount:false, Publishers.Length:2 } && !owners.Result.Publishers[0].Enabled,"Publisher dialog persists enable toggle and account scope");
+        }
+        SwitchPage("Revit"); productSearch.Clear(); productFilter.SelectedIndex=1;
+        Require(cardBindings.Values.All(c=>c.Row.Selected||c.Row.Pending),"Installed filter replaces My tools");
+        productFilter.SelectedIndex=3;
+        Require(cardBindings.Values.All(c=>!c.Row.Selected&&!c.Row.Pending),"Uninstalled filter");
+        productFilter.SelectedIndex=0; channelFilter.SelectedIndex=2;
+        Require(cardBindings.Values.All(c=>c.Row.CollectionChannel=="test"||NewTestAvailable(c.Row)),"Program TEST filter");
+        channelFilter.SelectedIndex=0;
+        using(var editor=new RibbonEditorControl(new RibbonLayouts(paths),true)) {
+            editor.LoadTools([new("bank:a","A","Tab","Panel",true),new("bank:b","B","Tab","Panel",true)]);
+            editor.LoadLayout(new(1,"Revit",[new("Tab",[new("Panel",[new("bank:a","A")])])]));
+            Require(editor.AvailableIds.SequenceEqual(new[]{"bank:b"}),"Placed button excluded from bank");
+            editor.LoadLayout(new(1,"Revit",[]));
+            Require(editor.AvailableIds.Count()==2,"Deleting a tab restores its buttons to bank");
         }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }

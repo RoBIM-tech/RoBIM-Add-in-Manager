@@ -1,0 +1,11 @@
+# CAD loader archive name and disabled action reasons · 2026-10-30
+
+Final TEST candidate 1.1.0-test.3. The release archive and Manager bundled archive are RoBIM-CAD-Loader-AutoCAD2026.zip. The installation folder is now RoBIM.Cad.Loader.bundle. Existing owned DelHiddenNet.bundle installations are recognized and migrate on a host-closed loader update with a verified backup, unchanged-file checks, and path/record rollback if state saving fails. The delhidden installation ID, ProductCode/UpgradeCode and RoBIM.Cad.Loader.dll are preserved. Conflicting, modified, external or linked installations are not overwritten. Prepared selections are rebased to the new path, and old snapshots and user ribbon files remain intact. New Manager recognizes older Release assets with the previous filename and permits only this known registration asset rename.
+
+The supplied screenshot has TEST selected, installed 1.0.2-test.2 and offered 1.1.0-test.2. That version pair is an upgrade. The previous screen rendered the update caption even when file modification protection disabled the action, hiding the reason in its status overwrite. The new screen displays explicit modification/external-install protection, missing lookup/offer, uncomparable version, latest stable and optional TEST guidance. Protection is not bypassed.
+
+The read-only record observed on this machine was stable 1.0.3 with unchanged managed files and differs from the screenshot. It cannot establish whether the screenshot's installation is modified. This change exposes the actual state to diagnose that distinction. No user's installed loader or Manager files were replaced.
+
+The earlier XCLIP concave/circular-hatch process termination remains unresolved and was reproduced in the pre-split baseline. No geometry logic is changed here. Existing stable Releases remain unchanged and main merging is deferred.
+
+Validation: loader action/asset tests, old registry normalization, owned-folder migration, modified/external/conflict rejection, rollback on state-save failure, prepared selection rebasing, and existing Manager regression are covered. New UI fixtures reproduce the screenshot version pair and show the modification reason. Previous snapshots and user ribbon bytes are retained by the migration tests.

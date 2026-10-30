@@ -19,14 +19,24 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     public Dictionary<string, InstallRecord> ReadState()
     {
         SafeFiles.NoLinks(StatePath);
-        return File.Exists(StatePath)
+        var state = File.Exists(StatePath)
             ? JsonSerializer.Deserialize<Dictionary<string, InstallRecord>>(File.ReadAllText(StatePath))
                 ?? throw new InvalidDataException("설치 기록을 읽을 수 없습니다.")
             : new();
+        if (state.Remove("delhidden", out var legacy))
+        {
+            if (legacy.Id != "delhidden" || !CadLoaderAssets.IsBundle(Path.GetFileName(legacy.Path))) throw new InvalidDataException("기존 CAD 로더 기록을 확인하십시오.");
+            var migrated = legacy with { Id = Catalog.Cad.Id };
+            if (state.TryGetValue(Catalog.Cad.Id, out var current) && (current.Path != migrated.Path || current.Version != migrated.Version || !SafeFiles.Same(current.Hashes, migrated.Hashes))) throw new InvalidDataException("신·구 CAD 로더 기록이 충돌합니다.");
+            state[Catalog.Cad.Id] = migrated;
+        }
+        return state;
     }
 
     private void Save(Dictionary<string, InstallRecord> state)
     {
+        if (File.Exists(StatePath) && File.ReadAllText(StatePath).Contains("\"delhidden\""))
+            File.Copy(StatePath, StatePath + ".before-loader-identity-" + Guid.NewGuid().ToString("N"));
         var temporary = StatePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(state, Json));
         File.Move(temporary, StatePath, true);
@@ -36,19 +46,25 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     {
         var target = paths.Target(tool);
         var state = ReadState();
+        if (tool.Id == Catalog.Cad.Id && tool.FolderName == CadLoaderAssets.BundleName && Directory.Exists(paths.CanonicalTarget(tool)) && Directory.Exists(Path.Combine(paths.CadPlugins, CadLoaderAssets.LegacyBundleName)))
+            throw new IOException("신·구 CAD 로더 폴더가 동시에 있습니다. 기존 설치를 보존하기 위해 중단합니다.");
         if (!Directory.Exists(target)) return new(tool, target, "—", false, false, false, "설치 안 됨");
         if (!state.TryGetValue(tool.Id, out var record))
             return new(tool, target, "기존 설치", false, true, false, "외부 설치 — 덮어쓰기·삭제 안 함");
         ValidateRecord(tool, record);
-        var modified = !SafeFiles.Same(record.Hashes, SafeFiles.Hashes(target));
+        var actual = SafeFiles.Hashes(target);
+        var modified = !SafeFiles.Same(record.Hashes, actual);
+        var differences = modified ? record.Hashes.Keys.Union(actual.Keys, StringComparer.OrdinalIgnoreCase)
+            .Where(file => !string.Equals(record.Hashes.GetValueOrDefault(file), actual.GetValueOrDefault(file), StringComparison.OrdinalIgnoreCase)).ToArray() : [];
         return new(tool, target, record.Version, true, false, modified,
-            modified ? "로컬 변경 있음 — 변경 보존을 위해 작업 차단" : "관리 중");
+            modified ? "설치 기록과 다른 파일 " + differences.Length + "개: " + string.Join(", ", differences.Take(3)) + " · 변경 보존을 위해 작업 차단" : "관리 중");
     }
 
     private void ValidateRecord(ToolSpec tool, InstallRecord record, bool backup = false)
     {
-        if (record.Id != tool.Id || (!Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase) &&
-            !(backup && tool.Kind == ToolKind.PyRevit && PyRevitLocation.HistoricalTarget(paths, tool, record.Path))))
+        if ((record.Id != tool.Id && !(backup && tool.Id == Catalog.Cad.Id && record.Id == "delhidden")) || (!Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase) &&
+            !(backup && tool.Kind == ToolKind.PyRevit && PyRevitLocation.HistoricalTarget(paths, tool, record.Path)) &&
+            !(backup && tool.Id == Catalog.Cad.Id && Path.GetFullPath(record.Path).Equals(Path.GetFullPath(Path.Combine(paths.CadPlugins, CadLoaderAssets.LegacyBundleName)), StringComparison.OrdinalIgnoreCase))))
             throw new InvalidDataException("설치 기록의 경로가 현재 관리 경로와 다릅니다.");
         SafeFiles.NoLinks(record.Path);
     }
@@ -65,9 +81,9 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     public IReadOnlyList<BackupInfo> Backups(ToolSpec tool)
     {
         var root = SafeFiles.Child(paths.Data, "Backups/" + tool.Id);
-        if (!Directory.Exists(root)) return [];
+        var roots = tool.Id == Catalog.Cad.Id ? new[] { root, SafeFiles.Child(paths.Data, "Backups/delhidden") } : new[] { root };
         var result = new List<BackupInfo>();
-        foreach (var directory in Directory.GetDirectories(root).OrderDescending())
+        foreach (var directory in roots.Where(Directory.Exists).SelectMany(Directory.GetDirectories).OrderDescending())
         {
             SafeFiles.NoLinks(directory);
             var file = Path.Combine(directory, "record.json");
@@ -85,10 +101,14 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
         RevitRuntimePolicy.EnsureAllowed(paths, tool);
         using var operation = Lock();
         ensureHostClosed?.Invoke(tool);
-        var target = paths.Target(tool);
+        var previousTarget = paths.Target(tool);
+        var target = tool.Id == Catalog.Cad.Id ? paths.CanonicalTarget(tool) : previousTarget;
+        if (tool.Id == Catalog.Cad.Id && tool.FolderName == CadLoaderAssets.BundleName &&
+            Directory.Exists(target) && Directory.Exists(Path.Combine(paths.CadPlugins, CadLoaderAssets.LegacyBundleName)))
+            throw new IOException("신·구 CAD 로더 폴더가 동시에 있습니다. 외부 설치를 보존하기 위해 중단합니다.");
         var state = ReadState();
         if (state.TryGetValue(tool.Id, out var old)) ValidateRecord(tool, old);
-        if (Directory.Exists(target))
+        if (Directory.Exists(previousTarget))
         {
             if (old is null) throw new InvalidOperationException("기존 설치 폴더를 덮어쓰지 않습니다. 기존 설치 연결을 사용하십시오.");
             EnsureUnchanged(old);
@@ -104,12 +124,13 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
             SafeFiles.Copy(package.Path, stage);
             var hashes = SafeFiles.Hashes(stage);
             ensureHostClosed?.Invoke(tool); // Recheck after download/copy.
-            var hadOld = Directory.Exists(target);
+            var hadOld = Directory.Exists(previousTarget);
             if (hadOld)
             {
                 EnsureUnchanged(old!);
                 Backup(old!);
-                Directory.Move(target, retired);
+                EnsureUnchanged(old!);
+                Directory.Move(previousTarget, retired);
             }
             try
             {
@@ -120,7 +141,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
             catch
             {
                 if (Directory.Exists(target)) Directory.Move(target, stage);
-                if (hadOld) Directory.Move(retired, target);
+                if (hadOld) Directory.Move(retired, previousTarget);
                 throw;
             }
             // Successful state is durable before removing the retired copy.
@@ -247,6 +268,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     {
         ValidateRecord(tool, backup.Record, true);
         var root = SafeFiles.Child(paths.Data, "Backups/" + tool.Id);
+        if (tool.Id == Catalog.Cad.Id && Path.GetDirectoryName(Path.GetFullPath(backup.Directory))!.Equals(SafeFiles.Child(paths.Data, "Backups/delhidden"), StringComparison.OrdinalIgnoreCase)) root = SafeFiles.Child(paths.Data, "Backups/delhidden");
         var directory = SafeFiles.Child(root, Path.GetFileName(backup.Directory));
         if (!directory.Equals(Path.GetFullPath(backup.Directory), StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("복원 경로가 관리 백업 폴더 밖에 있습니다.");

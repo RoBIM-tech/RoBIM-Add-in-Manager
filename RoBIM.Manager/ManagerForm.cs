@@ -100,8 +100,8 @@ public sealed partial class ManagerForm : Form
             grid.Rows[index].Tag = row;
             if (row.Tool.Id == selectedId) grid.CurrentCell = grid.Rows[index].Cells[0];
         }
-        if (!preview && cadButtonPackage is null && File.Exists(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip")))
-            cadButtonPackage = await Task.Run(() => sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, "DelHiddenNet-AutoCAD2026.zip")));
+        if (!preview && cadButtonPackage is null && File.Exists(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name)))
+            cadButtonPackage = await Task.Run(() => sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name)));
         ShowSelected();
         await RefreshProductListAsync();
         WriteLog("설치 상태를 확인했습니다. Revit 기존 경로는 자동 연결하며 원본을 이동하지 않습니다.");

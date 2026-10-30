@@ -11,6 +11,8 @@ public sealed partial class ManagerForm
     private readonly Label revitLoaderStatus = new() { AutoSize = true };
     private readonly Label cadLoaderBanner = new() { AutoSize = true };
 
+    private readonly Dictionary<string, ReleaseChannels> loaderOffers = [];
+    private readonly Dictionary<string, Action> loaderRenderers = [];
     private void BuildLoadersPage()
     {
         var body = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
@@ -21,58 +23,72 @@ public sealed partial class ManagerForm
             var link = new LinkLabel { Text = repository, AutoSize = true };
             link.LinkClicked += (_, _) => { if (!preview) OpenUrl("https://github.com/" + repository); };
             card.Controls.Add(link);
-            card.Controls.Add(new Label { Text = path, AutoSize = true });
+            var location = new Label { Text = path, AutoSize = true };
+            card.Controls.Add(location);
+            status.MaximumSize = new Size(800, 0);
             card.Controls.Add(status);
             var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
             var folder = MakeButton("폴더 열기"); folder.AutoSize = true;
-            folder.Click += (_, _) => { if (!preview) OpenFolder(path); };
-            var button = MakeButton(action, true); button.AutoSize = true;
-            button.Click += async (_, _) => { if (!preview) await apply("stable"); };
-            var test = MakeButton("TEST 로더 적용"); test.AutoSize = true;
-            test.Click += async (_, _) => { if (!preview) await apply("test"); };
+            folder.Click += (_, _) => { if (!preview) OpenFolder(paths.Target(tool)); };
+            var channel = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110 };
+            channel.Items.Add("정식"); if (CanUseTest) channel.Items.Add("TEST"); channel.SelectedIndex = 0;
+            var button = MakeButton("설치 / 업데이트", true); button.AutoSize = true;
+            void Update()
+            {
+                ToolStatus state;
+                try { state = LoaderLocalState(tool); }
+                catch (Exception error) { button.Text = "상태 확인 실패"; button.Enabled = false; button.BackColor = Color.FromArgb(230, 233, 238); status.Text = error.Message; return; }
+                location.Text = state.Path;
+                var offers = loaderOffers.GetValueOrDefault(tool.Id);
+                var actionState = LoaderActions.Evaluate(state, offers, channel.SelectedIndex == 1 ? "test" : "stable", CanUseTest);
+                button.Text = actionState.Text;
+                button.Enabled = actionState.Enabled;
+                button.BackColor = actionState.Enabled ? Color.FromArgb(30, 91, 166) : Color.FromArgb(230, 233, 238);
+                status.Text = (state.Managed ? "설치 " + state.Version : "미설치") +
+                    (offers is null ? "" : " · 정식 " + (offers.Stable?.Version ?? "없음") +
+                    (CanUseTest ? " · TEST " + (offers.Test?.Version ?? "없음") : "")) +
+                    "\n" + actionState.Detail +
+                    (offers?.StableError is not null || offers?.TestError is not null ? " · 일부 확인 실패" : "");
+            }
+            button.Click += async (_, _) => { if (!preview) { await apply(channel.SelectedIndex == 1 ? "test" : "stable"); Update(); } };
             var check = MakeButton("저장소 확인"); check.AutoSize = true;
-            check.Click += async (_, _) => { if (!preview) await CheckLoaderRepository(tool, status, "stable"); };
-            var checkTest = MakeButton("TEST 확인"); checkTest.AutoSize = true;
-            checkTest.Click += async (_, _) => { if (!preview) await CheckLoaderRepository(tool, status, "test"); };
-            actions.Controls.Add(folder); actions.Controls.Add(check); actions.Controls.Add(checkTest); actions.Controls.Add(button); actions.Controls.Add(test); card.Controls.Add(actions); body.Controls.Add(card);
+            check.Click += async (_, _) => { if (!preview) { await CheckLoaderRepository(tool, status, "stable"); Update(); } };
+            channel.DropDown += (_, _) => { if (CanUseTest && channel.Items.Count == 1) channel.Items.Add("TEST"); };
+            channel.SelectedIndexChanged += (_, _) => Update();
+            loaderRenderers[tool.Id] = Update;
+            Update();
+            actions.Controls.Add(check); actions.Controls.Add(channel); actions.Controls.Add(button); actions.Controls.Add(folder);
+            card.Controls.Add(actions); body.Controls.Add(card);
         }
-        Card("RoBIM CAD 로더", "RoBIM-tech/RoBIM-CAD", paths.Target(Catalog.Cad), cadLoaderStatus, "정식 로더 적용 / 업데이트", Catalog.Cad, ApplyCadLoader);
+        Card("RoBIM CAD 로더", "RoBIM-tech/RoBIM-CAD-Loader", paths.Target(Catalog.Cad), cadLoaderStatus, "정식 로더 적용 / 업데이트", Catalog.Cad, ApplyCadLoader);
         Card("RoBIM Revit Host 로더", "RoBIM-tech/RoBIM-Revit-Addin", paths.Target(Catalog.RevitHost), revitLoaderStatus, "정식 로더 적용 / 업데이트", Catalog.RevitHost, ApplyRevitLoader);
         body.Controls.Add(new Label { Text = "RoBIM Navisworks 로더 · 준비 중", AutoSize = true, Padding = new Padding(12) });
         loadersPage.Controls.Add(body);
     }
 
+    private ToolStatus LoaderLocalState(ToolSpec tool) => preview
+        ? statuses.GetValueOrDefault(tool.Id) ?? new(tool, paths.Target(tool), "", false, false, false, "미설치")
+        : installer.Status(tool);
+
     private void RefreshLoaderStatus()
     {
-        string Local(ToolSpec tool)
-        {
-            try
-            {
-                var state = installer.Status(tool);
-                if (state.Modified) return "로컬 변경 있음 · 보호를 위해 적용 차단";
-                if (state.External) return "외부 설치 · 보호를 위해 적용 차단";
-                return state.Managed ? "설치됨 · " + state.Version + " · 저장소 확인 가능" : "미설치 · 저장소 확인 가능";
-            }
-            catch (Exception error) { return "상태 확인 실패: " + error.Message; }
-        }
-        cadLoaderStatus.Text = Local(Catalog.Cad);
-        revitLoaderStatus.Text = Local(Catalog.RevitHost);
-        cadLoaderBanner.Text = "로더: RoBIM CAD 로더 (RoBIM-tech/RoBIM-CAD) · " + cadLoaderStatus.Text;
+        foreach (var render in loaderRenderers.Values) render();
+        cadLoaderBanner.Text = "로더: RoBIM CAD 로더 (RoBIM-tech/RoBIM-CAD-Loader) · " + cadLoaderStatus.Text;
     }
 
     private async Task CheckLoaderRepository(ToolSpec tool, Label status, string channel)
     {
         await Run("로더 저장소 확인", async () =>
         {
-            var archive = await sources.DownloadLoader(tool, channel);
-            var state = installer.Status(tool);
-            var relative = tool.Kind == ToolKind.AutoCAD ? "Contents/Windows/RoBIM.Cad.Loader.dll" : "Contents/2026/RoBIM.Revit.Host.dll";
-            var expected = tool.FolderName + "/" + relative;
-            var hash = Sources.LoaderDllHash(archive, expected);
-            var installed = Path.Combine(state.Path, relative);
-            status.Text = (channel == "test" ? "TEST" : "정식") + " 저장소 확인 · " +
-                (File.Exists(installed) && SafeFiles.Hash(installed).Equals(hash, StringComparison.OrdinalIgnoreCase) ? "설치된 로더와 일치" : "설치된 로더와 다름 또는 미설치");
-            if (tool.Kind == ToolKind.AutoCAD) cadLoaderBanner.Text = "로더: RoBIM CAD 로더 · " + status.Text;
+            var offers = await sources.CheckLoader(tool, CanUseTest);
+            if (offers.StableError is not null || offers.TestError is not null)
+            {
+                var previous = loaderOffers.GetValueOrDefault(tool.Id);
+                offers = offers with { Stable = offers.StableError is null ? offers.Stable : previous?.Stable,
+                    Test = offers.TestError is null ? offers.Test : previous?.Test };
+            }
+            loaderOffers[tool.Id] = offers;
+            status.Text = "저장소 확인 완료 · " + DateTime.Now.ToString("HH:mm");
         });
     }
 
@@ -93,11 +109,11 @@ public sealed partial class ManagerForm
             if (string.IsNullOrWhiteSpace(version)) throw new IOException("동봉 CAD 로더 버전을 확인할 수 없습니다.");
             if (version.Contains('-')) RequireChannelAccess("test");
             if (!string.IsNullOrWhiteSpace(version)) package = package with { Version = version };
-            if (oldSource is not null) CadFiles.Validate(newRoot, oldSource.Catalog);
+
             await Task.Run(() => installer.Install(Catalog.Cad, package));
             if (oldSource is not null && previous is not null)
             {
-                try { new CadReload(paths).Prepare(Catalog.Cad, package.Path, oldSource.Catalog, previous.SelectedActions, null); }
+                try { new CadFeaturePackages(paths).Rebase(oldSource, previous.SelectedActions); }
                 catch (Exception error) { WriteLog("로더는 설치됐으나 이전 버튼 선택 재준비 실패: " + error.Message); MessageBox.Show(this, "로더는 설치됐지만 기존 버튼 선택을 다시 준비하지 못했습니다. 기존 준비 기록은 보존됩니다.\n" + error.Message, "AutoCAD 로더"); }
             }
             cadEditorLoaded = false;

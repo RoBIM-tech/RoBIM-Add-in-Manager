@@ -28,19 +28,42 @@ try {
     $running = Get-Process -Name 'RoBIM.Manager' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -eq $expectedExecutable } catch { $true } }
     if ($running) { throw 'RoBIM Manager를 종료한 뒤 설치하십시오.' }
     $files = Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in '.exe','.dll','.json','.zip','.sha256','.ps1','.md','.ico','.txt' -and $_.Name -ne 'RoBIM-Manager-Setup.exe' }
-    $required = @('RoBIM.Manager.exe','Uninstall.ps1','DelHiddenNet-AutoCAD2026.zip','DelHiddenNet-AutoCAD2026.zip.sha256','RoBIM-Host-Revit2026.zip','RoBIM-Host-Revit2026.zip.sha256')
+    $required = @('RoBIM.Manager.exe','Uninstall.ps1','RoBIM-CAD-Loader-AutoCAD2026.zip','RoBIM-CAD-Loader-AutoCAD2026.zip.sha256','RoBIM-Host-Revit2026.zip','RoBIM-Host-Revit2026.zip.sha256')
     foreach ($name in $required) { if ($files.Name -notcontains $name) { throw "설치 파일 누락: $name" } }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     $backupPath = Join-Path ([IO.Path]::GetDirectoryName($Destination)) ('RoBIM-Manager-backup-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $backupPath | Out-Null
     $changed = @()
+    $legacyCadFiles = @('DelHiddenNet-AutoCAD2026.zip','DelHiddenNet-AutoCAD2026.zip.sha256')
+    $removeLegacyCad = $false
+    $previousLock = Join-Path $Destination 'release-packages.lock.json'
+    if ($oldRecord -and @($legacyCadFiles + 'release-packages.lock.json' | Where-Object { $oldRecord.Files -notcontains $_ }).Count -eq 0) {
+        foreach ($name in @($legacyCadFiles + 'release-packages.lock.json')) { Assert-NoLinks (Join-Path $Destination $name) }
+        if ((Test-Path -LiteralPath $previousLock) -and (Test-Path -LiteralPath (Join-Path $Destination $legacyCadFiles[0])) -and (Test-Path -LiteralPath (Join-Path $Destination $legacyCadFiles[1]))) {
+            $previousPackage = (Get-Content -LiteralPath $previousLock -Raw | ConvertFrom-Json).cad
+            $removeLegacyCad = $previousPackage.asset -eq $legacyCadFiles[0] -and $previousPackage.sha256 -match '^[a-fA-F0-9]{64}$' -and
+                (Get-FileHash -LiteralPath (Join-Path $Destination $legacyCadFiles[0])).Hash -eq $previousPackage.sha256 -and
+                (Get-Content -LiteralPath (Join-Path $Destination $legacyCadFiles[1]) -Raw).Trim() -eq $previousPackage.sha256
+        }
+    }
+    $packageVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $PSScriptRoot 'RoBIM.Manager.exe')).ProductVersion.Split('+')[0]
+    if (!$packageVersion) { throw 'Manager package version is missing' }
     try {
+        if (Test-Path -LiteralPath $marker) { Copy-Item -LiteralPath $marker -Destination (Join-Path $backupPath ([IO.Path]::GetFileName($marker))); $changed += [IO.Path]::GetFileName($marker) }
         foreach ($file in $files) {
             $target = Join-Path $Destination $file.Name
             Assert-NoLinks $target
             if (Test-Path -LiteralPath $target) { Copy-Item -LiteralPath $target -Destination (Join-Path $backupPath $file.Name) }
             $changed += $file.Name
             Copy-Item -LiteralPath $file.FullName -Destination $target -Force
+        }
+        if ($removeLegacyCad) {
+            foreach ($name in $legacyCadFiles) {
+                $legacy = Join-Path $Destination $name
+                Copy-Item -LiteralPath $legacy -Destination (Join-Path $backupPath $name)
+                $changed += $name
+                Remove-Item -LiteralPath $legacy
+            }
         }
         if (!$SkipIntegration) {
             $shell = New-Object -ComObject WScript.Shell
@@ -58,10 +81,10 @@ try {
             $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMManager'
             New-Item -Path $key -Force | Out-Null
             $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion='1.0.1'; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('"' + $powerShell + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
+            $values = @{ DisplayName='RoBIM Add-in Manager'; DisplayVersion=$packageVersion; Publisher='RoBIM'; InstallLocation=$Destination; DisplayIcon=$shortcut.TargetPath; UninstallString=('"' + $powerShell + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $Destination 'Uninstall.ps1') + '"') }
             foreach ($entry in $values.GetEnumerator()) { New-ItemProperty -Path $key -Name $entry.Key -Value $entry.Value -PropertyType String -Force | Out-Null }
         }
-        @{ Product='RoBIM.Manager'; Version='1.0.1'; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
+        @{ Product='RoBIM.Manager'; Version=$packageVersion; Path=$Destination; Files=@($files.Name); Integrated=(!$SkipIntegration) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $marker -Encoding UTF8
         if (!$SkipIntegration) {
             foreach ($legacy in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'RoBIM Manager.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'RoBIM Manager\RoBIM Manager.lnk'))) {
                 Assert-NoLinks $legacy
@@ -75,7 +98,9 @@ try {
         foreach ($name in $changed) {
             $saved = Join-Path $backupPath $name
             $target = Join-Path $Destination $name
-            if (Test-Path -LiteralPath $saved) { Copy-Item -LiteralPath $saved -Destination $target -Force }
+            if (Test-Path -LiteralPath $saved) {
+                if (!(Test-Path -LiteralPath $target) -or (Get-FileHash -LiteralPath $saved).Hash -ne (Get-FileHash -LiteralPath $target).Hash) { Copy-Item -LiteralPath $saved -Destination $target -Force }
+            }
             elseif (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
         }
         throw

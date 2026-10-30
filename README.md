@@ -227,3 +227,21 @@ CAD 리본 편집에서 Reload와 Manager 버튼의 위치·이름·묶음을 �
 
 
 Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료를 요구하지 않습니다. 기존 버전에서 처음 전환할 때는 기존 검사에 따라 종료가 필요할 수 있습니다. 고정 로더 교체에는 해당 호스트 종료가 필요합니다.
+
+
+## CAD 독립 버튼 TEST 전환 · 2026-10-29
+
+현재 분리 작업은 [전환 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/codex/cad-loader-button-split/docs/developer/CAD_INDEPENDENT_PACKAGES.md)을 따릅니다. CAD 로더 저장소는 RoBIM-CAD-Loader로 변경됐으며 기능 4개는 별도 저장소입니다. 후보 조회는 제외합니다. 기존 설치·명령 ID와 정식 Release는 보존합니다. 새로운 패키지는 TEST이며 실제 호스트 검증과 main 병합·정식 승격은 별도입니다. 이전 통합 CAD 공급 설명보다 이 전환 계약이 우선합니다.
+
+
+## Loader TEST 1.1.0-test.3
+
+로더 ZIP 이름은 RoBIM-CAD-Loader-AutoCAD2026.zip입니다. 기존 설치 폴더·ID는 유지하며 Manager는 구 이름의 정식 Release도 읽습니다. 업데이트 비활성 이유는 로컬 변경/외부 설치 보호, 저장소 확인 필요, 제공 버전 없음, 최신/이전/비교 불가로 구분합니다. TEST를 선택한 경우 설치 1.0.2-test.2 → 제공 1.1.0-test.2는 업데이트 대상이며 파일 보호 조건은 별도로 적용합니다. [변경 기록](docs/developer/LOADER_ARCHIVE_AND_ACTIONS_20261030.md).
+
+사용자 추가 승인에 따라 설치 폴더도 RoBIM.Cad.Loader.bundle로 변경합니다. 구 DelHiddenNet.bundle은 정상 관리 설치만 호스트 종료·해시 확인·백업 후 새 경로로 이전하고, 저장 실패 시 구 경로와 기록을 복구합니다. 실제 설치 ID와 명령 ID, 리본 파일은 유지합니다. 로컬 변경·외부 설치·신구 경로 충돌은 차단합니다.
+
+
+2026-10-30 TEST 4 전환: docs/developer/MANAGER_WORKSPACE_TEST4.md의 로더 식별자·프로그램별 상태·리본 배치 계약을 적용한다.
+
+
+정식 1.1.0 전환 기록: [배포·호환성](docs/developer/STABLE_110_20261030.md).

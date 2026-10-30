@@ -6,7 +6,7 @@ public sealed partial class ManagerForm
 {
     private Dictionary<string, ReleaseOffer> updateOffers = [];
     private readonly Dictionary<string, string> updateErrors = [];
-    private bool RemoteUpdate(ButtonCard card) => card.Selected && (card.Kind == ButtonKind.Native
+    private bool RemoteUpdate(ButtonCard card) => card.Selected && (IndependentRelease(card)
         ? SelectedInView(card) && NativeReleaseState(card).Update is not null
         : OfferFor(card) is { } offer && ReleaseUpdates.IsNewer(card.SelectedVersion, card.SelectedChannel, offer));
 
@@ -17,7 +17,7 @@ public sealed partial class ManagerForm
         var messages = new List<string>();
         if (native && File.Exists(Path.Combine(paths.Data, "NativeRevit", "pending.json")))
         {
-            try { NativeCommands().RequestReload(includeCachedUpdates: false); messages.Add("독립 Add-in 자동 적용 요청 완료"); }
+            try { NativeCommands().RequestReload(includeCachedUpdates: false); messages.Add("도구 자동 적용 요청 완료"); }
             catch (Exception ex) { messages.Add("변경 준비 유지 · 자동 적용 요청 실패: " + ex.Message); }
         }
         if (pyRevit || layout)
@@ -69,7 +69,7 @@ public sealed partial class ManagerForm
                         try
                         {
                             var package = ExtensionCatalog.CurrentPackage(previous.Package, repository);
-                            if (package.Host == "revit" && package.Distribution == "release" && package.Channel is "stable" or "test")
+                            if ((package.Host == "revit" || CadFeaturePackages.IsFeature(package)) && package.Distribution == "release" && package.Channel is "stable" or "test")
                             {
                                 var channels = await ReleaseUpdates.CheckChannels(repository, package);
                                 var offer = package.Channel == "test" ? channels.Test : channels.Stable;
@@ -111,7 +111,7 @@ public sealed partial class ManagerForm
             await RefreshStatuses();
             var count = appearanceSnapshot.Count(x => x.Value.Update);
             var tests = CommandInventory().Count(NewTestAvailable);
-            refreshSummary = "확인 완료 · 새 저장소 " + newRepositories + "개 · 업데이트 " + count + "개 · 새 TEST " + tests + "개 (TEST 도구에서 확인)" +
+            refreshSummary = "확인 완료 · 새 저장소 " + newRepositories + "개 · 업데이트 " + count + "개 · 새 TEST " + tests + "개 (해당 프로그램에서 확인)" +
                 (discoveryWarnings + updateErrors.Count + testOfferErrors.Count + stableOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
             WriteLog(refreshSummary);
         });

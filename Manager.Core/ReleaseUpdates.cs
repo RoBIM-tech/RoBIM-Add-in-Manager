@@ -61,7 +61,7 @@ public static class ReleaseUpdates
             if (release.GetProperty("draft").GetBoolean() || (package.Channel is "test" or "stable" && release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test"))) continue;
             foreach (var asset in release.GetProperty("assets").EnumerateArray())
             {
-                if (asset.GetProperty("name").GetString() != package.Asset) continue;
+                if (package.Id == Catalog.Cad.Id && package.Host == "autocad" ? !CadLoaderAssets.Matches(package.Asset, asset.GetProperty("name").GetString()) : asset.GetProperty("name").GetString() != package.Asset) continue;
                 var digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
                 if (asset.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
                     throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
@@ -70,6 +70,7 @@ public static class ReleaseUpdates
         }
         return null;
     }
+    public static bool VersionsComparable(string first, string second) => Parse(first) is not null && Parse(second) is not null;
     public static bool IsNewer(string installed, string installedChannel, ReleaseOffer offer)
     {
         if (string.IsNullOrWhiteSpace(installed)) return false; // Unknown is not an uninstalled or outdated version.

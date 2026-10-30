@@ -35,7 +35,7 @@ public sealed partial class ManagerForm
         var sidebar = new Panel { Dock = DockStyle.Left, Width = 188, BackColor = Color.White, Padding = new(12, 20, 12, 16) };
         var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         nav.Controls.Add(new Label { Text = "WORKSPACE", AutoSize = true, ForeColor = Color.FromArgb(112, 123, 140), Font = new Font(Font.FontFamily, 8), Margin = new(14, 0, 0, 12) });
-        foreach (var (id, title) in new[] { ("All", "전체 도구"), ("Mine", "내 도구"), ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Test", "TEST 도구"), ("Extensions", "도구 등록"), ("Loaders", "프로그램 로더"), ("Account", "설정 / GitHub") })
+        foreach (var (id, title) in new[] { ("Revit", "Revit"), ("Ribbon", "리본 편집"), ("Cad", "AutoCAD"), ("CadRibbon", "리본 편집"), ("Navisworks", "Navisworks"), ("NavisworksRibbon", "리본 편집"), ("Extensions", "도구 등록"), ("Loaders", "프로그램 로더"), ("Account", "설정 / GitHub") })
         {
             var button = new Button { Text = title, Tag = id, Width = 162, Height = 44, FlatStyle = FlatStyle.Flat,
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new(14, 0, 0, 0), Margin = new(0, 0, 0, 5), ForeColor = Color.FromArgb(70, 79, 94), BackColor = Color.White };
@@ -256,7 +256,7 @@ public sealed partial class ManagerForm
         retirePython.Enabled = !preview;
         retirePython.Click += async (_, _) =>
         {
-            if (!Confirm("기존 RoBIM pyRevit 버튼과 Manager용 pyRevit 연결을 백업 후 제거합니까?\n독립 Add-in과 다른 pyRevit 확장은 유지합니다. Revit을 저장하고 종료한 상태에서 실행하십시오.")) return;
+            if (!Confirm("기존 RoBIM pyRevit 버튼과 Manager용 pyRevit 연결을 백업 후 제거합니까?\n도구과 다른 pyRevit 확장은 유지합니다. Revit을 저장하고 종료한 상태에서 실행하십시오.")) return;
             await Run("RoBIM Native 전용 전환", async () =>
             {
                 var backup = await Task.Run(() =>
@@ -320,7 +320,7 @@ public sealed partial class ManagerForm
 
     private void SwitchPage(string id)
     {
-        if (!CanUseTest && id == "Test") id = "Revit";
+        if (id is "All" or "Mine" or "Test") id = "Revit";
         if (id is "PyRevit" or "Developer" or "Locations") id = "Revit";
         if (id == "User") id = SelectedStatus()?.Tool.Kind switch { ToolKind.AutoCAD => "Cad", _ => "Revit" };
         currentPage = id;
@@ -339,7 +339,7 @@ public sealed partial class ManagerForm
         profileLabel.Visible = id is "Revit" or "Cad";
         _ = RefreshProfileLabel();
         pageTitle.Text = id == "Loaders" ? "프로그램 로더 관리" : id == "All" ? "전체 도구" : id == "Mine" ? "내 도구" : id == "Revit" ? "Revit" : id == "PyRevit" ? "Revit · pyRevit" : id == "Cad" ? "AutoCAD" : id == "Navisworks" ? "Navisworks" : id == "Test" ? "TEST 도구" : id == "Ribbon" ? "Revit 리본 편집" : id == "CadRibbon" ? "AutoCAD 리본 편집" : id == "NavisworksRibbon" ? "Navisworks 리본 편집" : id == "Locations" ? "설치 위치" : id == "Developer" ? "기존 pyRevit TEST" : id == "Extensions" ? "도구 등록" : "설정 / GitHub";
-        pageSubtitle.Text = id == "Loaders" ? "호스트별 로더 설치 상태와 적용을 관리합니다." : id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 독립 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "독립 Revit Add-in의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
+        pageSubtitle.Text = id == "Loaders" ? "호스트별 로더 설치 상태와 적용을 관리합니다." : id == "CadRibbon" ? "AutoCAD의 버튼 이름·패널·순서를 편집하고 적용 준비합니다." : id == "NavisworksRibbon" ? "Navisworks 도구의 리본을 관리합니다." : id == "Navisworks" ? "Navisworks 도구 · 등록된 도구가 없습니다." : id == "Test" ? "검증 중인 도구입니다. 설치 상태와 TEST/실사용 구분은 별도입니다. CAD는 AutoCAD 안에서 Reload하세요." : id == "Locations" ? "RoBIM pyRevit 도구를 설치할 폴더를 선택하세요." : id == "Revit" ? "Revit 도구의 기능을 설치하고 관리하세요." : id == "PyRevit" ? "pyRevit 확장의 버튼을 설치하고 관리하세요." : id == "Ribbon" ? "Revit 탭·패널·버튼 배치를 드래그해서 구성하세요." : IsProductPage ? "필요한 도구를 찾고 한곳에서 관리하세요." : id == "Developer" ? "개발 브랜치에서 개인 TEST 도구를 골라 설치합니다." : id == "Extensions" ? "다른 도구가 필요할 때 Git URL을 등록하세요." : "GitHub 계정과 로그인·시작 방식을 관리합니다.";
         foreach (var control in navigation)
         {
             var selected = (string?)control.Tag == id;
@@ -374,13 +374,19 @@ public sealed partial class ManagerForm
     {
         await accountRefreshGate.WaitAsync();
         checkingAccess = true;
+        lastAccountRefresh = DateTimeOffset.UtcNow;
         sessionStarted = true;
         try
         {
             savedAccounts.Items.Clear();
             try { savedAccounts.Items.AddRange((await GitHubAccount.SavedAccounts()).Cast<object>().ToArray()); } catch (IOException) { }
             var access = teamAccess is null ? null : await teamAccess.Refresh();
-            if (access is { Allowed: false }) throw new IOException(access.Detail);
+            if (access is { Allowed: false })
+            {
+                authenticated = false; connectedLogin = access.Login;
+                accountStatus.Text = access.Detail; catalogIdentity.Text = access.Detail;
+                return;
+            }
             var identity = access is null ? await GitHubSession.Identify() : new GitHubIdentity(access.Login, GitHubSession.Current().Mode);
             authenticated = true; connectedLogin = identity.Login;
             accountStatus.Text = "연결된 GitHub ID  ·  " + identity.Login + "  /  " + (access?.Role ?? "계정 연결");
@@ -395,14 +401,14 @@ public sealed partial class ManagerForm
 
     private Task RefreshProfileLabel()
     {
-        if (currentPage == "Revit") { profileLabel.Text = "독립 Add-in만 표시 · 설치·제거 준비 후 독립 Add-in Reload로 적용"; return Task.CompletedTask; }
+        if (currentPage == "Revit") { profileLabel.Text = "설치·업데이트·제거 후 Revit에 자동 적용합니다."; return Task.CompletedTask; }
         if (currentPage == "PyRevit") { profileLabel.Text = "pyRevit 버튼만 표시 · 설치·제거 준비 후 pyRevit Reload로 적용"; return Task.CompletedTask; }
         if (currentPage == "Cad") { profileLabel.Text = "버튼별 설치·제거 준비 → AutoCAD의 RoBIM → 관리 → Reload"; return Task.CompletedTask; }
         if (currentPage is "Extensions" or "Account" or "Locations") { profileLabel.Text = "필요할 때만 사용하는 추가 설정입니다."; return Task.CompletedTask; }
         if (preview) { profileLabel.Text = "Revit 적용 프로필  ·  사용자"; return Task.CompletedTask; }
         var developer = RevitProfiles.EnabledFromUserIni("RoBIM-Developer");
         var selected = RevitProfiles.EnabledFromUserIni("RoBIM-Selected");
-        profileLabel.Text = "독립 Add-in: Revit Reload · pyRevit 버튼 선택: 적용 및 Reload · " + (selected ? "선택 프로필" : developer ? "개발자 TEST" : "사용자 / 기존 설치");
+        profileLabel.Text = "도구: Revit Reload · pyRevit 버튼 선택: 적용 및 Reload · " + (selected ? "선택 프로필" : developer ? "개발자 TEST" : "사용자 / 기존 설치");
         return Task.CompletedTask;
     }
 
