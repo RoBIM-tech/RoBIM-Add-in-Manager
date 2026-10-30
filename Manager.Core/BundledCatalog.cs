@@ -17,7 +17,7 @@ public static class BundledCatalog
         }
         foreach (var repository in result.Repositories.Where(r => r.Packages.Any(p => p.Host == "revit")))
             if (repository.Packages.Length != 1 || result.Commands.Count(c => c.Repository.Equals(repository.Repository, StringComparison.OrdinalIgnoreCase)) != 1)
-                throw new InvalidDataException("독립 Revit 저장소는 버튼/패키지 하나만 소유해야 합니다.");
+                throw new InvalidDataException("Revit 저장소는 버튼/패키지 하나만 소유해야 합니다.");
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var command in result.Commands)
             if (!keys.Add(command.Host + ":" + command.ModuleId + ":" + command.CommandId) || !result.Repositories.Any(r => r.Repository == command.Repository && r.Packages.Any(p => p.Id == command.PackageId && p.Host == command.Host)))

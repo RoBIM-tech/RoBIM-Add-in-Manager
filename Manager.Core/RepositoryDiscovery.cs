@@ -144,7 +144,7 @@ public sealed class RepositoryDiscovery(ManagerPaths paths,
                 if (!result.Entry.Repository.Equals(result.Key, StringComparison.OrdinalIgnoreCase)) throw new IOException("저장소 식별 정보가 다릅니다.");
                 ExtensionCatalog.ParseManifest(JsonSerializer.Serialize(new ExtensionManifest(1, result.Entry.Packages)));
                 if (known.TryGetValue(result.Key, out var previous)) foreach (var p in previous.Packages) ExtensionCatalog.CurrentPackage(p, result.Entry);
-                if (result.Entry.Packages.Any(p => p.Host == "revit") && result.Entry.Packages.Length != 1) throw new IOException("독립 Revit 저장소는 패키지 하나만 제공해야 합니다.");
+                if (result.Entry.Packages.Any(p => p.Host == "revit") && result.Entry.Packages.Length != 1) throw new IOException("Revit 저장소는 패키지 하나만 제공해야 합니다.");
                 if (Conflicts(result.Entry, known.Values)) throw new IOException("다른 저장소와 패키지·모듈 ID 또는 설치 폴더가 중복됩니다.");
                 known[result.Key] = result.Entry; stamps[result.Key] = result.Stamp;
             }

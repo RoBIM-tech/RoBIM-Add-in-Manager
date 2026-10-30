@@ -33,7 +33,7 @@
           "folder": "RoBIM.Revit.Sheets.bundle",
           "distribution": "release",
           "asset": "RoBIM-Sheets-Revit2026.zip",
-          "description": "Revit 2026.5+ / .NET 10 독립 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
+          "description": "Revit 2026.5+ / .NET 10 Add-in · DWG/PDF/OCR 시트 생성 · 버튼별 설치·제거 및 Native Host Reload 지원 · pyRevit 불필요",
           "channel": "stable",
           "moduleId": "sheets",
           "commandId": "create-sheets"
@@ -84,7 +84,7 @@
       "repository": "RoBIM-tech/RoBIM-CAD-LayerCleanup",
       "branch": "main",
       "role": "button",
-      "recognition": "RoBIM 독립 CAD 버튼",
+      "recognition": "RoBIM CAD 버튼",
       "packages": [
         {
           "id": "cad-layercleanup",
@@ -105,7 +105,7 @@
       "repository": "RoBIM-tech/RoBIM-CAD-DrawingSplit",
       "branch": "main",
       "role": "button",
-      "recognition": "RoBIM 독립 CAD 버튼",
+      "recognition": "RoBIM CAD 버튼",
       "packages": [
         {
           "id": "cad-drawingsplit",
@@ -126,7 +126,7 @@
       "repository": "RoBIM-tech/RoBIM-CAD-BlockExplode",
       "branch": "main",
       "role": "button",
-      "recognition": "RoBIM 독립 CAD 버튼",
+      "recognition": "RoBIM CAD 버튼",
       "packages": [
         {
           "id": "cad-blockexplode",
@@ -147,7 +147,7 @@
       "repository": "RoBIM-tech/RoBIM-CAD-XclipCut",
       "branch": "main",
       "role": "button",
-      "recognition": "RoBIM 독립 CAD 버튼",
+      "recognition": "RoBIM CAD 버튼",
       "packages": [
         {
           "id": "cad-xclipcut",
@@ -177,7 +177,7 @@
           "folder": "RoBIM.Feature.SelectiveTransfer.bundle",
           "distribution": "release",
           "asset": "RoBIM.Feature.SelectiveTransfer-Revit2026.zip",
-          "description": "선택적 표준 전송 · 독립 Add-in",
+          "description": "선택적 표준 전송",
           "channel": "test",
           "moduleId": "selective-transfer",
           "commandId": "run"

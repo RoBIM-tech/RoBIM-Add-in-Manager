@@ -15,7 +15,7 @@ public static class SingleNativeButton
 
     public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source, bool requireChannel = true)
     {
-        if (package.Host != "revit" || package.Distribution != "release") throw new IOException("독립 Revit 배포 패키지가 필요합니다.");
+        if (package.Host != "revit" || package.Distribution != "release") throw new IOException("Revit 도구 배포 패키지가 필요합니다.");
         var module = NativeProtocol.Module(source.Path);
         if (module.Commands.Length != 1) throw new IOException("이 저장소의 배포 패키지는 버튼 하나만 포함해야 합니다.");
         var expected = Registration(repository, package);
@@ -61,6 +61,20 @@ public static class ToolNames
     {
         var value = name.Trim();
         if (value.StartsWith("RoBIM ", StringComparison.OrdinalIgnoreCase)) value = value[6..].TrimStart();
+        if(value=="독립 Add-in Reload")value="Reload";
         return value.Length == 0 ? name : value;
     }
+    // Only obsolete product classifications are removed. Revit's independent-view terminology remains meaningful.
+    public static string Description(string text)
+    {
+        var value=text.Replace(" · 독립 Add-in","").Replace("독립 Native Add-in","Native Add-in")
+            .Replace("Revit 독립 Add-in","Revit Add-in").Replace("독립 Revit Add-in","Revit Add-in")
+            .Replace("독립 Add-in","Add-in").Replace("독립 CAD 버튼","CAD 버튼").Replace("독립 C# 버튼","C# 버튼").Replace("독립 Revit 패키지","Revit 도구 패키지");
+        return value.Trim();
+    }
+    public static string Group(string group) => string.Join(" / ",group.Split(" / ").Select(part=>part.Trim() switch
+    {
+        "독립 Add-in"=>"관리", "독립 도구 TEST"=>"도구", "독립 도구"=>"도구", var other=>Description(other)
+    }));
+
 }

@@ -8,7 +8,7 @@ public sealed class CadFeaturePackages(ManagerPaths paths)
     public static bool IsFeature(ExtensionPackage? package) => package is { Host: "autocad", ModuleId.Length: > 0, CommandId.Length: > 0 };
     public static CadModule Validate(string bundle, ExtensionPackage package)
     {
-        if (!IsFeature(package)) throw new IOException("독립 CAD 버튼 표시 정보가 필요합니다.");
+        if (!IsFeature(package)) throw new IOException("CAD 버튼 표시 정보가 필요합니다.");
         _ = SafeFiles.Hashes(bundle);
         if (Directory.EnumerateFiles(bundle, "RoBIM.Cad.Loader.dll", SearchOption.AllDirectories).Any() || File.Exists(Path.Combine(bundle, "PackageContents.xml")))
             throw new IOException("기능 패키지에 고정 로더나 직접 로드 등록을 포함할 수 없습니다.");

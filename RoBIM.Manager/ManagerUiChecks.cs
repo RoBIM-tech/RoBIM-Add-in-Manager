@@ -19,6 +19,12 @@ public sealed partial class ManagerForm
                 await StartLocalDisplay();
                 if (refreshOffers) await RefreshWithUpdates();
                 SwitchPage(page); RefreshCardActions();
+                var inspectedEditor=page=="Ribbon"?ribbonEditor:page=="CadRibbon"?cadRibbonEditor:null;
+                if(inspectedEditor is not null){
+                    IEnumerable<TreeNode> Nodes(TreeNodeCollection values)=>values.Cast<TreeNode>().SelectMany(n=>new[]{n}.Concat(Nodes(n.Nodes)));
+                    var tab=inspectedEditor.EditorNodes.Cast<TreeNode>().Select((node,index)=>(node,index)).FirstOrDefault(x=>Nodes(x.node.Nodes).Any(n=>n.Tag is RibbonPlacement placement&&ManagementButtonIcons.IsManagement(placement.Id)));
+                    if(tab.node is not null)inspectedEditor.SelectPreviewTab(tab.index);
+                }
                 if (snapshot is not null)
                 {
                     using var bitmap = new Bitmap(Width, Height); DrawToBitmap(bitmap, new Rectangle(Point.Empty, Size));
@@ -27,8 +33,9 @@ public sealed partial class ManagerForm
                 File.WriteAllText(destination, JsonSerializer.Serialize(new
                 {
                     Products = productRows.Select(x => new { x.Status.Tool.Id, x.Status.Path, x.Status.Managed, x.Status.External, x.Status.Modified, x.Status.Detail }),
-                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, x.Row.SelectedChannel, x.Row.SelectedVersion, x.Row.CollectionChannel, UpdateChannel = OfferFor(x.Row)?.Channel, Source = x.Row.Source,
+                    Cards = cardBindings.Values.Select(x => new { x.Row.Id, x.Row.Title, x.Row.Description, x.Row.Group, x.Row.Selected, x.Row.Pending, x.Row.ModuleId, x.Row.Channel, x.Row.ReleaseLabel, x.Row.SelectedChannel, x.Row.SelectedVersion, x.Row.CollectionChannel, UpdateChannel = OfferFor(x.Row)?.Channel, Source = x.Row.Source,
                         Enabled = x.Action.Enabled, Action = x.Action.Text, State = x.State.Text, Instruction = x.Instruction.Text }),
+                    ManagementPreviewIcons=inspectedEditor?.ManagementPreviewImages(),
                     Log = log.Text,
                     UpdateOffers = updateOffers, TestOffers = testOffers, StableOffers = stableOffers, TestErrors = testOfferErrors, StableErrors = stableOfferErrors,
                     TestCards = ProductCommands("Test").Where(c => c.CollectionChannel == "test").Select(c => new { c.Id, c.TestView, c.ReleaseLabel, c.SelectedChannel, c.SelectedVersion, Action = PrimaryText(c,AppearanceFor(c)) }),
@@ -235,6 +242,27 @@ public sealed partial class ManagerForm
         ribbonEditor.LoadLayout(new(1, "Revit", [new("묶음", [new("패널", [new(moved.Id, "A", "Small", "g", 2), new(secondId, "B", "Small", "g", 2)])])]));
         var group = ribbonEditor.EditorNodes[0].Nodes[0].Nodes[0]; ribbonEditor.DropOnPreview(group.Nodes[0], group.Nodes[1], true);
         Require(ribbonEditor.Snapshot().Tabs[0].Panels[0].Buttons.Select(b => b.Title).SequenceEqual(new[] { "B", "A" }), "Stacked button can move below its sibling without exceeding capacity");
+        // Exercise the real preview controls with no host installation or icon files.
+        foreach(var host in new[]{"Revit","AutoCAD"})
+        {
+            using var editor=new RibbonEditorControl(new RibbonLayouts(paths),true,host);editor.Size=new(1100,520);
+            var ids=host=="Revit"?new[]{"manager:RoBIM.Native.Reload","manager:RoBIM.Native.Manager"}:new[]{"manager:cad-reload","manager:cad-manager"};
+            editor.LoadTools(ids.Select((id,i)=>new RibbonTool(id,i==0?"Reload":"Add-in Manager","미리보기","관리",true)));
+            foreach(var mode in new[]{"Large","Small","Stack2","Stack3"})
+            {
+                var rows=mode=="Stack2"?2:mode=="Stack3"?3:0;
+                var entries=ids.Select((id,i)=>new RibbonPlacement(id,i==0?"Reload":"Add-in Manager",mode=="Large"?"Large":"Small",rows>0?"management":null,rows)).ToList();
+                if(rows==3)entries.Add(new("test:third","세 번째","Small","management",3));
+                editor.LoadLayout(new(1,host,[new("미리보기",[new("관리",entries.ToArray())])]));editor.SelectPreviewTab(0);editor.PerformLayout();
+                IEnumerable<TreeNode> Nodes(TreeNodeCollection values)=>values.Cast<TreeNode>().SelectMany(n=>new[]{n}.Concat(Nodes(n.Nodes)));
+                foreach(var node in Nodes(editor.EditorNodes).Where(n=>n.Tag is RibbonPlacement p && ids.Contains(p.Id)))
+                {
+                    var control=editor.PreviewControl(node)!;var icon=control.Controls.OfType<PictureBox>().SingleOrDefault();var size=mode=="Large"?32:16;
+                    Require(icon?.Image is Bitmap pixels && pixels.Width==size && pixels.Height==size && Enumerable.Range(0,size).Any(y=>Enumerable.Range(0,size).Any(x=>pixels.GetPixel(x,y).A>0)),host+" management preview renders "+mode+" "+((RibbonPlacement)node.Tag!).Id);
+                }
+                {using var bitmap=new Bitmap(editor.Width,editor.Height);editor.DrawToBitmap(bitmap,new Rectangle(Point.Empty,editor.Size));bitmap.Save(destination+"."+host.ToLowerInvariant()+"-management-icons-"+mode.ToLowerInvariant()+".png");}
+            }
+        }
         ribbonEditor.LoadTools([new("test:uninstalled", "미설치", "RoBIM", "도구", false)]);
         Require(ribbonEditor.Snapshot().Tabs.Length == 0, "Zero installed tools produce no default tabs");
         Navigate("Account"); Require(accountPage.Visible && !productsPage.Visible && accountPage.Height > 350, "GitHub settings retains content height");

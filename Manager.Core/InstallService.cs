@@ -231,7 +231,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     public void AdoptVerifiedNative(ToolSpec tool, SourcePackage reference)
     {
         using var operation = Lock();
-        if (tool.Kind != ToolKind.NativeRevit) throw new IOException("독립 Revit 패키지만 검증 후 연결할 수 있습니다.");
+        if (tool.Kind != ToolKind.NativeRevit) throw new IOException("Revit 패키지만 검증 후 연결할 수 있습니다.");
         void Check() { if (ensureHostClosed is null) EnvironmentProbe.EnsureHostClosed(tool); else ensureHostClosed(tool); }
         Check();
         var target = paths.Target(tool); var state = ReadState();

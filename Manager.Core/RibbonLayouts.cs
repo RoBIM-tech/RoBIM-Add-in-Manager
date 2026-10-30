@@ -24,7 +24,7 @@ public sealed class RibbonLayouts(ManagerPaths paths)
     public static RibbonTool FromGroup(string id, string title, string group, bool installed, string? icon = null)
     {
         var pieces = group.Split(" / ", 2, StringSplitOptions.TrimEntries);
-        return DefaultLocation(new(id, title, pieces.Length > 1 ? pieces[0] : "", pieces.Length > 1 ? pieces[1] : "", installed, icon));
+        return DefaultLocation(new(id, title, pieces.Length > 1 ? pieces[0] : "", pieces.Length > 1 ? ToolNames.Group(pieces[1]) : "", installed, icon));
     }
     public static RibbonTool[] WithManagementTools(IEnumerable<RibbonTool> values)
     {
@@ -33,8 +33,8 @@ public sealed class RibbonLayouts(ManagerPaths paths)
             tools.Add(new("manager:pyrevit-reload", "pyRevit Reload", "RoBIM 관리", "Manager", true));
         if (tools.Any(t => t.Installed && t.Id.StartsWith("native:", StringComparison.Ordinal)))
         {
-            tools.Add(new("manager:RoBIM.Native.Reload", "독립 Add-in Reload", "RoBIM 관리", "독립 Add-in", true));
-            tools.Add(new("manager:RoBIM.Native.Manager", "Add-in Manager", "RoBIM 관리", "독립 Add-in", true));
+            tools.Add(new("manager:RoBIM.Native.Reload", "Reload", "RoBIM 관리", "관리", true));
+            tools.Add(new("manager:RoBIM.Native.Manager", "Add-in Manager", "RoBIM 관리", "관리", true));
         }
         return tools.ToArray();
     }

@@ -46,7 +46,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
                 !Regex.IsMatch(package.Id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$") || !ids.Add(package.Id!)) throw new InvalidDataException("패키지 id / name 오류 또는 중복");
             if (package.Channel is not ("unknown" or "test" or "stable")) throw new InvalidDataException("패키지 채널 오류");
             if (package.Host is not ("pyrevit" or "autocad" or "revit")) throw new InvalidDataException("지원 host: autocad, revit (기존 pyRevit 기록은 읽기 호환만 제공)");
-            if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("독립 Revit 패키지는 검증된 Release ZIP이 필요합니다.");
+            if (package.Host == "revit" && package.Distribution != "release") throw new InvalidDataException("Revit 패키지는 검증된 Release ZIP이 필요합니다.");
             if (package.ModuleId is null || package.CommandId is null ||
                 (package.ModuleId.Length > 0 || package.CommandId.Length > 0) &&
                 (package.Host is not ("revit" or "autocad") || !Regex.IsMatch(package.ModuleId, "^[a-z][a-z0-9.-]{0,63}$") || !Regex.IsMatch(package.CommandId, "^[a-z][a-z0-9.-]{0,63}$")))
@@ -97,7 +97,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
         }
         if (BuiltIn(canonical, branch) is { } builtin) return builtin;
         // Preserve legacy repositories on GitHub but never infer .extension packages.
-        throw new NoInstallablePackagesException("이 저장소에는 지원되는 독립 Revit/CAD 패키지가 없습니다.");
+        throw new NoInstallablePackagesException("이 저장소에는 지원되는 Revit/CAD 패키지가 없습니다.");
 
     }
     public ExtensionRepository[] Registered()
@@ -199,7 +199,7 @@ public sealed class ExtensionCatalog(ManagerPaths paths, Action<string>? require
     public static ExtensionPackage ReleaseChannel(ExtensionPackage package, string channel)
     {
         if ((package.Host != "revit" && !CadFeaturePackages.IsFeature(package)) || package.Distribution != "release" || channel is not ("test" or "stable"))
-            throw new IOException("독립 Revit 도구의 TEST 또는 정식 배포를 선택하십시오.");
+            throw new IOException("Revit 도구의 TEST 또는 정식 배포를 선택하십시오.");
         return package with { Channel = channel };
     }
     public async Task<SourcePackage> Download(ExtensionRepository repository, ExtensionPackage package, string? releaseChannel = null)
