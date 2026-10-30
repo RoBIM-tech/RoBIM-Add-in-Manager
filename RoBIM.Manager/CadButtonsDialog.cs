@@ -47,7 +47,7 @@ public sealed class CadButtonsDialog : Form
         var sessionRow = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, Padding = new(0, 0, 0, 10) };
         sessionRow.Controls.Add(new Label { Text = "적용할 CAD", AutoSize = true, Padding = new(0, 7, 10, 0) }); sessionRow.Controls.Add(sessions);
         if (liveSessions.Count == 0) sessions.Items.Add(new SessionItem(null, "CAD 종료됨 — 다음 실행 후 Reload로 적용"));
-        else foreach (var session in liveSessions) sessions.Items.Add(new SessionItem(session, $"PID {session.Pid} · {session.Title}"));
+        else { sessions.Items.Add(new SessionItem(null,"실행 중인 AutoCAD 전체 — 각 창에서 Reload")); foreach(var session in liveSessions) sessions.Items.Add(new SessionItem(session,$"PID {session.Pid} · {session.Title}")); }
         sessions.SelectedIndex = 0; layout.Controls.Add(sessionRow);
         grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Use", HeaderText = "등록", FillWeight = 35 });
         foreach (var item in new[] { ("Module", "기능", 100, true), ("Title", "버튼 이름", 180, false), ("Panel", "패널", 90, false), ("Order", "순서", 45, false) })

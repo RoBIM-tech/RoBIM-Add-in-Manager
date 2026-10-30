@@ -36,9 +36,7 @@ public sealed partial class ManagerForm
             var bridge = new CadReload(paths);
             var source = bridge.Source(owner.Status.Path, preferInstalled: true) ?? throw new IOException("CAD 패키지가 없습니다.");
             var selected = source.Previous?.SelectedActions ?? [];
-            var sessions = CadReload.Sessions();
-            if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하고 다시 시도하세요.");
-            bridge.Prepare(owner.Status.Tool, source.Bundle, source.Catalog, selected, sessions.SingleOrDefault(), source.Previous);
+            bridge.Prepare(owner.Status.Tool, source.Bundle, source.Catalog, selected, null, source.Previous);
             return Task.FromResult("배치를 저장하고 적용을 준비했습니다. AutoCAD에서 ROBIMRELOAD를 실행하세요.");
         };
     }

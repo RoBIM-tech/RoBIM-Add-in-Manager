@@ -19,7 +19,7 @@ internal static class CadReloadTests
         CadFiles.Save(Path.Combine(windows, CadFiles.ManifestName), catalog);
         var installer = new InstallService(paths); installer.Install(Catalog.Cad, new(source, "bridge-test"));
         var installed = paths.Target(Catalog.Cad); var baseline = SafeFiles.Hashes(installed);
-        var reload = new CadReload(paths); CadRequest? first = null;
+        var reload = new CadReload(paths,()=>[new(123,456,"fixture")]); CadRequest? first = null;
         test("CadPrepareKeepsInstalledFilesAndStartsPending", () =>
         {
             first = reload.Prepare(Catalog.Cad, source, catalog, ["tool:first"], null);

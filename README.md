@@ -1,3 +1,5 @@
+여러 실행 창 TEST: [적용 방법·구현과 검증 범위](docs/developer/MULTI_SESSION_20261030.md).
+
 # RoBIM Add-in Manager
 
 **새 버튼 제작은 [START_HERE](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/START_HERE.md)에서 시작합니다.**

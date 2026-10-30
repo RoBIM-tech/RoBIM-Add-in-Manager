@@ -6,7 +6,7 @@ namespace RoBIM.Manager.Core;
 public sealed record CadSession(int Pid, long StartTicks, string Title);
 
 // The desktop only prepares immutable payloads. Applying them requires ROBIMRELOAD inside CAD.
-public sealed class CadReload(ManagerPaths paths)
+public sealed class CadReload(ManagerPaths paths, Func<IReadOnlyList<CadSession>>? sessionsProbe = null)
 {
     public string Data => SafeFiles.Child(paths.Data, "Cad");
     public static string WindowsDirectory(string bundle) => SafeFiles.Child(bundle, "Contents/Windows");
@@ -75,12 +75,23 @@ public sealed class CadReload(ManagerPaths paths)
             if (desired is null) return "버튼을 선택한 뒤 적용 준비를 누르십시오.";
             if (!CadFiles.Hash(Path.Combine(WindowsDirectory(bundle), "RoBIM.Cad.Loader.dll")).Equals(desired.LoaderHash, StringComparison.OrdinalIgnoreCase))
                 return "연결 모듈이 변경됐습니다. 버튼 선택을 다시 준비하십시오.";
-            var resultFile = CadFiles.Child(Data, "Results/" + desired.Id + ".json");
-            if (!File.Exists(resultFile)) return "준비됨 — AutoCAD의 RoBIM → 관리 → Reload를 누르십시오.";
-            var result = CadFiles.Read<CadReceipt>(resultFile);
-            return result.Status == "applied" ? $"CAD 적용 완료 · 버튼 {desired.SelectedActions.Count}개 · PID {result.Pid}" : "CAD 적용 실패: " + result.Message;
+            var results=SessionResults(desired);
+            if(results.Count==0)return "준비됨 · 다음 AutoCAD 시작 후 Reload로 적용";
+            return SessionApplyResult.Summary("CAD",results)+ (results.Any(r=>r.Status=="pending")?" · 준비됨: 각 AutoCAD에서 Reload하십시오.":"");
         }
         catch (Exception ex) { return "CAD 준비 상태 확인 필요: " + ex.Message; }
+    }
+    public IReadOnlyList<SessionApplyResult> SessionResults(CadRequest desired)
+    {
+        var sessions=sessionsProbe is null?Sessions():sessionsProbe();
+        return sessions.Select(session=>{
+            try {
+                var file=CadFiles.Child(Data,$"Results/{desired.Id}-{session.Pid}-{session.StartTicks}.json");
+                if(!File.Exists(file))file=CadFiles.Child(Data,$"Results/{desired.Id}.json");
+                var value=File.Exists(file)?CadFiles.Read<CadReceipt>(file):null;
+                return new SessionApplyResult(session.Pid,session.StartTicks,value is not null && value.RequestId==desired.Id && value.Pid==session.Pid && value.StartTicks==session.StartTicks?value.Status:"pending",value?.Message);
+            } catch(Exception error) when(error is IOException or System.Text.Json.JsonException) {return new SessionApplyResult(session.Pid,session.StartTicks,"failed",error.Message);}
+            }).ToArray();
     }
     public CadRequest Prepare(ToolSpec tool, string sourceBundle, CadCatalog catalog, IReadOnlyList<string> selected, CadSession? session, CadRequest? previousSource = null)
     {
