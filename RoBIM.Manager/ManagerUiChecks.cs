@@ -353,6 +353,10 @@ public sealed partial class ManagerForm
         productFilter.SelectedIndex=0; channelFilter.SelectedIndex=2;
         Require(cardBindings.Values.All(c=>c.Row.CollectionChannel=="test"||NewTestAvailable(c.Row)),"Program TEST filter");
         channelFilter.SelectedIndex=0;
+        Navigate("Navisworks");Require(!programUpdateAll.Enabled,"Unsupported program batch action is disabled");
+        Navigate("Revit");Require(programUpdateAll.Parent is not null,"Program bulk update action is present");
+        busy=true;RefreshCardActions();Require(!programUpdateAll.Enabled,"Busy blocks bulk update");busy=false;
+        batchUpdating=true;RefreshCardActions();Require(cardBindings.Values.All(c=>!c.Action.Enabled&&!c.TestInstall.Enabled)&&!programUpdateAll.Enabled,"Batch blocks competing card mutations");batchUpdating=false;RefreshCardActions();
         using(var editor=new RibbonEditorControl(new RibbonLayouts(paths),true)) {
             editor.LoadTools([new("bank:a","A","Tab","Panel",true),new("bank:b","B","Tab","Panel",true)]);
             editor.LoadLayout(new(1,"Revit",[new("Tab",[new("Panel",[new("bank:a","A")])])]));

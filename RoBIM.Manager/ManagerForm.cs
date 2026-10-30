@@ -208,7 +208,8 @@ public sealed partial class ManagerForm : Form
         {
             footer.Text = "작업을 완료하지 못했습니다.";
             WriteLog("작업 중단: " + ex.Message);
-            MessageBox.Show(this, ex.Message, "RoBIM Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if(batchUpdating) batchErrors.Add(name+": "+ex.Message);
+            else MessageBox.Show(this, ex.Message, "RoBIM Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         finally
         {
@@ -219,6 +220,7 @@ public sealed partial class ManagerForm : Form
             RefreshProductAction();
             if (currentPage == "Locations") UpdateLocationActions();
             ApplyAccessState();
+            if(batchUpdating) foreach(var control in navigation)control.Enabled=false;
         }
     }
 

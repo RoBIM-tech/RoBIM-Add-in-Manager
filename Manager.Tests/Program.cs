@@ -83,6 +83,7 @@ if (args.Contains("--device-login-only"))
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} device login checks passed"); return failures==0?0:1;
 }
+ProgramUpdateBatchTests.Run(Test);
 CadBundleMigrationTests.Run(root,Test);
 LoaderActionTests.Run(Test);
 CadFeaturePackageTests.Run(root, Test);
