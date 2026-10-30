@@ -81,8 +81,8 @@ public sealed partial class ManagerForm
                     Instruction = "TEST 설치는 이 버튼의 현재 버전을 교체합니다. 이전 정식으로 돌아가려면 ···의 저장소 정식 버전 설치를 선택하십시오. " + value.Instruction };
             }
             else if (CanUseTest && NewTestAvailable(card))
-                value = value with { Message = "TEST 보기 · " + ChannelOffer(card, "test")!.Version + " 제공 · " + value.Message,
-                    Instruction = value.Instruction + "\nTEST 보기를 눌러 선택 설치할 수 있습니다. 정식 설치는 자동으로 바뀌지 않습니다." };
+                value = value with { Message = "새 TEST 제공 · " + ChannelOffer(card, "test")!.Version + " 제공 · " + value.Message,
+                    Instruction = value.Instruction + "\n카드의 TEST 설치 버튼을 눌러 선택 설치할 수 있습니다. 정식 설치는 자동으로 바뀌지 않습니다." };
             if (updateErrors.TryGetValue(id, out var error))
                 value = value with { Message = value.Message + " · 최신 확인 실패", Instruction = value.Instruction + "\n마지막 확인 결과 유지: " + error };
         }

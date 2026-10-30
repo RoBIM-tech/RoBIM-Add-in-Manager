@@ -401,7 +401,7 @@ public sealed partial class ManagerForm
 
     private Task RefreshProfileLabel()
     {
-        if (currentPage == "Revit") { profileLabel.Text = "도구만 표시 · 설치·제거 준비 후 도구 Reload로 적용"; return Task.CompletedTask; }
+        if (currentPage == "Revit") { profileLabel.Text = "설치·업데이트·제거 후 Revit에 자동 적용합니다."; return Task.CompletedTask; }
         if (currentPage == "PyRevit") { profileLabel.Text = "pyRevit 버튼만 표시 · 설치·제거 준비 후 pyRevit Reload로 적용"; return Task.CompletedTask; }
         if (currentPage == "Cad") { profileLabel.Text = "버튼별 설치·제거 준비 → AutoCAD의 RoBIM → 관리 → Reload"; return Task.CompletedTask; }
         if (currentPage is "Extensions" or "Account" or "Locations") { profileLabel.Text = "필요할 때만 사용하는 추가 설정입니다."; return Task.CompletedTask; }

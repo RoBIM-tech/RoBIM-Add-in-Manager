@@ -16,7 +16,7 @@ public sealed partial class ManagerForm
     private readonly Label productCount = new() { AutoSize = true, ForeColor = Color.FromArgb(106, 117, 136), Padding = new(0, 8, 0, 0) };
     private readonly Dictionary<string, CardBinding> cardBindings = [];
     private readonly Dictionary<string, (Control Control, CardBinding Binding)> cachedCards = [];
-    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card);
+    private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card, Button TestInstall);
 
     private void BuildProductsPage()
     {
@@ -112,7 +112,7 @@ public sealed partial class ManagerForm
             foreach (var key in cachedCards.Keys.Where(x => !known.Contains(x)).ToArray()) { cachedCards[key].Control.Dispose(); cachedCards.Remove(key); }
         }
         if (visible.Count == 0) productCards.Controls.Add(new Label { Text = search.Length > 0 ? "조건에 맞는 도구가 없습니다." : currentPage == "Navisworks" ? NavisworksStatus() : currentPage == "Mine" ? "아직 설치되거나 연결된 도구가 없습니다." : "등록된 도구를 확인하고 있습니다. 새로 고침 또는 도구 등록을 이용하십시오.", AutoSize = false, Height = 80, ForeColor = Color.FromArgb(106, 117, 136), TextAlign = ContentAlignment.MiddleCenter });
-        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  녹색: 정식 설치 · 파랑: TEST 설치 · 주황: 정식 업데이트 · 보라: TEST 업데이트 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
+        productCount.Text = $"{visible.Count}개 버튼  ·  업데이트 {visible.Count(x => AppearanceFor(x).Update)}  ·  설치 {visible.Count(SelectedInView)}  ·  미설치 {visible.Count(x => !SelectedInView(x) && !x.Pending)}  |  녹색: 정식 설치 · 파랑: TEST 설치 · 주황: 정식 업데이트 · 보라: TEST 업데이트 · 노랑: 새 TEST 제공 · 회색: 미설치" + (preview ? "  ·  화면 확인용 예시 상태" : "");
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
@@ -127,11 +127,11 @@ public sealed partial class ManagerForm
     private Control CreateCommandCard(ButtonCard feature)
     {
         var status = feature.Owner.Status; var scale = DeviceDpi / 96f;
-        var card = new ToolCardPanel { Height = (int)(88 * scale), Margin = new(0, 0, (int)(8 * scale), (int)(8 * scale)), Padding = new((int)(8 * scale)), BackColor = Color.FromArgb(246, 247, 249), AccessibleName = feature.Title };
+        var card = new ToolCardPanel { Height = (int)(96 * scale), Margin = new(0, 0, (int)(8 * scale), (int)(8 * scale)), Padding = new((int)(8 * scale)), BackColor = Color.FromArgb(246, 247, 249), AccessibleName = feature.Title };
         var tips = new ToolTip { AutoPopDelay = 15000, InitialDelay = 450, ReshowDelay = 100 };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty, BackColor = Color.Transparent };
         layout.ColumnStyles.Add(new(SizeType.Percent, 100));
-        layout.RowStyles.Add(new(SizeType.Absolute, 32 * scale)); layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 22 * scale));
+        layout.RowStyles.Add(new(SizeType.Absolute, 32 * scale)); layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 26 * scale));
         var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Margin = Padding.Empty, BackColor = Color.Transparent };
         header.ColumnStyles.Add(new(SizeType.Absolute, 36 * scale)); header.ColumnStyles.Add(new(SizeType.Percent, 100));
         header.ColumnStyles.Add(new(SizeType.Absolute, 96 * scale)); header.ColumnStyles.Add(new(SizeType.Absolute, 30 * scale));
@@ -169,9 +169,13 @@ public sealed partial class ManagerForm
         var menu = BuildButtonMenu(feature); more.Click += (_, _) => menu.Show(more, new Point(0, more.Height));
         var instruction = new Label { Visible = false };
         card.Disposed += (_, _) => { menu.Dispose(); tips.Dispose(); instruction.Dispose(); };
-        header.Controls.Add(primary, 2, 0); header.Controls.Add(more, 3, 0); layout.Controls.Add(stateLabel, 0, 2);
+        header.Controls.Add(primary, 2, 0); header.Controls.Add(more, 3, 0); var testInstall = MakeButton("TEST 설치", true); testInstall.AutoSize=false; testInstall.Dock=DockStyle.Fill; testInstall.Margin=Padding.Empty; testInstall.MinimumSize=Size.Empty; testInstall.Font=new Font(Font.FontFamily,8.5f); testInstall.AccessibleName=feature.Title+" 새 TEST 설치";
+        testInstall.Click += async (_,_) => { if(!busy && !preview && CanUseTest && NewTestAvailable(feature)) await ToggleButton(feature,true,"test"); };
+        var footerRow=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty,BackColor=Color.Transparent};
+        footerRow.ColumnStyles.Add(new(SizeType.Percent,100));footerRow.ColumnStyles.Add(new(SizeType.AutoSize));
+        testInstall.Width=(int)(92*scale); footerRow.Controls.Add(stateLabel,0,0);footerRow.Controls.Add(testInstall,1,0);layout.Controls.Add(footerRow,0,2);
         tips.SetToolTip(category, category.Text); tips.SetToolTip(title, feature.Title); tips.SetToolTip(description, feature.Description);
-        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more, card);
+        card.Controls.Add(layout); cardBindings[feature.Id] = new(feature, primary, instruction, stateLabel, tips, more, card, testInstall);
         return card;
     }
 
@@ -236,8 +240,9 @@ public sealed partial class ManagerForm
             var testAvailable = CanUseTest && selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
             var testUpdate = updateState && IndependentRelease(feature) && NativeReleaseState(feature).Update?.Channel == "test";
             var testInstalled = selected && feature.SelectedChannel == "test";
-            binding.Card.BackColor = testUpdate ? Color.FromArgb(246, 237, 255) : updateState ? Color.FromArgb(255, 246, 232) : testInstalled ? Color.FromArgb(233, 243, 255) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
-            binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
+            binding.TestInstall.Visible = testAvailable; binding.TestInstall.Enabled=ready && appearance.Enabled && testAvailable;
+            binding.Card.BackColor = testUpdate ? Color.FromArgb(246, 237, 255) : updateState ? Color.FromArgb(255, 246, 232) : testInstalled ? Color.FromArgb(233, 243, 255) : testAvailable ? Color.FromArgb(255, 251, 222) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
+            binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : testAvailable ? Color.FromArgb(202, 174, 66) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
             binding.State.Text = (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;

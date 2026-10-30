@@ -121,7 +121,7 @@ public sealed partial class ManagerForm
             var available = Math.Max(100, productCards.ClientSize.Width - productCards.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 2);
             var expected = Math.Min(cards.Length, CardColumnCount(available, DeviceDpi));
             Require(cards.Count(x => x.Top == cards[0].Top) == expected, "Responsive first row at width " + formWidth);
-            Require(cards.All(x => x.Height <= 89 * DeviceDpi / 96), "Compact card height at width " + formWidth);
+            Require(cards.All(x => x.Height <= 97 * DeviceDpi / 96), "Compact card height at width " + formWidth);
             Require(!productCards.HorizontalScroll.Visible, "No horizontal scrollbar at width " + formWidth);
             foreach (var binding in cardBindings.Values)
             {
@@ -143,7 +143,7 @@ public sealed partial class ManagerForm
             {
                 foreach (Control child in container.Controls)
                 {
-                    if (child is Button) Require(child.Right <= container.ClientSize.Width && child.Bottom <= container.ClientSize.Height, "Action fits card " + child.Text);
+                    if (child is Button && child.Visible) Require(child.Right <= container.ClientSize.Width && child.Bottom <= container.ClientSize.Height, "Action fits card " + child.Text);
                     CheckBounds(child);
                 }
             }
@@ -287,7 +287,7 @@ public sealed partial class ManagerForm
         var projected=ProductCommands("Test",[stableCard]).Single();
         Require(projected.TestView && projected.Id==stableCard.Id && projected.CommandId==stableCard.CommandId && stableCard.Channel=="stable", "TEST view preserves canonical button identity and default channel");
         Require(!SelectedInView(projected) && PrimaryText(projected,AppearanceFor(projected))=="TEST 설치", "Installed stable offers explicit TEST install instead of removal");
-        Require(AppearanceFor(stableCard).Message.Contains("TEST 보기") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
+        Require(AppearanceFor(stableCard).Message.Contains("새 TEST 제공") && !RemoteUpdate(stableCard), "New TEST is an optional notice rather than a stable update");
         using var testCard=CreateCommandCard(projected); RefreshCardActions();
         Require(cardBindings[projected.Id].Action.Text=="TEST 설치" && cardBindings[projected.Id].State.Text.Contains("정식 0.2.0"),"TEST card explains currently installed stable version");
         var selectedTest=projected with { SelectedChannel="test",SelectedVersion="0.2.5-test.1" };
@@ -317,15 +317,18 @@ public sealed partial class ManagerForm
         Require(fullCache.Stables![stableId].Version=="0.3.0" && fullCache.StableErrors![stableId]=="offline", "Stable promotion offers and errors survive display cache");
         stableOffers.Clear(); stableOfferErrors.Clear();
         // Exercise navigation from the actual link against the preview fixture's stable card.
-        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable");
+        var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable" && c.Selected);
         updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");
         productSearch.Clear(); Navigate("Revit");
-        var notice=(LinkLabel)cardBindings[sample.Id].State;
-        Require(notice.Links.Count==1 && notice.Text.Contains("TEST 보기"),"Stable card exposes clickable TEST notice");
-        using (var stableBitmap=new Bitmap(Width,Height)) { DrawToBitmap(stableBitmap,new Rectangle(Point.Empty,Size)); stableBitmap.Save(destination+".stable.png"); }
-        typeof(LinkLabel).GetMethod("OnLinkClicked",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(notice,[new LinkLabelLinkClickedEventArgs(notice.Links[0])]);
-        Require(currentPage=="Revit" && cardBindings[sample.Id].Row.TestView && cardBindings[sample.Id].Action.Text=="TEST 설치","TEST notice opens matching tool within Revit");
-        using (var bitmap=new Bitmap(Width,Height)) { DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size)); bitmap.Save(destination+".test.png"); }
+        var optionalBinding=cardBindings[sample.Id];
+        Require(optionalBinding.TestInstall.Visible && optionalBinding.TestInstall.Enabled,"Prominent TEST install is visible alongside stable update");
+        Require(optionalBinding.Action.Text=="업데이트" && optionalBinding.TestInstall.Text=="TEST 설치","Stable and TEST actions are both available");
+        updateOffers[sample.Owner.Status.Tool.Id]=new(sample.SelectedVersion,"stable");RenderProductCards();
+        optionalBinding=cardBindings[sample.Id];
+        Require(optionalBinding.Card.BackColor==Color.FromArgb(255,251,222),"Sixth color identifies installed stable with newer optional TEST");
+        Require(optionalBinding.TestInstall.Visible && optionalBinding.State.Text.Contains("새 TEST 제공"),"Optional TEST version has a visible install button and label");
+        busy=true;RefreshCardActions();Require(!optionalBinding.TestInstall.Enabled,"Busy prevents TEST mutation");busy=false;RefreshCardActions();
+        using(var bitmap=new Bitmap(Width,Height)){DrawToBitmap(bitmap,new Rectangle(Point.Empty,Size));bitmap.Save(destination+".optional-test.png");}
         using (var owners = new RepositoryPublishersDialog(new(1,true,[new("alice","user"),new("team","organization")])))
         {
             owners.ShowInTaskbar=false;owners.StartPosition=FormStartPosition.Manual;owners.Location=new(-20000,-20000);owners.Show();Application.DoEvents();
