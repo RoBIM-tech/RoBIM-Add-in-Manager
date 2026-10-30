@@ -95,7 +95,7 @@
           "distribution": "release",
           "asset": "RoBIM-CAD-LayerCleanup-AutoCAD2026.zip",
           "description": "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.",
-          "channel": "test",
+          "channel": "stable",
           "moduleId": "delhidden",
           "commandId": "cleanup"
         }
@@ -116,7 +116,7 @@
           "distribution": "release",
           "asset": "RoBIM-CAD-DrawingSplit-AutoCAD2026.zip",
           "description": "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.",
-          "channel": "test",
+          "channel": "stable",
           "moduleId": "ezsplit",
           "commandId": "split"
         }
@@ -137,7 +137,7 @@
           "distribution": "release",
           "asset": "RoBIM-CAD-BlockExplode-AutoCAD2026.zip",
           "description": "XCLIP 블록을 보존하고 선택 블록을 한 단계 또는 중첩 전체 분해합니다. 속성 문자의 현재 값을 보존합니다.",
-          "channel": "test",
+          "channel": "stable",
           "moduleId": "exbx",
           "commandId": "explode"
         }
@@ -158,7 +158,7 @@
           "distribution": "release",
           "asset": "RoBIM-CAD-XclipCut-AutoCAD2026.zip",
           "description": "선택 XCLIP 블록의 선·곡선·해치를 실제 절단합니다. 경계에 걸친 문자·주석은 전체 유지하며 미지원 형상은 해당 블록을 변경하지 않습니다.",
-          "channel": "test",
+          "channel": "stable",
           "moduleId": "xclip",
           "commandId": "cut"
         }

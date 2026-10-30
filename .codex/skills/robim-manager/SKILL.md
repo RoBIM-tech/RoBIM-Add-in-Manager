@@ -276,3 +276,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 
 
 2026-10-30 TEST 4 전환: docs/developer/MANAGER_WORKSPACE_TEST4.md의 로더 식별자·프로그램별 상태·리본 배치 계약을 적용한다.
+
+
+2026-10-30 정식 전환: docs/developer/STABLE_110_20261030.md의 의존성·배포 순서와 검증 범위를 따른다.
