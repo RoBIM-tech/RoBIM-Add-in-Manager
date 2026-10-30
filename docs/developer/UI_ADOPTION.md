@@ -105,3 +105,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 
 
 다중 실행 TEST: 프로그램별 적용 상태에 실행 창별 완료·대기·실패 수와 PID를 표시한다. 디자인 토큰·배치 편집 계약은 유지한다. 실제 다중 GUI 검증 결과는 MULTI_SESSION_20261030.md와 전달 기록에서 구분한다.
+
+
+Manager 1.1.1-test.2: 관리 버튼의 실제 이미지가 큰/작은/2단/3단 미리보기에 표시된다. 단독 Small 미리보기 크기도 선택을 반영한다. 기존 관리 버튼 ID·동작·사용자 저장 배치를 유지한다. MANAGEMENT_ICONS_AND_WORDING_20261030.md 참조.

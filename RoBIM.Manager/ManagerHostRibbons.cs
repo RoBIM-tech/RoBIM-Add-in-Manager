@@ -57,7 +57,7 @@ public sealed partial class ManagerForm
                     selected.Contains(CadFiles.Key(m, a)), a.Icon is null ? null : CadFiles.Child(source.Root, a.Icon))));
             cadRibbonEditor?.LoadTools(tools.Concat([
                 new RibbonTool("manager:cad-reload", "Reload", "RoBIM 관리", "관리", true),
-                new RibbonTool("manager:cad-manager", "Manager", "RoBIM 관리", "관리", true)]));
+                new RibbonTool("manager:cad-manager", "Add-in Manager", "RoBIM 관리", "관리", true)]));
             cadEditorLoaded = true;
         }
         catch (Exception error) { ReportPageFailure("CadRibbon", error); }

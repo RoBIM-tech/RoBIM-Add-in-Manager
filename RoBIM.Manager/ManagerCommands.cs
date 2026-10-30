@@ -29,7 +29,8 @@ public sealed partial class ManagerForm
         var inventory = RevitButtonInventory.Read(paths, owner.Status, revitButtonPackage);
         return (inventory.Root, inventory.Buttons, inventory.Selected, inventory.Pending);
     }
-    private IEnumerable<ButtonCard> CommandInventory() => preview ? PreviewCommands() : commandSnapshot.Where(x => !RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(x.Owner.Status.Tool));
+    private IEnumerable<ButtonCard> CommandInventory() => (preview ? PreviewCommands() : commandSnapshot.Where(x => !RevitRuntimePolicy.NativeOnly(paths) || !RevitRuntimePolicy.LegacyRoBIM(x.Owner.Status.Tool)))
+        .Select(card=>card with {Title=ToolNames.Display(card.Title),Description=ToolNames.Description(card.Description),Group=ToolNames.Group(card.Group)});
     private IEnumerable<ButtonCard> ReadCommandInventory(IEnumerable<ProductRow> owners)
     {
         if (preview)
@@ -367,7 +368,7 @@ public sealed partial class ManagerForm
         yield return new("native:auto-join:run", "자동 결합", "선택 요소의 결합과 절단 순서를 검토합니다.", "RoBIM / Element", null, native, ButtonKind.Native, true, false, "설치됨", null, "run", "auto-join", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:parameter-copy:copy", "파라미터 복사", "선택 요소 사이에서 파라미터 값을 복사합니다.", "RoBIM / Parameter", null, native, ButtonKind.Native, true, false, "설치됨", null, "copy", "parameter-copy", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:view-duplicate:run", "뷰 복제", "선택한 Revit 뷰를 복제합니다.", "RoBIM View/Sheet / View", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "run", "view-duplicate", "stable", "정식 · 예시 버전");
-        yield return new("cad:sample:run", "CAD TEST 예시", "CAD 독립 기능 TEST 예시", "AutoCAD", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "sample:run", "sample", "test", "TEST · 1.1.0-test.1");
+        yield return new("cad:sample:run", "CAD TEST 예시", "CAD 기능 TEST 예시", "AutoCAD", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "sample:run", "sample", "test", "TEST · 1.1.0-test.1");
         yield return new("cad:delhidden:cleanup", "숨김 레이어 정리", "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.", "정리 / 레이어 정리", null, cad, ButtonKind.Cad, true, false, "설치됨 · CAD 적용 완료", null, "delhidden:cleanup");
         yield return new("cad:ezsplit:split", "도면 분할", "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.", "도면 / 도면 분할", null, cad, ButtonKind.Cad, false, false, "설치 안 됨", null, "ezsplit:split");
     }

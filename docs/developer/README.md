@@ -20,7 +20,7 @@ Manager는 .NET 10 Windows x64 앱이며 Autodesk SDK를 참조하지 않습니�
 ## 카탈로그에서 카드까지
 
 - **pyRevit:** `Manager.Core/RevitButtons.cs`가 layout을 따라 bundle의 title·tooltip·아이콘과 제한된 script 문자열 메타데이터를 읽습니다. 검색 과정에서 명령 코드를 실행하지 않습니다. 운영 경로와 TEST/미공개 경로를 구분합니다. 버튼 ID는 원본의 상대 bundle 경로입니다.
-- **독립 Revit:** 중앙 목록의 모듈 ID/command ID로 다운로드 전에도 바로 설치할 단일 Native 카드를 만듭니다. 설치 시 `SingleNativeButton.Resolve`가 검증된 Release ZIP을 받거나 ID로 찾은 캐시를 사용하고, 명령이 하나이며 등록된 ID와 일치하는지 검사합니다. `robim-module.json`을 읽는 별도 기능 목록 단계는 노출하지 않습니다.
+- **Revit:** 중앙 목록의 모듈 ID/command ID로 다운로드 전에도 바로 설치할 단일 Native 카드를 만듭니다. 설치 시 `SingleNativeButton.Resolve`가 검증된 Release ZIP을 받거나 ID로 찾은 캐시를 사용하고, 명령이 하나이며 등록된 ID와 일치하는지 검사합니다. `robim-module.json`을 읽는 별도 기능 목록 단계는 노출하지 않습니다.
 - **CAD:** `robim-cad.json`의 modules/actions를 읽습니다. 명령 키는 `모듈ID:액션ID`입니다. 한 모듈에 여러 버튼이 있을 수 있습니다.
 
 검색 결과·다운로드 캐시·설치된 명령은 서로 다른 상태입니다. 원격 목록 조회 실패를 미설치로 바꾸거나 이미 설치한 명령의 제거를 원격 조회 성공에 종속시키지 않습니다.
@@ -46,7 +46,7 @@ Manager 앱의 업데이트, 공용 패키지 업데이트, 명령 선택 변경
 5. Manager 연결 확장이 `--apply-revit-reload PID StartTicks`로 적용을 요청한 뒤 표준 pyRevit Reload를 호출합니다. pyRevit core를 패치하지 않습니다.
 6. 실패는 기록과 기존 프로필을 보존하며 재시도 가능한 상태로 남깁니다.
 
-Python 버튼을 독립 C# 모듈로 자동 변환하지 않습니다. `script.cs` 등 실행 바이너리와 개발 전용 tests 프로젝트를 구별해 불필요한 재시작 차단을 피하되 실제 바이너리 변경 검사는 생략하지 않습니다.
+Python 버튼을 C# 모듈로 자동 변환하지 않습니다. `script.cs` 등 실행 바이너리와 개발 전용 tests 프로젝트를 구별해 불필요한 재시작 차단을 피하되 실제 바이너리 변경 검사는 생략하지 않습니다.
 
 ## 단일 버튼 설치와 표시 이름
 
@@ -147,7 +147,7 @@ Manager의 Revit 설치·업데이트·제거 및 리본 편집의 Revit 적용�
 
 ## 정식 도구의 새 TEST 버전
 
-새로 고침은 독립 Revit 도구의 정식 Release와 prerelease TEST를 한 번의 배포 목록 조회로 함께 확인합니다. 기본 배포가 정식인 저장소에도 더 높은 버전의 TEST가 있으면 정식 카드에 TEST 버전과 **TEST 보기** 링크를 표시하고 TEST 도구 목록에서도 같은 도구를 제공합니다. 기본 등록과 기존 정식 설치는 그대로 유지합니다. 이미 정식 버전에 포함된 오래된 TEST는 새 알림에서 제외하며, 설치된 TEST는 관리·제거를 위해 목록에 남습니다.
+새로 고침은 Revit 도구의 정식 Release와 prerelease TEST를 한 번의 배포 목록 조회로 함께 확인합니다. 기본 배포가 정식인 저장소에도 더 높은 버전의 TEST가 있으면 정식 카드에 TEST 버전과 **TEST 보기** 링크를 표시하고 TEST 도구 목록에서도 같은 도구를 제공합니다. 기본 등록과 기존 정식 설치는 그대로 유지합니다. 이미 정식 버전에 포함된 오래된 TEST는 새 알림에서 제외하며, 설치된 TEST는 관리·제거를 위해 목록에 남습니다.
 
 TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현재 버전을 TEST로 교체하고 Revit에 자동 적용을 요청합니다. 두 버전을 동시에 리본에 설치하는 기능은 아닙니다. 새 정식이 제공되면 **정식 업데이트**, 이전 정식으로 되돌릴 때는 ···의 저장소 정식 버전 설치를 사용합니다. TEST 자체의 업데이트는 내 도구와 TEST 목록에서 표시합니다. 새로고침이나 링크 클릭만으로 설치·선택·리본을 바꾸지 않습니다.
 
@@ -171,7 +171,7 @@ TEST 도구에서 **TEST 설치**를 누르고 확인하면 같은 버튼의 현
 
 ## pyRevit 제거 후 예전 버튼 잔상
 
-Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 독립 Add-in과 같은 패널에 남는 경우를 처리합니다. 선택되지 않은 예전 제어는 원래 내부 ID로 식별해 현재 세션에서 비활성·숨김 처리합니다. 파일 제거를 숨김으로 대신하지 않으며 선택된 pyRevit·독립 Add-in·다른 제품의 버튼은 유지합니다. RetiredPythonControls와 BridgeRevision=retirement-1을 적용 기록에 남깁니다. 연결 스크립트만 변경되므로 기존 백업·해시·세션 검증을 통과하면 Revit 실행 중 연결 업데이트와 표준 pyRevit Reload를 사용합니다. 실제 적용 완료는 새 세션 일치 응답과 기록을 확인합니다.
+Reload 연결 1.0.0-preview.41은 파일이 제거된 RoBIM pyRevit 버튼이 Add-in과 같은 패널에 남는 경우를 처리합니다. 선택되지 않은 예전 제어는 원래 내부 ID로 식별해 현재 세션에서 비활성·숨김 처리합니다. 파일 제거를 숨김으로 대신하지 않으며 선택된 pyRevit·Add-in·다른 제품의 버튼은 유지합니다. RetiredPythonControls와 BridgeRevision=retirement-1을 적용 기록에 남깁니다. 연결 스크립트만 변경되므로 기존 백업·해시·세션 검증을 통과하면 Revit 실행 중 연결 업데이트와 표준 pyRevit Reload를 사용합니다. 실제 적용 완료는 새 세션 일치 응답과 기록을 확인합니다.
 
 ### 실제 적용 확인 — 2026-10-27
 
@@ -179,7 +179,7 @@ Revit 2026.5 실행 중 연결 1.0.0-preview.41을 설치하고 표준 pyRevit R
 
 ## RoBIM pyRevit 사용 종료
 
-RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
+RoBIM은 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연결은 [Native 전환 절차](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/PYREVIT_RETIREMENT.md)에 따라 백업·검증 후 제거합니다. NativeOnly에서는 Host가 리본/Reload를 담당하며 pyRevit 본체·다른 확장은 유지합니다. 고정 Host 교체는 Revit 종료가 필요합니다. 새 PC 적용·재시작 후 검증 전에는 완료로 기록하지 않습니다.
 
 
 ## NativeOnly 연결 호환성 — Manager 1.0.0-preview.43
@@ -187,7 +187,7 @@ RoBIM은 독립 Native 버튼으로 운영합니다. 기존 기능과 Python 리
 동봉 Native Host는 1.0.0-preview.4입니다. preview.3에서 발견한 UI JSON 키 대소문자 문제를 수정한 Host부터 RoBIM pyRevit 제거의 필수 조건을 충족합니다. 기존 Manager UI 연결 계약은 유지합니다. 종료 후 정상 Setup 설치와 재시작 세션의 실제 applied 응답을 별도로 검증합니다. 이전 TEST 배포 파일은 교체하지 않습니다.
 
 
-2026-10-27 실제 PC 적용: 정상 Windows Setup으로 Manager 1.0.0-preview.43 및 Host 1.0.0-preview.4를 설치했습니다. Revit 재시작 후 Native Provider, 독립 기능 8개·관리 버튼 2개를 확인했습니다. Manager.Core의 RequestRevit(false)가 생성한 요청 ID와 Host의 applied 응답이 일치했고, 응답 시각이 안정적으로 유지되어 반복 적용이 없음을 확인했습니다. RoBIM Python 확장 0개·다른 확장 9개 및 기존 Native 선택을 보존했습니다. 모델을 열거나 모델 명령을 실행하는 검증은 수행하지 않았으며 TEST 배포입니다. 기본 브랜치 병합은 수행하지 않았습니다.
+2026-10-27 실제 PC 적용: 정상 Windows Setup으로 Manager 1.0.0-preview.43 및 Host 1.0.0-preview.4를 설치했습니다. Revit 재시작 후 Native Provider, 기능 8개·관리 버튼 2개를 확인했습니다. Manager.Core의 RequestRevit(false)가 생성한 요청 ID와 Host의 applied 응답이 일치했고, 응답 시각이 안정적으로 유지되어 반복 적용이 없음을 확인했습니다. RoBIM Python 확장 0개·다른 확장 9개 및 기존 Native 선택을 보존했습니다. 모델을 열거나 모델 명령을 실행하는 검증은 수행하지 않았으며 TEST 배포입니다. 기본 브랜치 병합은 수행하지 않았습니다.
 
 
 ## GitHub 팀 인증
@@ -246,7 +246,7 @@ preview.51은 Setup 설치본의 Manager 자체 자동 업데이트를 제공합
 Navisworks 메뉴는 등록 도구가 없는 빈 목록과 기본 경로 설치 버전을 제공합니다. Navisworks 플러그인 패키지 설치·실행 지원을 완료한 것은 아닙니다. .NET 8 호스트 지원은 이번 범위에서 제외합니다.
 
 
-preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으로 표시합니다. 내부 모듈·명령·설치 ID와 동작은 유지합니다.
+preview.52: 도구 메뉴와 페이지 제목의 Revit Add-in을 Revit으로 표시합니다. 내부 모듈·명령·설치 ID와 동작은 유지합니다.
 
 
 프로그램별 리본 편집: 왼쪽 Revit·AutoCAD·Navisworks 아래에 각각 리본 편집을 둡니다. Revit은 기존 탭/패널/묶음 편집과 자동 적용을, AutoCAD는 기존 CAD 구성의 버튼 이름/패널/순서와 CAD Reload 준비를 사용합니다. CAD 구성을 Revit 리본 파일에 저장하거나 Revit 적용을 호출하지 않습니다. Navisworks는 등록 도구가 없어 편집할 버튼이 없음을 표시합니다. Navisworks 저장·호스트 적용을 지원한다고 표시하지 않습니다.
@@ -259,13 +259,13 @@ preview.52: 도구 메뉴와 페이지 제목의 Revit 독립 Add-in을 Revit으
 
 ## Preview 53: Revit 리본 연결 복구
 
-리본 편집 위의 **Revit 연결 설치 / 업데이트**는 독립 Revit 연결을 설치하거나 Manager에 동봉된 검증 버전으로 갱신합니다. Revit에서 작업을 저장하고 종료한 뒤 실행하고, 다시 Revit을 시작하면 저장한 배치를 자동 적용합니다. 연결을 갱신해도 도구 선택과 리본 배치는 유지합니다.
+리본 편집 위의 **Revit 연결 설치 / 업데이트**는 Revit 연결을 설치하거나 Manager에 동봉된 검증 버전으로 갱신합니다. Revit에서 작업을 저장하고 종료한 뒤 실행하고, 다시 Revit을 시작하면 저장한 배치를 자동 적용합니다. 연결을 갱신해도 도구 선택과 리본 배치는 유지합니다.
 
 독립 모드의 Revit 적용은 설치된 연결과 동봉 패키지의 실제 파일 해시를 비교합니다. 연결이 오래된 채로 Revit이 실행 중이면 적용 완료로 표시하지 않고 연결 업데이트 절차를 안내합니다. Revit이 종료되어 있으면 적용 요청 과정에서 연결을 먼저 설치/갱신합니다. 실행 중 Revit의 연결 DLL을 교체하거나 Revit을 강제 종료하지 않습니다.
 
 ## Preview 54: Native 전용 Manager 업데이트
 
-Revit 도구·검색·새 설치·리본은 독립 C# Add-in만 사용합니다. pyRevit 메뉴와 연결 신규 설치는 제공하지 않으며, 기존 소유 잔여 설치가 있으면 설정의 고급 항목에서 백업 후 제거할 수 있습니다. 업데이트 자체는 이전 pyRevit 파일이나 사용자 리본을 자동 삭제하지 않습니다. Revit 리본 연결 업데이트와 Manager 업데이트 확인 버튼을 유지합니다.
+Revit 도구·검색·새 설치·리본은 C# Add-in만 사용합니다. pyRevit 메뉴와 연결 신규 설치는 제공하지 않으며, 기존 소유 잔여 설치가 있으면 설정의 고급 항목에서 백업 후 제거할 수 있습니다. 업데이트 자체는 이전 pyRevit 파일이나 사용자 리본을 자동 삭제하지 않습니다. Revit 리본 연결 업데이트와 Manager 업데이트 확인 버튼을 유지합니다.
 
 AutoCAD 화면의 호환성/선택 오류와 비동기 화면 오류는 로컬 cad-panel-errors.log에 기록합니다. Navisworks는 빈 도구/리본 안내를 유지합니다. Manager의 미리보기 예시도 Native 도구로 바꾸어 제거된 pyRevit 제품을 찾다가 실패하지 않게 했습니다.
 

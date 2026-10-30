@@ -21,6 +21,13 @@ internal sealed partial class RibbonEditorControl : UserControl
     private sealed record BankTool(RibbonTool Tool) { public override string ToString() => Tool.Title + (Tool.Installed ? "" : "  · 미설치"); }
     internal IEnumerable<string> AvailableIds => bank.Items.Cast<BankTool>().Select(x=>x.Tool.Id);
     internal TreeNodeCollection EditorNodes => tree.Nodes;
+    internal object[] ManagementPreviewImages()
+    {
+        IEnumerable<Control> All(Control parent)=>parent.Controls.Cast<Control>().SelectMany(c=>new[]{c}.Concat(All(c)));
+        return All(preview).OfType<PictureBox>().Where(p=>p.Image is not null && p.Tag is TreeNode{Tag:RibbonPlacement placement} && ManagementButtonIcons.IsManagement(placement.Id))
+            .Select(p=>(object)new {Id=((RibbonPlacement)((TreeNode)p.Tag!).Tag!).Id,Width=p.Image!.Width,Height=p.Image.Height}).ToArray();
+    }
+
     internal string? PreviewedTab => (SelectedTab() ?? tree.Nodes.Cast<TreeNode>().FirstOrDefault())?.Text;
     internal void SelectPreviewTab(int index) => tree.SelectedNode = tree.Nodes[index];
     internal bool PreviewSpansEditorWidth => preview.Width >= ClientSize.Width - 20 && preview.Top < tree.Parent!.Top;
@@ -201,6 +208,7 @@ internal sealed partial class RibbonEditorControl : UserControl
         var box = new Panel { Width = width, Height = height, Margin = Padding.Empty, BackColor = installed ? Color.FromArgb(244, 247, 251) : Color.FromArgb(247, 247, 247) };
         var icon = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, Size = new(large ? 30 : 16, large ? 30 : 16), Location = large ? new((width - 30) / 2, 5) : new(5, Math.Max(2, (height - 16) / 2)) };
         try { if (tool?.Icon is { } path && File.Exists(path)) { SafeFiles.NoLinks(path); if (new FileInfo(path).Length <= 2 * 1024 * 1024) { using var stream = File.OpenRead(path); using var image = Image.FromStream(stream); icon.Image = new Bitmap(image); } } } catch (Exception) { }
+        if(icon.Image is null)icon.Image=ManagementButtonIcons.Create(placement.Id,large?32:16);
         if (icon.Image is not null) { icon.Disposed += (_, _) => icon.Image?.Dispose(); box.Controls.Add(icon); }
         else { icon.Dispose(); box.Controls.Add(new Label { Text = "▣", ForeColor = installed ? Color.FromArgb(55, 100, 160) : Color.Gray, Font = new Font(Font.FontFamily, large ? 22 : 12), TextAlign = ContentAlignment.MiddleCenter, Bounds = large ? new((width - 36) / 2, 0, 36, 38) : new(2, 0, 22, height) }); }
         var label = new Label { Text = placement.Title, ForeColor = installed ? Color.FromArgb(35, 45, 60) : Color.Gray, TextAlign = large ? ContentAlignment.TopCenter : ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8.5f), Bounds = large ? new(3, 40, width - 6, height - 40) : new(27, 0, width - 30, height) };
@@ -241,7 +249,7 @@ internal sealed partial class RibbonEditorControl : UserControl
                         separator.Controls.Add(new Panel { BackColor = Color.FromArgb(190, 195, 202), Bounds = new(6, 5, 1, 68) }); columns.Controls.Add(separator);
                         WirePreview(separator, node); WirePreview(separator.Controls[0], node);
                     }
-                    else if (node.Tag is RibbonPlacement) columns.Controls.Add(PreviewButton(node, true, 104, 78));
+                    else if (node.Tag is RibbonPlacement placement) columns.Controls.Add(PreviewButton(node, placement.Size != "Small", placement.Size == "Small" ? 143 : 104, placement.Size == "Small" ? 26 : 78));
                     else if (node.Tag is StackNode stack)
                     {
                         node.Text = $"{stack.Rows}단 묶음 ({node.Nodes.Count}/{stack.Rows})";

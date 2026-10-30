@@ -8,7 +8,7 @@ public sealed record ToolSpec(string Id, string Name, ToolKind Kind, string Repo
 public static class Catalog
 {
     public static readonly ToolSpec RevitHost = new("robim-revit-host", "RoBIM Revit Host 로더", ToolKind.NativeRevitHost,
-        "RoBIM-tech/RoBIM-Revit-Addin", "main", "RoBIM.Revit.Host.bundle", "Revit 독립 Add-in 호스트 로더 (RoBIM-tech/RoBIM-Revit-Addin)");
+        "RoBIM-tech/RoBIM-Revit-Addin", "main", "RoBIM.Revit.Host.bundle", "Revit Add-in 호스트 로더 (RoBIM-tech/RoBIM-Revit-Addin)");
     public static readonly ToolSpec RevitSelected = new("robim-revit-selected", "RoBIM 버튼 선택 설치", ToolKind.PyRevit,
         "RoBIM-tech/RoBIM-pyrevit", "main", "RoBIM-Selected.extension", "기존 원본과 공용 의존성을 보존하는 버튼별 설치 프로필");
     public static readonly ToolSpec Cad = new("robim-cad-loader", "RoBIM CAD 로더", ToolKind.AutoCAD,

@@ -16,7 +16,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
             var module = NativeProtocol.Module(source);
             requireChannel?.Invoke(ModuleReleases.Native(source, module.Id, module.Version).Channel);
         }
-        if (tool.Kind != ToolKind.NativeRevit) throw new IOException("독립 Revit 모듈만 전환할 수 있습니다.");
+        if (tool.Kind != ToolKind.NativeRevit) throw new IOException("Revit 모듈만 전환할 수 있습니다.");
         var installer = new InstallService(paths, EnvironmentProbe.EnsureHostClosed);
         var legacy = installer.Status(tool);
         if (legacy.External)
