@@ -8,7 +8,8 @@ namespace RoBIM.Revit.Reload;
 public sealed record NativeCommand(string Id, string Title, string Description, string Tab, string Panel, string Assembly, string Type, string? Icon = null);
 public sealed record NativeModule(int SchemaVersion, string Id, string Version, string ReloadPolicy, NativeCommand[] Commands);
 public sealed record NativeModuleEntry(string Directory, NativeModule Manifest, string[] Selected, Dictionary<string, string> Hashes);
-public sealed record NativeRequest(int SchemaVersion, string Id, int TargetPid, long TargetStartTicks, bool ApplyRequested, NativeModuleEntry[] Modules);
+public sealed record NativeTarget(int Pid, long StartTicks);
+public sealed record NativeRequest(int SchemaVersion, string Id, int TargetPid, long TargetStartTicks, bool ApplyRequested, NativeModuleEntry[] Modules, NativeTarget[]? Targets = null);
 public sealed record NativeReceipt(string RequestId, string Status, string Message, int Pid, long StartTicks, DateTimeOffset AppliedAt);
 
 public static class NativeProtocol
@@ -64,9 +65,13 @@ public static class NativeProtocol
         }
         return module;
     }
+    public static bool Matches(NativeRequest request, int pid, long ticks) => request.TargetPid != 0
+        ? request.TargetPid == pid && request.TargetStartTicks == ticks
+        : request.Targets is null || request.Targets.Any(t => t.Pid == pid && t.StartTicks == ticks);
     public static void Validate(string data, NativeRequest request, Action? ensureSession = null)
     {
         if (request.SchemaVersion != 1 || !Guid.TryParseExact(request.Id, "N", out _) || request.TargetPid < 0 || request.TargetStartTicks < 0 || (request.TargetPid == 0) != (request.TargetStartTicks == 0) || request.Modules is null || request.Modules.Length > 128 || request.Modules.Select(x => x.Manifest.Id).Distinct().Count() != request.Modules.Length || request.Modules.Sum(x => x.Selected.Length) > 256) throw new InvalidDataException("Revit Reload 요청 오류");
+        if (request.Targets is { } targets && (request.TargetPid != 0 || targets.Length is < 1 or > 64 || targets.Any(t => t.Pid <= 0 || t.StartTicks <= 0) || targets.Select(t => t.Pid).Distinct().Count() != targets.Length)) throw new InvalidDataException("Revit 적용 대상 목록 오류");
         ensureSession?.Invoke();
         var prefix = Path.GetFullPath(Child(data, "Packages")) + Path.DirectorySeparatorChar;
         foreach (var entry in request.Modules)

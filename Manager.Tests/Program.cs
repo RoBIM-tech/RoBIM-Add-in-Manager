@@ -765,6 +765,7 @@ Test("SimpleCustomRevitRequiresClosure", () =>
 });
 
 CadReloadTests.Run(root, Test);
+MultiSessionTests.Run(root, Test);
 if (args.Contains("--online"))
 {
     try

@@ -145,29 +145,69 @@ public sealed class RibbonLayouts(ManagerPaths paths)
             throw;
         }
     }
-    public string RequestRevit(bool reload)
+    public string RequestRevit(bool reload,Func<IReadOnlyList<RevitSession>>? sessionsProbe=null)
     {
-        var session = NativeRevitCommands.Session();
-        if (session is null) return "저장됨 · 다음 Revit 시작 시 적용";
-        var ready = SafeFiles.Child(paths.Data, "UiBridgeSessions/" + session.Pid + ".json");
-        if (!File.Exists(ready)) throw new IOException("리본 연결 업데이트가 필요합니다. Revit을 종료한 뒤 연결 설치를 누르고 다시 실행하십시오.");
-        using var document = JsonDocument.Parse(File.ReadAllText(ready));
-        var bridgeVersion = document.RootElement.GetProperty("Version").GetInt32();
-        if (document.RootElement.GetProperty("StartTicks").GetInt64() != session.StartTicks || bridgeVersion is not (1 or 2 or 3))
-            throw new IOException("리본 연결 세션이 일치하지 않습니다. Revit을 다시 실행하십시오.");
-        if (bridgeVersion < 2 && Read("Revit").Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Any(b => b.Stack is not null))
-            throw new IOException("2단·3단 버튼 묶음에는 새 리본 연결이 필요합니다. Revit 종료 후 연결 설치를 업데이트하십시오.");
-        if (bridgeVersion < 3 && Read("Revit").Tabs.SelectMany(t => t.Panels).SelectMany(p => p.Buttons).Any(b => b.Kind == "Separator"))
-            throw new IOException("구분선에는 새 리본 연결이 필요합니다. Revit 종료 후 연결 설치를 업데이트하십시오.");
-        var file = SafeFiles.Child(paths.Data, "revit-ui-request.json"); SafeFiles.NoLinks(file);
-        var id = Guid.NewGuid().ToString("N");
-        var temporary = file + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(new { Id = id, session.Pid, session.StartTicks, Reload = reload })); File.Move(temporary, file, true);
-        return "Revit 적용 요청 완료 · 결과 확인을 눌러 실제 적용 상태를 확인하세요.";
+        var sessions=sessionsProbe is null?NativeRevitCommands.Sessions():sessionsProbe();
+        if(sessions.Count==0)return "저장됨 · 다음 Revit 시작 시 적용";
+        var id=Guid.NewGuid().ToString("N");var errors=new Dictionary<string,string>();var sent=0;
+        var layout=Read("Revit");
+        foreach(var session in sessions)
+        {
+            var key=session.Pid+"-"+session.StartTicks;
+            try {
+                var ready=SafeFiles.Child(paths.Data,"UiBridgeSessions/"+session.Pid+".json");
+                if(!File.Exists(ready))throw new IOException("리본 연결 업데이트 필요");
+                using var document=JsonDocument.Parse(File.ReadAllText(ready));var bridge=document.RootElement;
+                var version=bridge.GetProperty("Version").GetInt32();
+                if(bridge.GetProperty("StartTicks").GetInt64()!=session.StartTicks)throw new IOException("리본 연결 세션 불일치");
+                if(version<1 || version>4 || sessions.Count>1 && version<4)throw new IOException("여러 실행 창 적용에는 새 Revit Host가 필요합니다.");
+                if(version<2 && layout.Tabs.SelectMany(t=>t.Panels).SelectMany(p=>p.Buttons).Any(b=>b.Stack is not null))throw new IOException("묶음 지원 리본 연결 업데이트 필요");
+                if(version<3 && layout.Tabs.SelectMany(t=>t.Panels).SelectMany(p=>p.Buttons).Any(b=>b.Kind=="Separator"))throw new IOException("구분선 지원 리본 연결 업데이트 필요");
+                var request=new {Id=id,session.Pid,session.StartTicks,Reload=reload};
+                var relative=version>=4?"revit-ui-requests/"+key+".json":"revit-ui-request.json";
+                SaveUiRequest(SafeFiles.Child(paths.Data,relative),request);sent++;
+            } catch(Exception error) when(error is IOException or JsonException or InvalidOperationException or KeyNotFoundException) {errors[key]=error.Message;}
+        }
+        SaveUiRequest(SafeFiles.Child(paths.Data,"revit-ui-request-batch.json"),new {Id=id,Targets=sessions,Errors=errors});
+        return "Revit 적용 요청 "+sent+"개 · 연결 확인 필요 "+errors.Count+"개 · 실행 창별 응답을 기다립니다.";
     }
-    public string RevitResult(Func<RevitSession?>? sessionProbe = null)
+    private static void SaveUiRequest<T>(string file,T value)
     {
-        var session=sessionProbe is null ? NativeRevitCommands.Session() : sessionProbe();
+        SafeFiles.NoLinks(file);Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        var temporary=file+"."+Guid.NewGuid().ToString("N")+".tmp";
+        try{File.WriteAllText(temporary,JsonSerializer.Serialize(value));File.Move(temporary,file,true);}finally{if(File.Exists(temporary))File.Delete(temporary);}
+    }
+    private string RevitBatchResult(IReadOnlyList<RevitSession> sessions,string file)
+    {
+        using var document=JsonDocument.Parse(File.ReadAllText(file));var batch=document.RootElement;
+        var id=batch.GetProperty("Id").GetString();var errors=batch.GetProperty("Errors");
+        var targets=batch.GetProperty("Targets").Deserialize<RevitSession[]>()??[];
+        var details=new List<string>();
+        var values=sessions.Select(session=>{
+            try {
+            var key=session.Pid+"-"+session.StartTicks;
+            if(errors.TryGetProperty(key,out var error)){details.Add("PID "+session.Pid+": "+error.GetString());return new SessionApplyResult(session.Pid,session.StartTicks,"failed");}
+            if(!targets.Contains(session))return new SessionApplyResult(session.Pid,session.StartTicks,"pending");
+            var result=SafeFiles.Child(paths.Data,$"revit-ui-results/{id}-{key}.json");
+            var perSession=File.Exists(result);
+            if(!File.Exists(result) && sessions.Count==1) result=SafeFiles.Child(paths.Data,"revit-ui-result.json");
+            if(!File.Exists(result))return new SessionApplyResult(session.Pid,session.StartTicks,"pending");
+            using var receipt=JsonDocument.Parse(File.ReadAllText(result));var value=receipt.RootElement;
+            var valid=value.TryGetProperty("Id",out var actual)&&actual.GetString()==id;
+            if(perSession)valid &= value.TryGetProperty("Pid",out _) && value.TryGetProperty("StartTicks",out _);
+            if(value.TryGetProperty("Pid",out var pid))valid &= pid.GetInt32()==session.Pid;
+            if(value.TryGetProperty("StartTicks",out var ticks))valid &= ticks.GetInt64()==session.StartTicks;
+            return new SessionApplyResult(session.Pid,session.StartTicks,valid?value.GetProperty("Status").GetString()??"pending":"pending");
+            } catch(Exception error) when(error is IOException or JsonException or InvalidOperationException or KeyNotFoundException){return new SessionApplyResult(session.Pid,session.StartTicks,"failed",error.Message);}
+        }).ToArray();
+        return SessionApplyResult.Summary("Revit 리본",values)+(details.Count==0?"":" · "+string.Join(" / ",details));
+    }
+    public string RevitResult(Func<RevitSession?>? sessionProbe = null,Func<IReadOnlyList<RevitSession>>? sessionsProbe=null)
+    {
+        var sessions=sessionsProbe is not null?sessionsProbe():sessionProbe is not null?sessionProbe() is {} one?new[]{one}:Array.Empty<RevitSession>():NativeRevitCommands.Sessions();
+        var batchFile=SafeFiles.Child(paths.Data,"revit-ui-request-batch.json");
+        if(sessions.Count>0 && File.Exists(batchFile))return RevitBatchResult(sessions,batchFile);
+        var session=sessions.FirstOrDefault();
         if (session is null) return "저장됨 · Revit을 실행한 뒤 적용 상태를 확인하세요.";
         var requestFile=SafeFiles.Child(paths.Data,"revit-ui-request.json");
         if (!File.Exists(requestFile)) return "현재 Revit 세션의 리본 적용 요청이 없습니다. Revit 적용을 누르세요.";

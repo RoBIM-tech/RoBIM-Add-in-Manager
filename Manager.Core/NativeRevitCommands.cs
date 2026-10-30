@@ -7,7 +7,7 @@ namespace RoBIM.Manager.Core;
 
 public sealed record RevitSession(int Pid, long StartTicks);
 public sealed record NativeCatalogPackage(string Path, string Version, Dictionary<string, string> Hashes);
-public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>? sessionProbe = null, Action<string>? requireChannel = null)
+public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>? sessionProbe = null, Action<string>? requireChannel = null, Func<IReadOnlyList<RevitSession>>? sessionsProbe = null)
 {
     public void ToggleWithMigration(ToolSpec tool, string source, string commandId, bool selected)
     {
@@ -34,21 +34,22 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         try { Toggle(source, commandId, selected); }
         catch { if (backup is not null) installer.Restore(tool, backup); throw; }
     }
-    private RevitSession? CurrentSession() => sessionProbe is null ? Session() : sessionProbe();
+    private IReadOnlyList<RevitSession> CurrentSessions() => sessionsProbe is not null ? sessionsProbe() : sessionProbe is not null ? sessionProbe() is { } one ? [one] : [] : Sessions();
+    private RevitSession? CurrentSession() { var sessions=CurrentSessions(); return sessions.Count==0?null:sessions.Count==1?sessions[0]:new(0,0); }
     public string Data => SafeFiles.Child(paths.Data, "NativeRevit");
-    public static RevitSession? Session()
+    public static RevitSession? Session() { var sessions=Sessions(); return sessions.Count==0?null:sessions.Count==1?sessions[0]:new(0,0); }
+    public static IReadOnlyList<RevitSession> Sessions()
     {
-        var processes = Process.GetProcessesByName("Revit");
-        try
+        var result=new List<RevitSession>();
+        foreach(var process in Process.GetProcessesByName("Revit"))
         {
-            if (processes.Length > 1) throw new IOException("Revit을 한 개만 실행한 상태에서 Reload 대상을 선택하십시오.");
-            if (processes.Length == 0) return null;
-            var executable = processes[0].MainModule?.FileName ?? throw new IOException("실행 중 Revit 버전을 확인할 수 없습니다.");
-            var version = FileVersionInfo.GetVersionInfo(executable);
-            if (version.FileMajorPart != 26 || version.FileMinorPart < 5) throw new IOException("독립 Reload 대상은 Revit 2026.5+입니다. 다른 버전의 Revit을 종료한 후 다시 준비하십시오.");
-            return new(processes[0].Id, processes[0].StartTime.ToUniversalTime().Ticks);
+            using(process) { try {
+                var executable=process.MainModule?.FileName; if(executable is null) continue;
+                var version=FileVersionInfo.GetVersionInfo(executable);
+                if(version.FileMajorPart==26 && version.FileMinorPart>=5) result.Add(new(process.Id,process.StartTime.ToUniversalTime().Ticks));
+            } catch(Exception error) when(error is System.ComponentModel.Win32Exception or InvalidOperationException) { } }
         }
-        finally { foreach (var process in processes) process.Dispose(); }
+        return result;
     }
     public NativeRequest? Desired()
     {
@@ -81,9 +82,11 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var pending = NativeProtocol.Child(Data, "pending.json");
         if (!File.Exists(pending)) throw new IOException("먼저 설치·제거 또는 변경할 기능을 준비하십시오.");
         var request = NativeProtocol.Read<NativeRequest>(pending); NativeProtocol.Validate(Data, request);
-        var session = CurrentSession() ?? throw new IOException("Revit을 실행하면 준비한 기능을 시작 시 적용합니다.");
-        EnsureTarget(request, session);
-        NativeProtocol.Save(pending, request with { TargetPid = session.Pid, TargetStartTicks = session.StartTicks, ApplyRequested = true });
+        var sessions=CurrentSessions();
+        var session=sessions.Count==1?sessions[0]:sessions.Count>1?new RevitSession(0,0):throw new IOException("Revit을 실행하면 준비한 기능을 시작 시 적용합니다.");
+        if(request.TargetPid!=0 && !sessions.Any(s=>s.Pid==request.TargetPid && s.StartTicks==request.TargetStartTicks)) EnsureTarget(request,session);
+        var outgoing=request with {TargetPid=session.Pid,TargetStartTicks=session.StartTicks,Targets=sessions.Count>1?sessions.Select(s=>new NativeTarget(s.Pid,s.StartTicks)).ToArray():null,ApplyRequested=true};
+        NativeProtocol.Validate(Data,outgoing);NativeProtocol.Save(pending,outgoing);
     }
     public bool HasUpdate(string moduleId)
     {
@@ -94,7 +97,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     {
         var desired = Desired(); if (desired is null) return;
         var currentSession = CurrentSession();
-        if (currentSession is not null) EnsureTarget(desired, currentSession);
+        if (currentSession is not null && currentSession.Pid!=0) EnsureTarget(desired, currentSession);
         NativeRequest? prepared = null;
         foreach (var entry in desired.Modules)
         {
@@ -130,8 +133,15 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     {
         var desired = Desired(); if (desired is null) return (false, false, "설치 안 됨");
         var selected = desired.Modules.Any(m => m.Manifest.Id == moduleId && m.Selected.Contains(commandId));
-        RevitSession? session;
-        try { session = CurrentSession(); } catch (IOException ex) { return (selected, true, ex.Message); }
+        var sessions=CurrentSessions();
+        if(sessions.Count>1) {
+            var results=sessions.Select(s=>{
+                try {var receipt=Receipt(desired,s);return new SessionApplyResult(s.Pid,s.StartTicks,receipt?.Status??"pending",receipt?.Message);}
+                catch(Exception error) when(error is IOException or JsonException){return new SessionApplyResult(s.Pid,s.StartTicks,"failed",error.Message);}
+            }).ToArray();
+            return(selected,results.Any(r=>r.Status!="applied"),SessionApplyResult.Summary("Revit",results));
+        }
+        RevitSession? session=sessions.SingleOrDefault();
         var applied = session is null ? null : Receipt(desired, session);
         if (applied?.Status == "failed") return (selected, true, "Reload 실패: " + applied.Message);
         if (applied?.Status == "applied" && applied.RequestId == desired.Id) return (selected, false, selected ? "설치됨 · Reload 완료" : "제거됨 · Reload 완료");

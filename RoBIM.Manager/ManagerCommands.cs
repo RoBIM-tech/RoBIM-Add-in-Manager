@@ -140,14 +140,11 @@ public sealed partial class ManagerForm
     {
         var bridge = new CadReload(paths); var desired = bridge.Desired(CadFeaturePackages.IsFeature(owner.Package?.Package) ? paths.Target(Catalog.Cad) : owner.Status.Path);
         if (desired is null) return (false, false, "설치 안 됨");
-        var selected = desired.SelectedActions.Contains(key); var file = CadFiles.Child(bridge.Data, "Results/" + desired.Id + ".json");
-        var result = File.Exists(file) ? CadFiles.Read<CadReceipt>(file) : null;
-        if (result?.RequestId == desired.Id && result.Status == "applied") return (selected, false, selected ? "설치됨 · CAD 적용 완료" : "설치 안 됨");
-        var activeFile = CadFiles.Child(bridge.Data, "active.json");
-        var wasSelected = File.Exists(activeFile) && CadFiles.Read<CadRequest>(activeFile).SelectedActions.Contains(key);
-        if (result?.Status == "failed" && (selected || wasSelected)) return (selected, true, "CAD Reload 실패");
-        // An unselected button may be pending removal; never describe it as already removed.
-        return (selected, selected || wasSelected, selected ? "설치 준비됨 · CAD Reload 필요" : wasSelected ? "제거 준비됨 · CAD Reload 필요" : "설치 안 됨");
+        var selected=desired.SelectedActions.Contains(key);var results=bridge.SessionResults(desired);
+        var activeFile=CadFiles.Child(bridge.Data,"active.json");
+        var wasSelected=File.Exists(activeFile)&&CadFiles.Read<CadRequest>(activeFile).SelectedActions.Contains(key);
+        if(results.Count>0) return(selected,(selected||wasSelected)&&results.Any(r=>r.Status!="applied"),SessionApplyResult.Summary("CAD",results));
+        return(selected,selected||wasSelected,selected?"설치 준비됨 · 다음 AutoCAD 시작 후 Reload":"제거 준비됨 · 다음 AutoCAD 시작 후 Reload");
     }
     private async Task LoadButtonCatalog(ProductRow owner)
     {
@@ -218,11 +215,9 @@ public sealed partial class ManagerForm
                     input = await ExtensionSources().Download(feature.Repository, feature.Package, selectedChannel);
                 }
                 if(expected is not null && input is not null) ProgramUpdateBatch.Verify(expected,input.Version,selectedChannel);
-                var sessions = CadReload.Sessions();
-                if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하십시오.");
                 var package = feature.Package with { Channel = selectedChannel };
                 EnsureBatchCurrent();
-                new CadFeaturePackages(paths).Set(package, input, enable, sessions.SingleOrDefault());
+                new CadFeaturePackages(paths).Set(package, input, enable, null);
                 WriteLog("AutoCAD 버튼 준비 완료 · AutoCAD에서 Reload하십시오.");
             }
             else if (card.Kind == ButtonKind.Cad)
@@ -246,8 +241,7 @@ public sealed partial class ManagerForm
                     await Task.Run(() => installer.Install(card.Owner.Status.Tool, new(source.Bundle, cadButtonPackage?.Version ?? "CAD 연결 모듈")));
                 }
                 var bridge = new CadReload(paths);
-                var sessions = CadReload.Sessions(); if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하거나 버튼 구성 화면에서 대상 세션을 선택하십시오.");
-                await Task.Run(() => bridge.Toggle(card.Owner.Status.Tool, source, card.CommandId, enable, sessions.SingleOrDefault()));
+                await Task.Run(() => bridge.Toggle(card.Owner.Status.Tool, source, card.CommandId, enable, null));
                 if (enable && update && cadButtonPackage is not null) new CadReleaseVersions(paths).Record(source, cadButtonPackage.Version);
                 WriteLog("CAD 버튼 변경 준비 완료 — AutoCAD에서 Reload하십시오.");
             }
