@@ -318,13 +318,16 @@ public sealed partial class ManagerForm
         stableOffers.Clear(); stableOfferErrors.Clear();
         // Exercise navigation from the actual link against the preview fixture's stable card.
         var sample=PreviewCommands().First(c=>c.Kind==ButtonKind.Native && c.Channel=="stable" && c.Selected);
+        updateErrors.Clear();testOfferErrors.Clear();stableOfferErrors.Clear();
         updateOffers[sample.Owner.Status.Tool.Id]=new("0.2.0","stable"); testOffers[sample.Owner.Status.Tool.Id]=new("0.3.0-test.1","test");
         productSearch.Clear(); Navigate("Revit");
+        Require(programUpdateAll.Enabled && BatchPlan("revit").Length>0,"Program batch action enables only when actual updates exist");
         var optionalBinding=cardBindings[sample.Id];
         Require(optionalBinding.TestInstall.Visible && optionalBinding.TestInstall.Enabled,"Prominent TEST install is visible alongside stable update");
         Require(optionalBinding.Action.Text=="업데이트" && optionalBinding.TestInstall.Text=="TEST 설치","Stable and TEST actions are both available");
         updateOffers[sample.Owner.Status.Tool.Id]=new(sample.SelectedVersion,"stable");RenderProductCards();
         optionalBinding=cardBindings[sample.Id];
+        Require(!programUpdateAll.Enabled,"Optional TEST notice never enables bulk update");
         Require(optionalBinding.Card.BackColor==Color.FromArgb(255,251,222),"Sixth color identifies installed stable with newer optional TEST");
         Require(optionalBinding.TestInstall.Visible && optionalBinding.State.Text.Contains("새 TEST 제공"),"Optional TEST version has a visible install button and label");
         busy=true;RefreshCardActions();Require(!optionalBinding.TestInstall.Enabled,"Busy prevents TEST mutation");busy=false;RefreshCardActions();
