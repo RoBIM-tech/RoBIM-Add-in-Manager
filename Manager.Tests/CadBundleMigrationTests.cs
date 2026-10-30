@@ -19,6 +19,17 @@ internal static class CadBundleMigrationTests
             new InstallService(paths).Install(legacy,new(source,"1.0.2-test.2"));
             return(paths,legacy,source);
         }
+        test("LegacyCadInstallIdNormalizesWithoutWritingAndRejectsConflict",()=>{
+            var f=Fixture("identity"); var installer=new InstallService(f.Paths);
+            var file=Path.Combine(f.Paths.Data,"installed.json");
+            var original=installer.ReadState()[Catalog.Cad.Id];
+            File.WriteAllText(file,JsonSerializer.Serialize(new Dictionary<string,InstallRecord>{{"delhidden",original with{Id="delhidden"}}}));
+            var before=File.ReadAllText(file);
+            Require(installer.ReadState()[Catalog.Cad.Id].Id==Catalog.Cad.Id,"Legacy record not normalized");
+            Require(File.ReadAllText(file)==before,"Read rewrote state");
+            File.WriteAllText(file,JsonSerializer.Serialize(new Dictionary<string,InstallRecord>{{"delhidden",original with{Id="delhidden"}},{Catalog.Cad.Id,original with{Version="conflict"}}}));
+            Reject(()=>installer.ReadState());
+        });
         test("CadBundleLegacyRegistryNormalizesWithoutRewritingUserFile",()=>{
             var directory=Path.Combine(root,"legacy-loader-registry");Directory.CreateDirectory(directory);
             var paths=new ManagerPaths(directory,Path.Combine(directory,"plugins"),Path.Combine(directory,"revit"));
@@ -26,9 +37,9 @@ internal static class CadBundleMigrationTests
             var repo=new ExtensionRepository("gagaggan/RoBIM-CAD","main",[old],"fixture");
             var file=Path.Combine(directory,"extension-repositories.json");File.WriteAllText(file,JsonSerializer.Serialize(new[]{repo}));var before=File.ReadAllBytes(file);
             var result=new ExtensionCatalog(paths).Registered().Single(r=>r.Repository==Catalog.Cad.Repository);
-            var normalized=result.Packages.Single(p=>p.Id=="delhidden");
+            var normalized=result.Packages.Single(p=>p.Id==Catalog.Cad.Id);
             Require(normalized.Folder==CadLoaderAssets.BundleName&&normalized.Asset==CadLoaderAssets.Name,"Legacy registry not normalized");
-            Require(ExtensionCatalog.CurrentPackage(old,result)==normalized&&ExtensionCatalog.Tool(repo,old).Id=="delhidden","Old package identity not preserved");
+            Require(ExtensionCatalog.CurrentPackage(old,result)==normalized&&ExtensionCatalog.Tool(repo,old).Id==Catalog.Cad.Id,"Old package identity not preserved");
             Require(before.SequenceEqual(File.ReadAllBytes(file)),"Reading registry rewrote user data");
         });
         test("CadBundleRenamePreservesIdentityBackupAndRibbon",()=>{

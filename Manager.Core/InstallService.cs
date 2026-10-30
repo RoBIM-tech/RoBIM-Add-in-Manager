@@ -19,14 +19,24 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     public Dictionary<string, InstallRecord> ReadState()
     {
         SafeFiles.NoLinks(StatePath);
-        return File.Exists(StatePath)
+        var state = File.Exists(StatePath)
             ? JsonSerializer.Deserialize<Dictionary<string, InstallRecord>>(File.ReadAllText(StatePath))
                 ?? throw new InvalidDataException("설치 기록을 읽을 수 없습니다.")
             : new();
+        if (state.Remove("delhidden", out var legacy))
+        {
+            if (legacy.Id != "delhidden" || !CadLoaderAssets.IsBundle(Path.GetFileName(legacy.Path))) throw new InvalidDataException("기존 CAD 로더 기록을 확인하십시오.");
+            var migrated = legacy with { Id = Catalog.Cad.Id };
+            if (state.TryGetValue(Catalog.Cad.Id, out var current) && (current.Path != migrated.Path || current.Version != migrated.Version || !SafeFiles.Same(current.Hashes, migrated.Hashes))) throw new InvalidDataException("신·구 CAD 로더 기록이 충돌합니다.");
+            state[Catalog.Cad.Id] = migrated;
+        }
+        return state;
     }
 
     private void Save(Dictionary<string, InstallRecord> state)
     {
+        if (File.Exists(StatePath) && File.ReadAllText(StatePath).Contains("\"delhidden\""))
+            File.Copy(StatePath, StatePath + ".before-loader-identity-" + Guid.NewGuid().ToString("N"));
         var temporary = StatePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(state, Json));
         File.Move(temporary, StatePath, true);
@@ -52,7 +62,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
 
     private void ValidateRecord(ToolSpec tool, InstallRecord record, bool backup = false)
     {
-        if (record.Id != tool.Id || (!Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase) &&
+        if ((record.Id != tool.Id && !(backup && tool.Id == Catalog.Cad.Id && record.Id == "delhidden")) || (!Path.GetFullPath(record.Path).Equals(Path.GetFullPath(paths.Target(tool)), StringComparison.OrdinalIgnoreCase) &&
             !(backup && tool.Kind == ToolKind.PyRevit && PyRevitLocation.HistoricalTarget(paths, tool, record.Path)) &&
             !(backup && tool.Id == Catalog.Cad.Id && Path.GetFullPath(record.Path).Equals(Path.GetFullPath(Path.Combine(paths.CadPlugins, CadLoaderAssets.LegacyBundleName)), StringComparison.OrdinalIgnoreCase))))
             throw new InvalidDataException("설치 기록의 경로가 현재 관리 경로와 다릅니다.");
@@ -71,9 +81,9 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     public IReadOnlyList<BackupInfo> Backups(ToolSpec tool)
     {
         var root = SafeFiles.Child(paths.Data, "Backups/" + tool.Id);
-        if (!Directory.Exists(root)) return [];
+        var roots = tool.Id == Catalog.Cad.Id ? new[] { root, SafeFiles.Child(paths.Data, "Backups/delhidden") } : new[] { root };
         var result = new List<BackupInfo>();
-        foreach (var directory in Directory.GetDirectories(root).OrderDescending())
+        foreach (var directory in roots.Where(Directory.Exists).SelectMany(Directory.GetDirectories).OrderDescending())
         {
             SafeFiles.NoLinks(directory);
             var file = Path.Combine(directory, "record.json");
@@ -258,6 +268,7 @@ public sealed class InstallService(ManagerPaths paths, Action<ToolSpec>? ensureH
     {
         ValidateRecord(tool, backup.Record, true);
         var root = SafeFiles.Child(paths.Data, "Backups/" + tool.Id);
+        if (tool.Id == Catalog.Cad.Id && Path.GetDirectoryName(Path.GetFullPath(backup.Directory))!.Equals(SafeFiles.Child(paths.Data, "Backups/delhidden"), StringComparison.OrdinalIgnoreCase)) root = SafeFiles.Child(paths.Data, "Backups/delhidden");
         var directory = SafeFiles.Child(root, Path.GetFileName(backup.Directory));
         if (!directory.Equals(Path.GetFullPath(backup.Directory), StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("복원 경로가 관리 백업 폴더 밖에 있습니다.");

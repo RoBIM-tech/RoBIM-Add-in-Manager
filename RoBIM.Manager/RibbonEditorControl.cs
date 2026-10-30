@@ -19,6 +19,7 @@ internal sealed partial class RibbonEditorControl : UserControl
     private bool updating;
     private sealed record StackNode(string Id, int Rows);
     private sealed record BankTool(RibbonTool Tool) { public override string ToString() => Tool.Title + (Tool.Installed ? "" : "  · 미설치"); }
+    internal IEnumerable<string> AvailableIds => bank.Items.Cast<BankTool>().Select(x=>x.Tool.Id);
     internal TreeNodeCollection EditorNodes => tree.Nodes;
     internal string? PreviewedTab => (SelectedTab() ?? tree.Nodes.Cast<TreeNode>().FirstOrDefault())?.Text;
     internal void SelectPreviewTab(int index) => tree.SelectedNode = tree.Nodes[index];
@@ -51,7 +52,7 @@ internal sealed partial class RibbonEditorControl : UserControl
         root.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 0, 0, 10), Text = "큰 버튼은 한 칸을 사용합니다. 2단·3단 묶음을 만든 뒤 그 안으로 버튼을 드래그하면 한 칸에 세로로 쌓입니다.\n패널과 버튼 묶음은 가로로 배치됩니다. 미설치 버튼은 회색이며 배치를 저장해도 설치하지 않습니다." }, 0, 1);
         var columns = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
         columns.ColumnStyles.Add(new(SizeType.Percent, 39)); columns.ColumnStyles.Add(new(SizeType.Percent, 61)); columns.ColumnStyles.Add(new(SizeType.Absolute, 220)); columns.RowStyles.Add(new(SizeType.Absolute, 30)); columns.RowStyles.Add(new(SizeType.Percent, 100));
-        foreach (var (title, col) in new[] { ("설치 가능한 버튼", 0), ("탭 / 패널 / 버튼 묶음", 1), ("편집 / 저장", 2) }) columns.Controls.Add(new Label { Text = title, AutoSize = true, Font = new Font(Font, FontStyle.Bold) }, col, 0);
+        foreach (var (title, col) in new[] { ("배치 가능한 버튼", 0), ("탭 / 패널 / 버튼 묶음", 1), ("편집 / 저장", 2) }) columns.Controls.Add(new Label { Text = title, AutoSize = true, Font = new Font(Font, FontStyle.Bold) }, col, 0);
         columns.Controls.Add(bank, 0, 1); columns.Controls.Add(tree, 1, 1); columns.Controls.Add(actions, 2, 1); root.Controls.Add(columns, 0, 2);
         var properties = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new(0, 10, 0, 8) };
         properties.Controls.Add(new Label { Text = "표시 이름", AutoSize = true, Padding = new(0, 5, 5, 0) }); properties.Controls.Add(caption);
@@ -209,6 +210,9 @@ internal sealed partial class RibbonEditorControl : UserControl
     private void Changed()
     {
         if (suspendPreview) return;
+        var placed = Descendants(tree.Nodes).Where(n => n.Tag is RibbonPlacement { Kind: not "Separator" }).Select(n => ((RibbonPlacement)n.Tag!).Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bank.Items.Clear();
+        foreach (var tool in tools.Where(t => !placed.Contains(t.Id))) bank.Items.Add(new BankTool(tool));
         foreach (var child in preview.Controls.Cast<Control>().ToArray()) child.Dispose();
         var selectedTab = SelectedTab() ?? tree.Nodes.Cast<TreeNode>().FirstOrDefault();
         var tabs = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new(8, 4, 8, 0) };

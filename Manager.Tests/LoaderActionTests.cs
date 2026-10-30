@@ -39,7 +39,7 @@ internal static class LoaderActionTests
             var old=new ExtensionPackage("delhidden","CAD","autocad",Catalog.Cad.FolderName,Catalog.Cad.FolderName,"release",CadLoaderAssets.LegacyName);
             var current=old with{Asset=CadLoaderAssets.Name};
             var repo=new ExtensionRepository(Catalog.Cad.Repository,"main",[current],"fixture");
-            Require(ExtensionCatalog.CurrentPackage(old,repo)==current && ExtensionCatalog.Tool(repo,current).Id=="delhidden","Rename changed installation identity");
+            Require(ExtensionCatalog.CurrentPackage(old,repo)==current && ExtensionCatalog.Tool(repo,current).Id==Catalog.Cad.Id,"Rename changed installation identity");
             var rejected=false;try{ExtensionCatalog.CurrentPackage(old,repo with{Packages=[current with{Asset="other.zip"}]});}catch(IOException){rejected=true;}
             Require(rejected,"Arbitrary asset migration accepted");
         });

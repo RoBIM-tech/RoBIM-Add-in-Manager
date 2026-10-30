@@ -9,9 +9,9 @@
   },
   "cad": {
     "repository": "RoBIM-tech/RoBIM-CAD-Loader",
-    "tag": "v1.1.0-test.3",
-    "version": "1.1.0-test.3",
+    "tag": "v1.1.0-test.4",
+    "version": "1.1.0-test.4",
     "asset": "RoBIM-CAD-Loader-AutoCAD2026.zip",
-    "sha256": "7fcd8d2b0e6a758d6131d4530a2113cef7e2bd44b21e53e79dbe7f228fd76d64"
+    "sha256": "dc4c82141adcaef0cc8aa833ea0faba96eed7e2eff96be5aadbd7bee7f3b4a27"
   }
 }

@@ -64,7 +64,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
 
     public async Task<SourcePackage> DownloadCad(string? channel = null)
     {
-        var package = new ExtensionPackage("delhidden", "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", CadLoaderAssets.Name);
+        var package = new ExtensionPackage(Catalog.Cad.Id, "RoBIM CAD", "autocad", Catalog.Cad.FolderName, Catalog.Cad.FolderName, "release", CadLoaderAssets.Name);
         if (channel is not null) package = package with { Channel = channel };
         var offer = await ReleaseUpdates.Check(new(Catalog.Cad.Repository, Catalog.Cad.Branch, [package], "legacy CAD"), package);
         requireChannel?.Invoke(offer.Channel);
@@ -93,7 +93,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
     // explicitly requested channel and verify GitHub's asset digest before use.
     public async Task<string> DownloadLoader(ToolSpec tool, string channel)
     {
-        if (channel is not ("stable" or "test") || tool.Id is not ("delhidden" or "robim-revit-host"))
+        if (channel is not ("stable" or "test") || tool.Id != Catalog.Cad.Id && tool.Id != Catalog.RevitHost.Id)
             throw new IOException("지원하지 않는 로더 또는 배포 채널입니다.");
         requireChannel?.Invoke(channel);
         var asset = tool.Kind == ToolKind.AutoCAD ? CadLoaderAssets.Name : "RoBIM-Host-Revit2026.zip";

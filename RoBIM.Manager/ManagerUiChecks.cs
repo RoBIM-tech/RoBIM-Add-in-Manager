@@ -47,15 +47,12 @@ public sealed partial class ManagerForm
         ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000); Show(); Application.DoEvents();
         Require(currentPage == "Revit" && cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Revit includes stable and TEST independent Add-ins");
         Require(!navigation.Any(x => (string?)x.Tag is "PyRevit" or "Developer" or "Locations"), "Retired pyRevit pages are absent");
-        Require(nativeReload.Text == "독립 Add-in Reload", "Independent Add-in Reload label");
+        Require(!nativeReload.Visible, "Product page has no duplicate Reload");
+        Require(!navigation.Any(x => (string?)x.Tag is "All" or "Mine" or "Test"), "Aggregate pages removed");
         Require(UpdateTargets().All(p => p.Package.Host != "pyrevit"), "Retired pyRevit is excluded from update queries");
         SwitchPage("PyRevit"); Require(currentPage == "Revit", "Historical pyRevit page routes safely to Revit");
         void Navigate(string id) { ((Button)navigation.Single(x => (string?)x.Tag == id)).PerformClick(); Application.DoEvents(); }
-        Navigate("Test"); Require(cardBindings.Count == 2 && cardBindings.Values.All(x => x.Row.Channel == "test"), "TEST index contains Revit and CAD TEST commands");
-        Require(cardBindings.Values.All(x => x.Row.ReleaseLabel.StartsWith("TEST")), "TEST badge includes version");
-        Navigate("All"); Require(cardBindings.Count == 6, "All lists buttons from both hosts");
-        Require(productCards.ClientSize.Height > 200, "Full content height without profile note");
-        Navigate("Mine"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Selected), "My tools is per-button selection");
+        foreach(var oldPage in new[]{"All","Mine","Test"}) { SwitchPage(oldPage); Require(currentPage=="Revit","Old page maps to program "+oldPage); }
         Navigate("Cad"); Require(cardBindings.Count == 3 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Cad), "AutoCAD includes stable and TEST commands");
         Require(!nativeReload.Visible, "Native Revit Reload hidden on AutoCAD page");
         Navigate("CadRibbon");
@@ -92,13 +89,13 @@ public sealed partial class ManagerForm
         Require(navigation.Single(x=>(string?)x.Tag=="Ribbon").AccessibleName=="Revit 리본 편집" && navigation.Single(x=>(string?)x.Tag=="CadRibbon").AccessibleName=="AutoCAD 리본 편집", "Ribbon navigation identifies the owning program");
         Require(navigation.First().Parent is ScrollableControl nav && !nav.HorizontalScroll.Visible, "Program ribbon navigation fits without horizontal scrolling");
         Navigate("Revit"); Require(cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Independent Revit excludes pyRevit and CAD actions");
-        Require(nativeReload.Visible, "Native Revit Reload available on Revit page");
+        Require(!nativeReload.Visible, "Reload belongs to ribbon editor");
         productSearch.Text = "OCR-no-match"; Require(cardBindings.Count == 0, "Empty search state");
         productSearch.Clear(); Navigate("Revit"); productSearch.Text = "파라미터"; Require(cardBindings.Count == 1 && cardBindings.Values.Single().Row.Title == "파라미터 복사", "Search button title and description");
         productSearch.Clear(); Navigate("Revit");
-        productSearch.Text = "독립"; Require(cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
-        productSearch.Clear(); Navigate("All"); productSort.SelectedIndex = 2;
-        Require(cardBindings.Values.Take(3).All(x => x.Row.Selected), "Selected-first sorting");
+        productSearch.Text = "도구"; Require(cardBindings.Count == 5 && cardBindings.Values.All(x => x.Row.Kind == ButtonKind.Native), "Native versus pyRevit search");
+        productSearch.Clear(); Navigate("Revit"); productSort.SelectedIndex = 2;
+        Require(cardBindings.Values.Take(2).All(x => x.Row.Selected), "Selected-first sorting");
         productSort.SelectedIndex = 1; var names = cardBindings.Values.Select(x => x.Row.Title).ToArray();
         Require(names.SequenceEqual(names.OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase)), "Button name sorting");
         foreach (var binding in cardBindings.Values)
@@ -113,7 +110,7 @@ public sealed partial class ManagerForm
         busy = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled), "Busy disables all feature mutations"); busy = false; RefreshCardActions();
         refreshingSnapshot = true; RefreshCardActions(); Require(cardBindings.Values.All(x => !x.Action.Enabled && !x.More.Enabled), "Snapshot verification blocks stale card actions and menus"); refreshingSnapshot = false; RefreshCardActions();
         var scans = inventoryScanCount;
-        Navigate("Cad"); Navigate("Revit"); Navigate("All"); productSearch.Text = "자동 결합"; productSearch.Clear();
+        Navigate("Cad"); Navigate("Revit"); Navigate("Revit"); productSearch.Text = "자동 결합"; productSearch.Clear();
         Require(inventoryScanCount == scans, "Navigation and search never rescan installed packages");
         Require(CardColumnCount(380, 96) == 1 && CardColumnCount(900, 96) == 2 && CardColumnCount(1400, 96) == 3, "Responsive one/two/three column breakpoints");
         Require(CardColumnCount(2100, 144) == 3 && CardColumnCount(900, 144) == 1, "DPI-aware column breakpoints");
@@ -345,6 +342,20 @@ public sealed partial class ManagerForm
             using(var bitmap=new Bitmap(owners.Width,owners.Height)){owners.DrawToBitmap(bitmap,new Rectangle(Point.Empty,owners.Size));bitmap.Save(destination+".publishers.png");}
             controls.OfType<Button>().Single(b=>b.Text=="저장").PerformClick();
             Require(owners.Result is { IncludeConnectedAccount:false, Publishers.Length:2 } && !owners.Result.Publishers[0].Enabled,"Publisher dialog persists enable toggle and account scope");
+        }
+        SwitchPage("Revit"); productSearch.Clear(); productFilter.SelectedIndex=1;
+        Require(cardBindings.Values.All(c=>c.Row.Selected||c.Row.Pending),"Installed filter replaces My tools");
+        productFilter.SelectedIndex=3;
+        Require(cardBindings.Values.All(c=>!c.Row.Selected&&!c.Row.Pending),"Uninstalled filter");
+        productFilter.SelectedIndex=0; channelFilter.SelectedIndex=2;
+        Require(cardBindings.Values.All(c=>c.Row.CollectionChannel=="test"||NewTestAvailable(c.Row)),"Program TEST filter");
+        channelFilter.SelectedIndex=0;
+        using(var editor=new RibbonEditorControl(new RibbonLayouts(paths),true)) {
+            editor.LoadTools([new("bank:a","A","Tab","Panel",true),new("bank:b","B","Tab","Panel",true)]);
+            editor.LoadLayout(new(1,"Revit",[new("Tab",[new("Panel",[new("bank:a","A")])])]));
+            Require(editor.AvailableIds.SequenceEqual(new[]{"bank:b"}),"Placed button excluded from bank");
+            editor.LoadLayout(new(1,"Revit",[]));
+            Require(editor.AvailableIds.Count()==2,"Deleting a tab restores its buttons to bank");
         }
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }

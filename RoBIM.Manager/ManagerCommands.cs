@@ -126,7 +126,7 @@ public sealed partial class ManagerForm
         var command = SingleNativeButton.Registration(registered.Repository, registered.Package);
         var state = preview || command is null ? (Selected: false, Pending: false, Message: "설치 안 됨") : NativeCommands().State(command.ModuleId, command.CommandId);
         return new(command is null ? "native-package:" + owner.Status.Tool.Id : "native:" + command.ModuleId + ":" + command.CommandId,
-            ToolNames.Display(owner.Status.Tool.Name), owner.Status.Tool.Description, "독립 Add-in", null, owner, ButtonKind.Native,
+            ToolNames.Display(owner.Status.Tool.Name), owner.Status.Tool.Description, "도구", null, owner, ButtonKind.Native,
             state.Selected, state.Pending, state.Message, null, command?.CommandId ?? "", command?.ModuleId ?? "",
             registered.Package.Channel, registered.Package.Channel == "test" ? "TEST · 설치 시 버전 확인" : "설치 시 버전 확인");
     }
@@ -179,9 +179,9 @@ public sealed partial class ManagerForm
     private async Task ImportNativePackage()
     {
         if (busy || preview) return;
-        using var picker = new OpenFileDialog { Title = "독립 Revit 모듈 ZIP 선택 (.sha256 필요)", Filter = "Revit 모듈 ZIP|*.zip", CheckFileExists = true };
+        using var picker = new OpenFileDialog { Title = "Revit 모듈 ZIP 선택 (.sha256 필요)", Filter = "Revit 모듈 ZIP|*.zip", CheckFileExists = true };
         if (picker.ShowDialog(this) != DialogResult.OK) return;
-        await Run("독립 Revit 기능 확인", async () => { await Task.Run(() => NativeCommands().Import(picker.FileName)); });
+        await Run("Revit 기능 확인", async () => { await Task.Run(() => NativeCommands().Import(picker.FileName)); });
         SwitchPage("Revit");
     }
     private async Task ToggleButton(ButtonCard card, bool? installChoice = null, string? releaseChannel = null)
@@ -214,7 +214,7 @@ public sealed partial class ManagerForm
                 if (sessions.Count > 1) throw new IOException("AutoCAD를 한 개만 실행하십시오.");
                 var package = feature.Package with { Channel = selectedChannel };
                 new CadFeaturePackages(paths).Set(package, input, enable, sessions.SingleOrDefault());
-                WriteLog("독립 CAD 버튼 준비 완료 · AutoCAD에서 Reload하십시오.");
+                WriteLog("AutoCAD 버튼 준비 완료 · AutoCAD에서 Reload하십시오.");
             }
             else if (card.Kind == ButtonKind.Cad)
             {
@@ -358,7 +358,7 @@ public sealed partial class ManagerForm
         var cad = productRows.First(x => x.Status.Tool.Id == Catalog.Cad.Id);
         var native = productRows.First(x => x.Status.Tool.Kind == ToolKind.NativeRevit);
         yield return new("native:sheets:create-sheets", "목록표로 시트 생성", "DWG·PDF·스캔 PDF에서 도면번호와 도면명을 읽고, 검토한 목록으로 시트를 일괄 생성합니다.", "RoBIM 도면 / 시트", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "create-sheets", "sheets", "stable", "실사용 · 0.2.0 · 예시 버전");
-        yield return new("native:sample-test:sample", "신규 기능 TEST", "독립 Add-in 검증용 예시입니다.", "RoBIM TEST / 독립 도구", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "sample", "sample-test", "test", "TEST · 0.1.0-test.2", "화면 확인용 예시");
+        yield return new("native:sample-test:sample", "신규 기능 TEST", "도구 검증용 예시입니다.", "RoBIM TEST / 도구", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "sample", "sample-test", "test", "TEST · 0.1.0-test.2", "화면 확인용 예시");
         yield return new("native:auto-join:run", "자동 결합", "선택 요소의 결합과 절단 순서를 검토합니다.", "RoBIM / Element", null, native, ButtonKind.Native, true, false, "설치됨", null, "run", "auto-join", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:parameter-copy:copy", "파라미터 복사", "선택 요소 사이에서 파라미터 값을 복사합니다.", "RoBIM / Parameter", null, native, ButtonKind.Native, true, false, "설치됨", null, "copy", "parameter-copy", "stable", "정식 · 예시 버전", SelectedChannel: "stable", SelectedVersion: "0.1.0");
         yield return new("native:view-duplicate:run", "뷰 복제", "선택한 Revit 뷰를 복제합니다.", "RoBIM View/Sheet / View", null, native, ButtonKind.Native, false, false, "설치 안 됨", null, "run", "view-duplicate", "stable", "정식 · 예시 버전");

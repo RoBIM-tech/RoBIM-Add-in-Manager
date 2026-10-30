@@ -7,8 +7,8 @@
       "recognition": "RoBIM 중앙 등록",
       "packages": [
         {
-          "id": "delhidden",
-          "name": "RoBIM CAD 도구",
+          "id": "robim-cad-loader",
+          "name": "RoBIM CAD 로더",
           "host": "autocad",
           "path": "RoBIM.Cad.Loader.bundle",
           "folder": "RoBIM.Cad.Loader.bundle",

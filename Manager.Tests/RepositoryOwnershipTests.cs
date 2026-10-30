@@ -23,7 +23,7 @@ internal static class RepositoryOwnershipTests
                     var oldRepo = repo with { Repository = RepositoryOwnership.LegacyIdentity(repo.Repository) };
                     var current = ExtensionCatalog.Tool(repo, package); var old = ExtensionCatalog.Tool(oldRepo, package);
                     Require(old.Id == current.Id, "Owner move changed record key: " + package.Id);
-                    if (package.Id == "delhidden") Require(current.Id == "delhidden", "CAD fixed identity changed");
+                    if (package.Id == Catalog.Cad.Id) Require(current.Id == Catalog.Cad.Id, "CAD fixed identity changed");
                     else
                     {
                         var legacy = package.Id == "robim-revit-sheets" ? "gagaggan/RoBIM-Revit-Addin" : oldRepo.Repository;

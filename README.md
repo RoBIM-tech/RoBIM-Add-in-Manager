@@ -239,3 +239,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 로더 ZIP 이름은 RoBIM-CAD-Loader-AutoCAD2026.zip입니다. 기존 설치 폴더·ID는 유지하며 Manager는 구 이름의 정식 Release도 읽습니다. 업데이트 비활성 이유는 로컬 변경/외부 설치 보호, 저장소 확인 필요, 제공 버전 없음, 최신/이전/비교 불가로 구분합니다. TEST를 선택한 경우 설치 1.0.2-test.2 → 제공 1.1.0-test.2는 업데이트 대상이며 파일 보호 조건은 별도로 적용합니다. [변경 기록](docs/developer/LOADER_ARCHIVE_AND_ACTIONS_20261030.md).
 
 사용자 추가 승인에 따라 설치 폴더도 RoBIM.Cad.Loader.bundle로 변경합니다. 구 DelHiddenNet.bundle은 정상 관리 설치만 호스트 종료·해시 확인·백업 후 새 경로로 이전하고, 저장 실패 시 구 경로와 기록을 복구합니다. 실제 설치 ID와 명령 ID, 리본 파일은 유지합니다. 로컬 변경·외부 설치·신구 경로 충돌은 차단합니다.
+
+
+2026-10-30 TEST 4 전환: docs/developer/MANAGER_WORKSPACE_TEST4.md의 로더 식별자·프로그램별 상태·리본 배치 계약을 적용한다.
