@@ -13,6 +13,7 @@ public sealed partial class ManagerForm
     // Applying an explicitly chosen change does not opt into unrelated cached updates.
     private string RequestAutomaticRevitApply(bool native, bool pyRevit, bool layout = false)
     {
+        if(batchUpdating){batchNeedsNative|=native;batchNeedsLayout|=layout;return "일괄 업데이트 준비 후 적용을 요청합니다.";}
         if (!ReloadBridge.RevitRunning()) return "변경 저장 완료 · 다음 Revit 시작 시 적용";
         var messages = new List<string>();
         if (native && File.Exists(Path.Combine(paths.Data, "NativeRevit", "pending.json")))

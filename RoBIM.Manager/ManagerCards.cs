@@ -36,7 +36,8 @@ public sealed partial class ManagerForm
         productFilter.SelectedIndexChanged += (_,_) => RenderProductCards(); channelFilter.SelectedIndexChanged += (_,_) => RenderProductCards();
         var refresh = MakeButton("새로고침");
         searchRow.Controls.Add(productSearch, 0, 0); searchRow.Controls.Add(productSort, 1, 0);
-        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(productFilter,3,0); searchRow.Controls.Add(channelFilter,4,0);
+        searchRow.Controls.Add(refresh, 2, 0); searchRow.Controls.Add(productFilter,3,0); searchRow.Controls.Add(channelFilter,4,0); searchRow.Controls.Add(programUpdateAll,5,0);
+        programUpdateAll.Click += async (_,_) => await UpdateProgramTools();
         nativeReload.Click += async (_, _) =>
         {
             var page = currentPage;
@@ -226,8 +227,11 @@ public sealed partial class ManagerForm
     {
         nativeReload.Visible = false;
         nativeReload.Text = currentPage is "Revit" or "Test" ? "도구 Reload" : "Revit 전체 Reload";
-        var ready = !busy && !refreshingSnapshot && (preview || snapshotVerified);
+        var ready = !busy && !batchUpdating && !refreshingSnapshot && (preview || snapshotVerified);
         nativeReload.Enabled = ready && !preview;
+        var batchCount=BatchHost is {} host?BatchPlan(host).Length:0;
+        programUpdateAll.Text="일괄 업데이트"+(batchCount>0?" ("+batchCount+")":"");
+        programUpdateAll.Enabled=ready && batchCount>0;
         foreach (var binding in cardBindings.Values)
         {
             var feature = binding.Row;

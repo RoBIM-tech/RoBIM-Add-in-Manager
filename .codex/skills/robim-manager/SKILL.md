@@ -279,3 +279,5 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 
 
 2026-10-30 정식 전환: docs/developer/STABLE_110_20261030.md의 의존성·배포 순서와 검증 범위를 따른다.
+
+프로그램별 일괄 업데이트는 선택 사항 TEST 전환·미설치·조회 실패를 제외하고 단일 확인 후 순차 준비한다. Revit 자동 적용은 마지막 한 번, CAD는 최종 Reload를 사용한다. docs/user/PROGRAM_BULK_UPDATE.md 참조.
