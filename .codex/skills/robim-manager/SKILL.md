@@ -284,3 +284,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 
 
 여러 실행 창 지원은 docs/developer/MULTI_SESSION_20261030.md를 따른다. 단일 실행 차단 문구보다 새 TEST 계약이 우선한다. PID·시작 시각·요청별 응답을 검사하고 실제 GUI 다중 실행 확인과 자동 회귀를 구분한다. 고정 로더 교체에는 전체 해당 호스트 종료가 필요하다.
+
+
+2026-10-30 정식 승격: Manager 1.1.1 / Revit Host 1.0.1 / CAD Loader 1.1.1은 docs/developer/STABLE_111_20261030.md를 따른다. 기존 TEST·사용자 리본·기능 패키지는 보존한다.

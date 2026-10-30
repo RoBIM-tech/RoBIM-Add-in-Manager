@@ -71,3 +71,6 @@ RoBIM은 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연
 ## CAD 버튼 TEST 전환 · 2026-10-29
 
 현재 분리 작업은 [전환 계약](https://github.com/RoBIM-tech/RoBIM-Workspace/blob/codex/cad-loader-button-split/docs/developer/CAD_INDEPENDENT_PACKAGES.md)을 따릅니다. CAD 로더 저장소는 RoBIM-CAD-Loader로 변경됐으며 기능 4개는 별도 저장소입니다. 후보 조회는 제외합니다. 기존 설치·명령 ID와 정식 Release는 보존합니다. 새로운 패키지는 TEST이며 실제 호스트 검증과 main 병합·정식 승격은 별도입니다. 이전 통합 CAD 공급 설명보다 이 전환 계약이 우선합니다.
+
+
+2026-10-30 정식 승격: Manager 1.1.1 / Revit Host 1.0.1 / CAD Loader 1.1.1은 docs/developer/STABLE_111_20261030.md를 따른다. 기존 TEST·사용자 리본·기능 패키지는 보존한다.
