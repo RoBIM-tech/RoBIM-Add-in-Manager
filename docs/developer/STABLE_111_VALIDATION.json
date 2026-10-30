@@ -1,0 +1,30 @@
+{
+  "version": "1.1.1",
+  "channel": "stable",
+  "validation": {
+    "by": "Codex automated checks; promotion requested by JMNOH",
+    "hostBuild": "Windows x64 / .NET 10; Revit 2026.5; AutoCAD R25.1.179.0.0",
+    "evidence": [
+      "https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/MULTI_SESSION_20261030.md",
+      "https://github.com/RoBIM-tech/RoBIM-Workspace/blob/main/docs/developer/MANAGEMENT_ICONS_AND_WORDING_DELIVERY_20261030.md"
+    ],
+    "scope": "Same tested implementation; stable version and stable bundled package locks. Actual stable PC installation and state preservation verified separately in final delivery."
+  },
+  "bundledPackages": {
+    "schemaVersion": 1,
+    "revitHost": {
+      "repository": "RoBIM-tech/RoBIM-Revit-Addin",
+      "tag": "host-v1.0.1",
+      "version": "1.0.1",
+      "asset": "RoBIM-Host-Revit2026.zip",
+      "sha256": "cc78fa5632f6ebb7c2bae39cbbd2b6f2792691fb625ac15f8619234cabe1b9c3"
+    },
+    "cad": {
+      "repository": "RoBIM-tech/RoBIM-CAD-Loader",
+      "tag": "v1.1.1",
+      "version": "1.1.1",
+      "asset": "RoBIM-CAD-Loader-AutoCAD2026.zip",
+      "sha256": "cbff7ac483882efe12870d0163ede5afa1f95035f976e3a316ee0ebf4182ed20"
+    }
+  }
+}

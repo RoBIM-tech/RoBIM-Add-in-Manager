@@ -1,4 +1,4 @@
-여러 실행 창 TEST: [적용 방법·구현과 검증 범위](docs/developer/MULTI_SESSION_20261030.md).
+여러 실행 창 지원 · 정식 1.1.1: [적용 방법·구현과 검증 범위](docs/developer/MULTI_SESSION_20261030.md).
 
 # RoBIM Add-in Manager
 
@@ -250,3 +250,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 
 
 [관리 버튼 미리보기·도구 표시 문구 정리](docs/developer/MANAGEMENT_ICONS_AND_WORDING_20261030.md)
+
+
+2026-10-30 정식 승격: Manager 1.1.1 / Revit Host 1.0.1 / CAD Loader 1.1.1은 docs/developer/STABLE_111_20261030.md를 따른다. 기존 TEST·사용자 리본·기능 패키지는 보존한다.
