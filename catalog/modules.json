@@ -163,6 +163,27 @@
           "commandId": "cut"
         }
       ]
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-SelectiveTransfer",
+      "branch": "main",
+      "role": "button",
+      "packages": [
+        {
+          "id": "robim-selective-transfer",
+          "name": "선택적 표준 전송",
+          "host": "revit",
+          "path": "RoBIM.Feature.SelectiveTransfer.bundle",
+          "folder": "RoBIM.Feature.SelectiveTransfer.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Feature.SelectiveTransfer-Revit2026.zip",
+          "description": "선택적 표준 전송 · 독립 Add-in",
+          "channel": "test",
+          "moduleId": "selective-transfer",
+          "commandId": "run"
+        }
+      ],
+      "recognition": "RoBIM 중앙 등록"
     }
   ],
   "commands": [
@@ -214,6 +235,13 @@
       "moduleId": "xclip",
       "commandId": "cut",
       "host": "autocad"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-SelectiveTransfer",
+      "packageId": "robim-selective-transfer",
+      "moduleId": "selective-transfer",
+      "commandId": "run",
+      "host": "revit"
     }
   ],
   "repositoryPolicy": {
