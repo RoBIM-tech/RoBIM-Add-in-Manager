@@ -12,8 +12,8 @@ AppId=RoBIM.AddinManager.Test
 AppId=RoBIM.AddinManager
 #endif
 AppName=RoBIM Add-in Manager
-AppVersion=1.1.0-test.4
-AppVerName=RoBIM Add-in Manager 1.1.0-test.4
+AppVersion=1.1.0-test.5
+AppVerName=RoBIM Add-in Manager 1.1.0-test.5
 AppPublisher=RoBIM
 AppPublisherURL=https://github.com/RoBIM-tech/RoBIM-Add-in-Manager
 DefaultDirName={localappdata}\Programs\RoBIM Manager
@@ -34,7 +34,7 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.1.0.4
+VersionInfoVersion=1.1.0.5
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"

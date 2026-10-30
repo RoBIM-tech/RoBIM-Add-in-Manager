@@ -38,7 +38,7 @@ public sealed partial class ManagerForm
         foreach (var original in inventory ?? CommandInventory())
         {
             var card = original;
-            if (!CanUseTest && IndependentRelease(card) && card.CollectionChannel != "stable" && page != "Mine")
+            if (!CanUseTest && IndependentRelease(card) && card.CollectionChannel != "stable" && !card.Selected)
             {
                 var stable = ChannelOffer(card, "stable");
                 if (stable is null) continue;

@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RoBIM.Manager</AssemblyName>
     <ApplicationIcon>..\assets\RoBIM.Manager.ico</ApplicationIcon>
-    <Version>1.1.0-test.4</Version>
+    <Version>1.1.0-test.5</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Product>RoBIM Add-in Manager</Product>
     <Description>AutoCAD 및 Revit 도구 설치 관리자</Description>

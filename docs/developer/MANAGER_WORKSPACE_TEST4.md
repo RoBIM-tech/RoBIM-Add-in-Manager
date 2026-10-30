@@ -9,3 +9,5 @@
 고정 CAD 로더 명령은 ROBIMRUN·ROBIMRELOAD를 제공한다. 기존 DHNET/DELHIDDENNET 및 기능별 Reload·Split 별칭은 제거하며 리본의 명령 ID로 실행한다. 레이어 정리 ID delhidden:cleanup은 유지한다. 과거 기능 DLL을 읽는 FeatureHost 기본값은 이전 기능 호환용이며 신규 런타임은 매니페스트의 타입/어셈블리 이름을 전달한다.
 
 실제 사용자 PC 적용, 실제 호스트 실행, 정식 승격은 각각 별도 확인한다. main 병합과 정식 승격은 이 TEST 작업에 포함하지 않는다.
+
+Manager TEST 5는 TEST 메뉴 제거 후 일반 사용자의 기존 TEST 설치 제거 경로도 프로그램 화면에 유지한다. CAD Loader는 TEST 4를 사용한다.

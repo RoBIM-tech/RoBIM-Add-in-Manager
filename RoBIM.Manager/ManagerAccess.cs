@@ -138,7 +138,7 @@ public sealed partial class ManagerForm
                     await teamAccess.Refresh(); ApplyAccessState();
                     Require(productsPage.Enabled && CanUseTest == (roleTeam != "robim"), "RoleUiScope_" + roleTeam);
                     SwitchPage("Test");
-                    Require((currentPage == "Test") == (roleTeam != "robim"), "TestNavigationScope_" + roleTeam);
+                    Require(currentPage == "Revit", "RemovedTestPageRoutesToProgram_" + roleTeam);
                     var denied = false;
                     try { RequireChannelAccess("test"); } catch (IOException) { denied = true; }
                     Require(denied == (roleTeam == "robim"), "TestActionScope_" + roleTeam);
