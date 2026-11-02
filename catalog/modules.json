@@ -184,6 +184,27 @@
         }
       ],
       "recognition": "RoBIM 중앙 등록"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-SheetViewPlacement",
+      "branch": "main",
+      "role": "button",
+      "packages": [
+        {
+          "id": "robim-sheet-view-placement",
+          "name": "시트 뷰 배치",
+          "host": "revit",
+          "path": "RoBIM.Feature.SheetViewPlacement.bundle",
+          "folder": "RoBIM.Feature.SheetViewPlacement.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Feature.SheetViewPlacement-Revit2026.zip",
+          "description": "시트 뷰 배치",
+          "channel": "test",
+          "moduleId": "sheet-view-placement",
+          "commandId": "run"
+        }
+      ],
+      "recognition": "RoBIM 중앙 등록"
     }
   ],
   "commands": [
@@ -240,6 +261,13 @@
       "repository": "RoBIM-tech/RoBIM-Revit-SelectiveTransfer",
       "packageId": "robim-selective-transfer",
       "moduleId": "selective-transfer",
+      "commandId": "run",
+      "host": "revit"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-SheetViewPlacement",
+      "packageId": "robim-sheet-view-placement",
+      "moduleId": "sheet-view-placement",
       "commandId": "run",
       "host": "revit"
     }
