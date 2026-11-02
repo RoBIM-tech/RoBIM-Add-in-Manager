@@ -56,6 +56,7 @@ public static class ReleaseUpdates
         Find(releases, package) ?? throw new IOException("배포 구분에 맞는 ZIP을 찾지 못했습니다.");
     private static ReleaseOffer? Find(JsonElement releases, ExtensionPackage package)
     {
+        ReleaseOffer? newest = null;
         foreach (var release in releases.EnumerateArray())
         {
             if (release.GetProperty("draft").GetBoolean() || (package.Channel is "test" or "stable" && release.GetProperty("prerelease").GetBoolean() != (package.Channel == "test"))) continue;
@@ -65,10 +66,13 @@ public static class ReleaseUpdates
                 var digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
                 if (asset.GetProperty("size").GetInt64() is <= 0 or > 128L * 1024 * 1024 || digest is null || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$"))
                     throw new IOException("ZIP 크기 또는 SHA-256 배포 검증 정보 오류");
-                return new(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" ? (release.GetProperty("prerelease").GetBoolean() ? "test" : "stable") : package.Channel, asset.GetProperty("id").GetInt64(), digest);
+                var candidate = new ReleaseOffer(release.GetProperty("tag_name").GetString()!, package.Channel == "unknown" ? (release.GetProperty("prerelease").GetBoolean() ? "test" : "stable") : package.Channel, asset.GetProperty("id").GetInt64(), digest);
+                if (newest is null || IsNewer(newest.Version, newest.Channel, candidate))
+                    newest = candidate;
+                break;
             }
         }
-        return null;
+        return newest;
     }
     public static bool VersionsComparable(string first, string second) => Parse(first) is not null && Parse(second) is not null;
     public static bool IsNewer(string installed, string installedChannel, ReleaseOffer offer)
@@ -92,11 +96,26 @@ public static class ReleaseUpdates
         var aa = a.Split('.'); var bb = b.Split('.');
         for (var i = 0; i < Math.Min(aa.Length, bb.Length); i++)
         {
-            var an = BigInteger.TryParse(aa[i], out var av); var bn = BigInteger.TryParse(bb[i], out var bv);
-            var difference = an && bn ? av.CompareTo(bv) : an != bn ? (an ? -1 : 1) : string.CompareOrdinal(aa[i], bb[i]);
+            var difference = CompareIdentifier(aa[i], bb[i]);
             if (difference != 0) return difference < 0;
         }
         return aa.Length < bb.Length;
+    }
+    private static int CompareIdentifier(string a, string b)
+    {
+        var an = BigInteger.TryParse(a, out var av); var bn = BigInteger.TryParse(b, out var bv);
+        if (an && bn) return av.CompareTo(bv);
+        if (an != bn) return an ? -1 : 1;
+        var chunksA = Regex.Matches(a, @"\d+|\D+");
+        var chunksB = Regex.Matches(b, @"\d+|\D+");
+        for (var i = 0; i < Math.Min(chunksA.Count, chunksB.Count); i++)
+        {
+            var ca = chunksA[i].Value; var cb = chunksB[i].Value;
+            var can = BigInteger.TryParse(ca, out var cav); var cbn = BigInteger.TryParse(cb, out var cbv);
+            var diff = can && cbn ? cav.CompareTo(cbv) : string.Compare(ca, cb, StringComparison.OrdinalIgnoreCase);
+            if (diff != 0) return diff;
+        }
+        return chunksA.Count.CompareTo(chunksB.Count);
     }
     private static (BigInteger[] Numbers, string Pre)? Parse(string text)
     {
