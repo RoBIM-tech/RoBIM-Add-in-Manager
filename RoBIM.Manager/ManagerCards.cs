@@ -249,7 +249,7 @@ public sealed partial class ManagerForm
             binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : testAvailable ? Color.FromArgb(202, 174, 66) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
-            binding.State.Text = !repositoryAllowed ? RepositoryStatus(feature) switch {
+            binding.State.Text = !repositoryAllowed && !feature.Selected && feature.Pending ? "제거 준비됨 · 호스트 적용 대기" : !repositoryAllowed ? RepositoryStatus(feature) switch {
                 ToolAccessStatus.Checking => "저장소 권한 확인 중…",
                 ToolAccessStatus.Denied => "저장소 권한 없음 · 설치 기록 보존",
                 _ => "저장소 확인 실패 · 다시 확인 필요"
@@ -266,7 +266,7 @@ public sealed partial class ManagerForm
                 }
             }
             binding.Instruction.Text = appearance.Instruction;
-            var detail = repositoryAllowed ? appearance.Message + "\n" + appearance.Instruction : "저장소 접근 또는 연결을 확인한 뒤 새로 고치십시오. 설치된 도구 제거는 메뉴에서 가능합니다.";
+            var detail = repositoryAllowed ? appearance.Message + "\n" + appearance.Instruction : "저장소 접근을 확인할 수 없습니다. 설치된 도구는 제거할 수 있으며, 제거 적용이 완료되면 목록에서 사라집니다.";
             if (binding.Tips.GetToolTip(binding.State) != detail) binding.Tips.SetToolTip(binding.State, detail);
             if (binding.Tips.GetToolTip(binding.Action) != appearance.Instruction) binding.Tips.SetToolTip(binding.Action, appearance.Instruction);
         }
