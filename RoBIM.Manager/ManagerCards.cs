@@ -201,8 +201,6 @@ public sealed partial class ManagerForm
         if (status.Tool.Id == Catalog.Cad.Id)
         {
             menu.Items.Add(new ToolStripSeparator());
-            var offlineItem = menu.Items.Add("CAD 동봉 버전 설치", null, async (_, _) => { if (!busy && !preview) { SelectLegacy(status.Tool.Id); await InstallSelected(true); } });
-            offlineItem.Enabled = !status.External && !status.Modified;
             var download = menu.Items.Add("최신 기능 다운로드 / Reload 준비", null, async (_, _) => { if (!busy && !preview) { SelectProduct(status.Tool.Id); await ConfigureCadButtons(true); } });
             var zip = menu.Items.Add("패키지 ZIP에서 Reload 준비", null, async (_, _) => { if (!busy && !preview) { SelectProduct(status.Tool.Id); await PrepareCadArchive(); } });
             download.Enabled = zip.Enabled = CadConfigurable(row);
@@ -236,20 +234,21 @@ public sealed partial class ManagerForm
         {
             var feature = binding.Row;
             var appearance = AppearanceFor(feature);
-            binding.Action.Text = PrimaryText(feature, appearance);
-            binding.Action.Enabled = ready && appearance.Enabled;
+            var repositoryAllowed = RepositoryPermitted(feature);
+            binding.Action.Text = repositoryAllowed ? PrimaryText(feature, appearance) : "권한 확인";
+            binding.Action.Enabled = ready && appearance.Enabled && repositoryAllowed;
             binding.More.Enabled = ready;
             var updateState = appearance.Update;
             var selected = feature.Selected;
             var testAvailable = CanUseTest && selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
             var testUpdate = updateState && IndependentRelease(feature) && NativeReleaseState(feature).Update?.Channel == "test";
             var testInstalled = selected && feature.SelectedChannel == "test";
-            binding.TestInstall.Visible = testAvailable; binding.TestInstall.Enabled=ready && appearance.Enabled && testAvailable;
+            binding.TestInstall.Visible = testAvailable; binding.TestInstall.Enabled=ready && appearance.Enabled && testAvailable && repositoryAllowed;
             binding.Card.BackColor = testUpdate ? Color.FromArgb(246, 237, 255) : updateState ? Color.FromArgb(255, 246, 232) : testInstalled ? Color.FromArgb(233, 243, 255) : testAvailable ? Color.FromArgb(255, 251, 222) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
             binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : testAvailable ? Color.FromArgb(202, 174, 66) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
-            binding.State.Text = (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            binding.State.Text = !repositoryAllowed ? "저장소 권한 확인 필요 · 설치 기록 보존" : (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
             if (binding.State is LinkLabel link)
             {
                 link.Links.Clear();
@@ -262,7 +261,7 @@ public sealed partial class ManagerForm
                 }
             }
             binding.Instruction.Text = appearance.Instruction;
-            var detail = appearance.Message + "\n" + appearance.Instruction;
+            var detail = repositoryAllowed ? appearance.Message + "\n" + appearance.Instruction : "저장소 접근 또는 연결을 확인한 뒤 새로 고치십시오. 설치된 도구 제거는 메뉴에서 가능합니다.";
             if (binding.Tips.GetToolTip(binding.State) != detail) binding.Tips.SetToolTip(binding.State, detail);
             if (binding.Tips.GetToolTip(binding.Action) != appearance.Instruction) binding.Tips.SetToolTip(binding.Action, appearance.Instruction);
         }

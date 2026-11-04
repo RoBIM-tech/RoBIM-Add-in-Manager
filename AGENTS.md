@@ -74,3 +74,6 @@ RoBIM은 Native 버튼으로 운영합니다. 기존 기능과 Python 리본 연
 
 
 2026-10-30 정식 승격: Manager 1.1.1 / Revit Host 1.0.1 / CAD Loader 1.1.1은 docs/developer/STABLE_111_20261030.md를 따른다. 기존 TEST·사용자 리본·기능 패키지는 보존한다.
+
+
+2026-11-04 TEST 후보: 도구별 저장소 권한·로더 별도 다운로드는 docs/developer/TOOL_REPOSITORY_ACCESS_20261104.md를 따릅니다. 실제 사용자 적용과 안정 배포는 별도 확인합니다.

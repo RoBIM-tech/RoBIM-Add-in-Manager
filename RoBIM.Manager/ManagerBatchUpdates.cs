@@ -8,7 +8,7 @@ public sealed partial class ManagerForm
     private string? BatchHost => currentPage=="Revit"?"revit":currentPage=="Cad"?"autocad":null;
     private ProgramUpdateTarget[] BatchPlan(string host) => ProgramUpdateBatch.Plan(host,CanUseTest,
         CommandInventory().Where(IndependentRelease).Select(c=>new ProgramUpdateItem(c.Id,c.Title,c.Kind==ButtonKind.Native?"revit":"autocad",c.SelectedVersion,c.SelectedChannel,c.Selected,
-            !AppearanceFor(c).Legacy && AppearanceFor(c).Enabled && !c.Owner.Status.Modified && !c.Owner.Status.External,
+            !AppearanceFor(c).Legacy && AppearanceFor(c).Enabled && RepositoryPermitted(c) && !c.Owner.Status.Modified && !c.Owner.Status.External,
             updateErrors.ContainsKey(c.Owner.Status.Tool.Id)||testOfferErrors.ContainsKey(c.Owner.Status.Tool.Id)||stableOfferErrors.ContainsKey(c.Owner.Status.Tool.Id),ChannelOffer(c,"stable"),ChannelOffer(c,"test"))));
     private async Task UpdateProgramTools()
     {

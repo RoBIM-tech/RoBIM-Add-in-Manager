@@ -98,7 +98,7 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
         requireChannel?.Invoke(channel);
         var asset = tool.Kind == ToolKind.AutoCAD ? CadLoaderAssets.Name : "RoBIM-Host-Revit2026.zip";
         using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
-        if (!response.IsSuccessStatusCode) throw new IOException("로더 릴리스를 조회하지 못했습니다.");
+        if (!response.IsSuccessStatusCode) throw new IOException($"{tool.Repository} 로더 저장소를 확인할 수 없습니다. 로그인한 계정의 저장소 읽기 권한과 조직 접근 승인을 확인하십시오. (HTTP {(int)response.StatusCode})");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var (assetId, digest) = SelectLoaderAsset(json.RootElement, asset, channel);
         var archive = Path.Combine(NewCache(), asset);
@@ -157,7 +157,15 @@ public sealed class Sources(ManagerPaths paths, Action<string>? requireChannel =
     {
         var asset = tool.Id == Catalog.Cad.Id ? CadLoaderAssets.Name : tool.Id == Catalog.RevitHost.Id ? "RoBIM-Host-Revit2026.zip" : throw new IOException("로더 ID 오류");
         using var response = await GitHubSession.Request("/repos/" + tool.Repository + "/releases?per_page=100");
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return ParseLoaderResponse(tool.Repository, asset, includeTest, response.StatusCode, await response.Content.ReadAsStringAsync());
+    }
+    public static ReleaseChannels ParseLoaderResponse(string repository, string asset, bool includeTest, System.Net.HttpStatusCode status, string body)
+    {
+        if ((int)status is < 200 or >= 300)
+            throw new IOException($"{repository} 로더 저장소를 확인할 수 없습니다. 로그인한 계정의 저장소 읽기 권한과 조직 접근 승인을 확인하십시오. (HTTP {(int)status})");
+        using var json = JsonDocument.Parse(body);
+        if (json.RootElement.ValueKind != JsonValueKind.Array)
+            throw new IOException($"{repository} 로더 배포 목록의 응답 형식이 올바르지 않습니다. 잠시 후 다시 확인하십시오.");
         ReleaseOffer? stable = null, test = null; string? stableError = null, testError = null;
         try { stable = LoaderOffer(json.RootElement, asset, "stable"); } catch (IOException error) { stableError = error.Message; }
         if (includeTest) try { test = LoaderOffer(json.RootElement, asset, "test"); } catch (IOException error) { testError = error.Message; }

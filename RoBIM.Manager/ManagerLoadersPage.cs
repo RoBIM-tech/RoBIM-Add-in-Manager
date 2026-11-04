@@ -16,6 +16,8 @@ public sealed partial class ManagerForm
     private void BuildLoadersPage()
     {
         var body = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
+        body.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(850, 0), Padding = new Padding(12),
+            Text = "도구별 저장소 권한을 적용하려면 이 Manager와 새 Revit·CAD 로더를 함께 사용해야 합니다. 로더는 로그인 후 저장소에서 다운로드합니다. 로더 교체 전 해당 프로그램을 모두 종료하십시오." });
         void Card(string name, string repository, string path, Label status, string action, ToolSpec tool, Func<string, Task> apply)
         {
             var card = new FlowLayoutPanel { Width = 850, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12), BackColor = Color.White, Margin = new Padding(0, 0, 0, 12) };

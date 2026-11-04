@@ -4,18 +4,8 @@ $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 python (Join-Path $PSScriptRoot 'scripts/validate_registration.py')
 if ($LASTEXITCODE -ne 0) { throw 'Central button catalog validation failed.' }
-# Compatibility switch retained for existing build commands. CAD is a separately released package.
-$cadPackage = if ($CadPackagePath) { [IO.Path]::GetFullPath($CadPackagePath) } else { Join-Path $PSScriptRoot 'artifacts\RoBIM-CAD-Loader-AutoCAD2026.zip' }
-if (!(Test-Path -LiteralPath $cadPackage) -or !(Test-Path -LiteralPath ($cadPackage + '.sha256'))) {
-    if ($CadPackagePath) { throw 'Explicit CAD package and its .sha256 sidecar are required.' }
-    & (Join-Path $PSScriptRoot 'fetch-cad-package.ps1')
-}
-if ((Get-FileHash -LiteralPath $cadPackage).Hash -ne (Get-Content -LiteralPath ($cadPackage + '.sha256') -Raw).Trim()) { throw 'Cached CAD release SHA-256 mismatch' }
-$hostPackage = if ($RevitHostPackagePath) { [IO.Path]::GetFullPath($RevitHostPackagePath) } else { Join-Path $PSScriptRoot 'artifacts\RoBIM-Host-Revit2026.zip' }
-if (!(Test-Path -LiteralPath $hostPackage) -or !(Test-Path -LiteralPath ($hostPackage + '.sha256')) -or (Get-FileHash -LiteralPath $hostPackage).Hash -ne (Get-Content -LiteralPath ($hostPackage + '.sha256') -Raw).Trim()) { throw 'A verified RoBIM-Host-Revit2026.zip release asset is required. Pass -RevitHostPackagePath; Manager never builds module repositories.' }
+# Loader packages are fetched by Manager after sign-in, never embedded in a Manager distribution.
 $output = Join-Path $PSScriptRoot 'artifacts\RoBIM-Manager'
-& (Join-Path $PSScriptRoot 'scripts/Test-BundledPackages.ps1') -RevitHostPackagePath $hostPackage -CadPackagePath $cadPackage -AllowCandidateCad:$SkipSetup
-if (!$?) { throw 'Locked release package verification failed.' }
 if (Test-Path -LiteralPath $output) {
     Get-ChildItem -LiteralPath $output -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 }
@@ -50,12 +40,6 @@ foreach ($framework in $runtimeConfig.runtimeOptions.includedFrameworks) {
         elseif ($license -eq 'LICENSE.TXT') { throw ('Runtime license missing: ' + $framework.name) }
     }
 }
-$cad = $cadPackage
-Copy-Item -LiteralPath $cad -Destination (Join-Path $output 'RoBIM-CAD-Loader-AutoCAD2026.zip') -Force
-Copy-Item -LiteralPath $hostPackage -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip') -Force
-Copy-Item -LiteralPath ($hostPackage + '.sha256') -Destination (Join-Path $output 'RoBIM-Host-Revit2026.zip.sha256') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-packages.lock.json') -Destination (Join-Path $output 'release-packages.lock.json') -Force
-(Get-FileHash -LiteralPath $cad -Algorithm SHA256).Hash | Set-Content -LiteralPath (Join-Path $output 'RoBIM-CAD-Loader-AutoCAD2026.zip.sha256') -Encoding ASCII
 foreach ($name in @('Install.ps1','Uninstall.ps1')) {
     $source = Join-Path $PSScriptRoot "installer\$name"
     [IO.File]::WriteAllText((Join-Path $output $name), [IO.File]::ReadAllText($source), [Text.UTF8Encoding]::new($true))

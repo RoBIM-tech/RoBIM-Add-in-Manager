@@ -16,6 +16,8 @@ public sealed class TeamAccess : IDisposable
     private State state = new(new(false, "", "GitHub 로그인이 필요합니다."), 0);
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly AccessBroker? broker;
+    private readonly ToolAccessBroker? toolBroker;
+    private readonly ToolRepositoryAccess? toolAccess;
     private readonly bool usesSavedIdentity;
     private int generation;
     private readonly object stateSync = new();
@@ -27,22 +29,37 @@ public sealed class TeamAccess : IDisposable
         this.identify = identify ?? GitHubSession.Identify;
         usesSavedIdentity = identify is null;
         this.request = request ?? (route => GitHubSession.Request(route));
-        if (serve) broker = new AccessBroker(() => !Allowed ? AccessPermissions.None : TestAllowed ? AccessPermissions.Stable | AccessPermissions.Test : AccessPermissions.Stable);
+        if (serve) {
+            toolAccess = new ToolRepositoryAccess(ManagerPaths.CurrentUser(), this.request);
+            broker = new AccessBroker(() => !Allowed ? AccessPermissions.None : TestAllowed ? AccessPermissions.Stable | AccessPermissions.Test : AccessPermissions.Stable);
+            toolBroker = new ToolAccessBroker(key => Allowed && toolAccess.Allows(key));
+        }
     }
     public bool Allowed => Volatile.Read(ref state) is { Result.Allowed: true } value &&
         Stopwatch.GetElapsedTime(value.Checked) < TimeSpan.FromMinutes(3);
     public TeamAccessResult Result => Volatile.Read(ref state).Result;
     public bool TestAllowed => Allowed && Volatile.Read(ref state).Result.TestAllowed;
+    public bool CanUseTool(string key) => Allowed && toolAccess?.Allows(key) == true;
     public bool CanUse(string channel) => channel switch { "stable" => Allowed, "test" => TestAllowed, _ => false };
     public void Require(string channel)
     {
         if (!CanUse(channel)) throw new IOException(channel == "test" ? "TEST 도구는 robim-test·robim-dev·robim-admin 팀만 다운로드·설치·실행할 수 있습니다." : channel == "stable" ? "GitHub 로그인과 RoBIM 팀 권한을 확인하십시오." : "배포 구분이 확인되지 않은 도구는 사용할 수 없습니다.");
+    }
+    public async Task RefreshTools()
+    {
+        await gate.WaitAsync();
+        try {
+            if (!Allowed || toolAccess is null) { toolAccess?.Clear(); return; }
+            try { await toolAccess.Refresh(); }
+            catch (Exception error) when (error is IOException or JsonException or HttpRequestException or OperationCanceledException) { toolAccess.Clear(); }
+        } finally { gate.Release(); }
     }
     public void Lock(string message = "GitHub 로그인이 필요합니다.")
     {
         lock (stateSync)
         {
             generation++;
+            toolAccess?.Clear();
             Volatile.Write(ref state, new(new(false, "", message), Stopwatch.GetTimestamp()));
         }
     }
@@ -105,11 +122,17 @@ public sealed class TeamAccess : IDisposable
             { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", error.Message, State: AccountAccessState.ReauthenticationRequired); }
             catch (Exception error) when (error is IOException or HttpRequestException or JsonException or System.ComponentModel.Win32Exception or OperationCanceledException)
             { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", "저장된 계정 유지 · GitHub 연결을 자동 재시도합니다. 연결이 복구될 때까지 도구는 잠깁니다.", State: AccountAccessState.RetryPending); }
+            if (result.Allowed && toolAccess is not null)
+            {
+                try { await toolAccess.Refresh(); }
+                catch (Exception error) when (error is IOException or JsonException or HttpRequestException or OperationCanceledException) { toolAccess.Clear(); }
+            }
+            else toolAccess?.Clear();
             lock (stateSync)
                 if (started == generation) Volatile.Write(ref state, new(result, Stopwatch.GetTimestamp()));
             return Result;
         }
         finally { gate.Release(); }
     }
-    public void Dispose() { Lock(); broker?.Dispose(); }
+    public void Dispose() { Lock(); toolBroker?.Dispose(); broker?.Dispose(); }
 }

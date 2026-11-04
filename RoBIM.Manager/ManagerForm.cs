@@ -30,7 +30,6 @@ public sealed partial class ManagerForm : Form
     private readonly FlowLayoutPanel actions = new() { Dock = DockStyle.Fill, AutoSize = true, Padding = new(0, 8, 0, 8) };
     private readonly FlowLayoutPanel toolbar = new() { Dock = DockStyle.Fill, AutoSize = true, Padding = new(0, 0, 0, 12) };
     private readonly Button install = MakeButton("GitHub 최신 설치 / 업데이트", true);
-    private readonly Button offline = MakeButton("동봉 CAD 설치");
     private readonly Button restore = MakeButton("이전 버전 복원");
     private readonly Button remove = MakeButton("제거");
     private bool busy;
@@ -78,7 +77,6 @@ public sealed partial class ManagerForm : Form
                 : "관리 설치: 업데이트 전 백업 · 파일 변경 시 교체 차단 · 제거 후에도 백업 유지. 적용하려면 해당 CAD/Revit을 종료해야 합니다.");
         install.Enabled = !busy && !row.Modified && (row.Tool.Kind != ToolKind.AutoCAD || !row.External) &&
             !(row.External && row.Tool.Kind == ToolKind.PyRevit && !row.Version.StartsWith("main@", StringComparison.Ordinal));
-        offline.Enabled = !busy && row.Tool.Kind == ToolKind.AutoCAD && !row.External && !row.Modified;
         remove.Enabled = !busy && row.Managed && !row.Modified;
         restore.Enabled = !busy && !row.External && !row.Modified;
     }
@@ -100,8 +98,6 @@ public sealed partial class ManagerForm : Form
             grid.Rows[index].Tag = row;
             if (row.Tool.Id == selectedId) grid.CurrentCell = grid.Rows[index].Cells[0];
         }
-        if (!preview && cadButtonPackage is null && File.Exists(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name)))
-            cadButtonPackage = await Task.Run(() => sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name)));
         ShowSelected();
         await RefreshProductListAsync();
         WriteLog("설치 상태를 확인했습니다. Revit 기존 경로는 자동 연결하며 원본을 이동하지 않습니다.");
