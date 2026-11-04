@@ -23,6 +23,7 @@ public sealed class TeamAccess : IDisposable
     private readonly object stateSync = new();
     private readonly Func<Task<GitHubIdentity>> identify;
     private readonly Func<string, Task<HttpResponseMessage>> request;
+    public event Action? ToolsChanged;
     public TeamAccess(bool serve = true, Func<Task<GitHubIdentity>>? identify = null,
         Func<string, Task<HttpResponseMessage>>? request = null)
     {
@@ -31,6 +32,7 @@ public sealed class TeamAccess : IDisposable
         this.request = request ?? (route => GitHubSession.Request(route));
         if (serve) {
             toolAccess = new ToolRepositoryAccess(ManagerPaths.CurrentUser(), this.request);
+            toolAccess.Changed += () => ToolsChanged?.Invoke();
             broker = new AccessBroker(() => !Allowed ? AccessPermissions.None : TestAllowed ? AccessPermissions.Stable | AccessPermissions.Test : AccessPermissions.Stable);
             toolBroker = new ToolAccessBroker(key => Allowed && toolAccess.Allows(key));
         }
@@ -40,6 +42,7 @@ public sealed class TeamAccess : IDisposable
     public TeamAccessResult Result => Volatile.Read(ref state).Result;
     public bool TestAllowed => Allowed && Volatile.Read(ref state).Result.TestAllowed;
     public bool CanUseTool(string key) => Allowed && toolAccess?.Allows(key) == true;
+    public ToolAccessStatus ToolStatus(string key) => toolAccess?.Status(key) ?? ToolAccessStatus.Checking;
     public bool CanUse(string channel) => channel switch { "stable" => Allowed, "test" => TestAllowed, _ => false };
     public void Require(string channel)
     {
@@ -122,14 +125,10 @@ public sealed class TeamAccess : IDisposable
             { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", error.Message, State: AccountAccessState.ReauthenticationRequired); }
             catch (Exception error) when (error is IOException or HttpRequestException or JsonException or System.ComponentModel.Win32Exception or OperationCanceledException)
             { result = new(false, usesSavedIdentity ? GitHubSession.Current().Login : "", "저장된 계정 유지 · GitHub 연결을 자동 재시도합니다. 연결이 복구될 때까지 도구는 잠깁니다.", State: AccountAccessState.RetryPending); }
-            if (result.Allowed && toolAccess is not null)
-            {
-                try { await toolAccess.Refresh(); }
-                catch (Exception error) when (error is IOException or JsonException or HttpRequestException or OperationCanceledException) { toolAccess.Clear(); }
-            }
-            else toolAccess?.Clear();
             lock (stateSync)
                 if (started == generation) Volatile.Write(ref state, new(result, Stopwatch.GetTimestamp()));
+            if (!result.Allowed) toolAccess?.Clear();
+            else if (started == generation && toolAccess is not null) _ = RefreshTools();
             return Result;
         }
         finally { gate.Release(); }

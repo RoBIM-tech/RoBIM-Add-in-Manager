@@ -24,5 +24,29 @@ internal static class ToolRepositoryAccessTests
    var cache=new ToolRepositoryAccess(paths("tool-ambiguous"),route=>Task.FromResult(Reply(HttpStatusCode.OK,new{full_name="RoBIM-tech/C",@private=true,permissions=new{pull=false}})),()=>entries);
    cache.Refresh().GetAwaiter().GetResult();Require(!cache.Allows("revit:same")&&!cache.Allows("revit:other")&&!cache.Allows("revit:unknown"),"Unexpected tool access");
   });
+  test("ToolRepositoryParallelProgressAndLogout",()=>{
+   var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+   var started=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+   var cache=new ToolRepositoryAccess(paths("tool-parallel"),async route=>{
+    if(route.EndsWith("/A")){started.TrySetResult();await release.Task;}
+    if(route.EndsWith("/contents"))return Reply(HttpStatusCode.OK,Array.Empty<object>());
+    return Reply(HttpStatusCode.OK,new{full_name=route.EndsWith("/A")?"RoBIM-tech/A":"RoBIM-tech/B",@private=true,permissions=new{pull=true}});
+   },()=>new[]{Repo("RoBIM-tech/A","alpha"),Repo("RoBIM-tech/B","beta")});
+   var pending=cache.Refresh();started.Task.Wait(TimeSpan.FromSeconds(3));
+   Require(SpinWait.SpinUntil(()=>cache.Allows("revit:beta"),TimeSpan.FromSeconds(3)),"Fast repository waited for slow repository");
+   Require(!cache.Allows("revit:alpha") && cache.Status("revit:alpha")==ToolAccessStatus.Checking,"Unverified repository was enabled");
+   cache.Clear();release.TrySetResult();pending.GetAwaiter().GetResult();
+   Require(!cache.Allows("revit:alpha")&&!cache.Allows("revit:beta"),"Old request restored permissions after logout");
+  });
+  test("ToolRepositoryRefreshPreservesThenRevokes",()=>{
+   var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); bool slow=false;
+   var cache=new ToolRepositoryAccess(paths("tool-refresh"),async route=>{
+    if(slow){await release.Task;return Reply(HttpStatusCode.NotFound,new{});}
+    return route.EndsWith("/contents")?Reply(HttpStatusCode.OK,Array.Empty<object>()):Reply(HttpStatusCode.OK,new{full_name="RoBIM-tech/A",@private=true,permissions=new{pull=true}});
+   },()=>new[]{Repo("RoBIM-tech/A","alpha")});
+   cache.Refresh().GetAwaiter().GetResult();slow=true;var pending=cache.Refresh();
+   Require(cache.Allows("revit:alpha"),"Valid result disappeared during refresh");
+   release.SetResult();pending.GetAwaiter().GetResult();Require(!cache.Allows("revit:alpha")&&cache.Status("revit:alpha")==ToolAccessStatus.Denied,"Revocation not applied");
+  });
  }
 }

@@ -14,6 +14,11 @@ public sealed partial class ManagerForm
         if (module.Length == 0) return false;
         return teamAccess?.CanUseTool((card.Kind == ButtonKind.Native ? "revit:" : "autocad:") + module) == true;
     }
+    private ToolAccessStatus RepositoryStatus(ButtonCard card)
+    {
+        var module = card.ModuleId.Length > 0 ? card.ModuleId : card.Kind == ButtonKind.Cad ? card.CommandId.Split(':')[0] : "";
+        return module.Length == 0 ? ToolAccessStatus.Denied : teamAccess?.ToolStatus((card.Kind == ButtonKind.Native ? "revit:" : "autocad:") + module) ?? ToolAccessStatus.Checking;
+    }
     private void RequireChannelAccess(string channel)
     {
         if (preview) return;
