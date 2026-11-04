@@ -301,3 +301,5 @@ Manager는 공개 GitHub Release를 로그인 없이 확인하고 SHA-256 검증
 Manager 1.1.4-test.2: 로그인 후 저장소별 권한 확인을 병렬 처리하고 확인된 도구부터 활성화합니다. Revit 재시작 후 적용 요청은 현재 실행 세션에 다시 준비합니다. docs/developer/SIGNIN_AND_SESSION_20261104.md 참조. 실제 PC 시간 측정·GUI 적용은 별도 검증입니다.
 
 권한 회수 도구 표시는 docs/developer/REVOKED_TOOL_LIST_20261104.md를 따른다. 실제 설치/적용 대기만 제거용으로 남기며 과거 캐시만 있는 도구는 숨긴다. Revit 버튼은 비활성화 방식을 유지한다.
+
+2026-11-04 Manager 1.1.5 정식 승격은 docs/developer/STABLE_115_20261104.md 참조. 권한 없는 도구의 제거 전용 표시를 포함하며 로더는 변경하지 않습니다.

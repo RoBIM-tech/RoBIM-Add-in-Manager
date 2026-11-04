@@ -269,3 +269,5 @@ Manager 1.1.4-test.2: 로그인 후 저장소별 권한 확인을 병렬 처리�
 2026-11-04 정식 승격: docs/developer/STABLE_ACCESS_20261104.md 참조. Manager 1.1.4 / Host 1.0.2 / CAD Loader 1.1.2 / Access 0.1.1은 함께 갱신합니다.
 
 권한 없는 도구 표시·제거 개선: docs/developer/REVOKED_TOOL_LIST_20261104.md. Revit 버튼은 비활성화 방식을 유지합니다.
+
+2026-11-04 Manager 1.1.5 정식 승격은 docs/developer/STABLE_115_20261104.md 참조. 권한 없는 도구의 제거 전용 표시를 포함하며 로더는 변경하지 않습니다.
