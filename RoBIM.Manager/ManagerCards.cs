@@ -77,7 +77,7 @@ public sealed partial class ManagerForm
             _ => x.CollectionChannel != "test"
         });
         rows = rows.Where(x => productFilter.SelectedIndex switch { 1 => x.Selected || x.Pending, 2 => AppearanceFor(x).Update, 3 => !x.Selected && !x.Pending, _ => true });
-        rows = rows.Where(x => channelFilter.SelectedItem?.ToString() switch { "정식" => x.CollectionChannel == "stable", "TEST" => x.CollectionChannel == "test" || NewTestAvailable(x), _ => true });
+        rows = rows.Where(x => !RepositoryPermitted(x) && (x.Selected || x.Pending) || (channelFilter.SelectedItem?.ToString() switch { "정식" => x.CollectionChannel == "stable", "TEST" => x.CollectionChannel == "test" || NewTestAvailable(x), _ => true }));
         var search = productSearch.Text.Trim();
         if (search.Length > 0) rows = rows.Where(x => string.Join(" ", x.Title, x.Description, x.Group, Platform(x.Owner.Status.Tool.Kind), KindLabel(x.Owner.Status.Tool.Kind)).Contains(search, StringComparison.CurrentCultureIgnoreCase));
         rows = productSort.SelectedIndex switch
@@ -235,15 +235,16 @@ public sealed partial class ManagerForm
             var feature = binding.Row;
             var appearance = AppearanceFor(feature);
             var repositoryAllowed = RepositoryPermitted(feature);
-            binding.Action.Text = repositoryAllowed ? PrimaryText(feature, appearance) : "권한 확인";
-            binding.Action.Enabled = ready && appearance.Enabled && repositoryAllowed;
-            binding.More.Enabled = ready;
+            var removalOnly = ToolCardAccess.RemovalOnly(repositoryAllowed, feature.Selected);
+            binding.Action.Text = removalOnly ? "제거" : repositoryAllowed ? PrimaryText(feature, appearance) : "적용 대기";
+            binding.Action.Enabled = ready && (repositoryAllowed ? appearance.Enabled : removalOnly);
+            binding.More.Enabled = ready && repositoryAllowed;
             var updateState = appearance.Update;
             var selected = feature.Selected;
             var testAvailable = CanUseTest && selected && feature.SelectedChannel == "stable" && NewTestAvailable(feature);
             var testUpdate = updateState && IndependentRelease(feature) && NativeReleaseState(feature).Update?.Channel == "test";
             var testInstalled = selected && feature.SelectedChannel == "test";
-            binding.TestInstall.Visible = testAvailable; binding.TestInstall.Enabled=ready && appearance.Enabled && testAvailable && repositoryAllowed;
+            binding.TestInstall.Visible = testAvailable && repositoryAllowed; binding.TestInstall.Enabled=ready && appearance.Enabled && testAvailable && repositoryAllowed;
             binding.Card.BackColor = testUpdate ? Color.FromArgb(246, 237, 255) : updateState ? Color.FromArgb(255, 246, 232) : testInstalled ? Color.FromArgb(233, 243, 255) : testAvailable ? Color.FromArgb(255, 251, 222) : selected ? Color.FromArgb(240, 249, 243) : Color.FromArgb(246, 247, 249);
             binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : testAvailable ? Color.FromArgb(202, 174, 66) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
