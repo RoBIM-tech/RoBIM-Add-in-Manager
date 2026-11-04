@@ -92,6 +92,7 @@ public sealed partial class ManagerForm
         catalogInfo.Text = $"{result.Repositories.Count}개 애드인 저장소 · {extensionGrid.Rows.Count}개 패키지" +
             (result.Warnings.Length > 0 ? " · 확인 필요 " + result.Warnings.Length + "개 (작업 기록 참고)" : " · 일반 저장소는 표시하지 않습니다.");
         foreach (var warning in result.Warnings) WriteLog(warning);
+        if (teamAccess is not null) { await teamAccess.RefreshTools(); RefreshCardActions(); }
     }
     private PackageRow? SelectedPackage() => extensionGrid.CurrentRow?.Tag as PackageRow;
     private async Task InstallExtension(PackageRow? selected = null)

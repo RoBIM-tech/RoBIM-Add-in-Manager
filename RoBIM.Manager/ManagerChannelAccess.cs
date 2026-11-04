@@ -7,6 +7,13 @@ public sealed partial class ManagerForm
 {
     private bool? renderedTestAccess;
     private bool CanUseTest => preview || teamAccess?.TestAllowed == true;
+    private bool RepositoryPermitted(ButtonCard card)
+    {
+        if (preview || card.Kind is not (ButtonKind.Native or ButtonKind.Cad)) return true;
+        var module = card.ModuleId.Length > 0 ? card.ModuleId : card.Kind == ButtonKind.Cad ? card.CommandId.Split(':')[0] : "";
+        if (module.Length == 0) return false;
+        return teamAccess?.CanUseTool((card.Kind == ButtonKind.Native ? "revit:" : "autocad:") + module) == true;
+    }
     private void RequireChannelAccess(string channel)
     {
         if (preview) return;

@@ -106,6 +106,7 @@ if (args.Contains("--uninstall-only"))
 if (args.Contains("--team-only"))
 {
     TeamAccessTests.Run(Test);
+ToolRepositoryAccessTests.Run(Test, Paths);
     File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results));
     Console.WriteLine($"{results.Count-failures}/{results.Count} team checks passed"); return failures==0?0:1;
 }
@@ -142,6 +143,7 @@ if (args.Contains("--native-single-only"))
 }
 ManagerUninstallTests.Run(root, Test);
 TeamAccessTests.Run(Test);
+ToolRepositoryAccessTests.Run(Test, Paths);
 RepositoryOwnershipTests.Run(root, Test);
 ReleaseTests.Run(Test, Require, root);
 ReleaseUpdateTests.Run(Test, Require, root);
@@ -382,6 +384,13 @@ Test("LoaderZipSupportsBothPathSeparatorsAndRejectsDuplicates", () =>
         using var writer = new StreamWriter(zip.CreateEntry("bundle/Contents/loader.dll").Open()); writer.Write("duplicate");
     }
     Reject(() => Sources.LoaderDllHash(path, "bundle/Contents/loader.dll"));
+});
+Test("LoaderRepository404ReportsAccessInsteadOfArrayError", () =>
+{
+    try { Sources.ParseLoaderResponse("RoBIM-tech/RoBIM-Revit-Addin", "loader.zip", false, System.Net.HttpStatusCode.NotFound, "{\"message\":\"Not Found\"}"); throw new Exception("Missing failure"); }
+    catch (IOException error) { Require(error.Message.Contains("읽기 권한") && error.Message.Contains("404"), "Missing access guidance"); }
+    try { Sources.ParseLoaderResponse("RoBIM-tech/RoBIM-Revit-Addin", "loader.zip", false, System.Net.HttpStatusCode.OK, "{}"); throw new Exception("Missing format failure"); }
+    catch (IOException error) { Require(error.Message.Contains("응답 형식"), "Missing response-format guidance"); }
 });
 Test("LoaderRepositoryChannelsRemainSeparate", () =>
 {

@@ -260,3 +260,6 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 GitHub 로그인 사용자의 팀을 페이지별로 조회하고 RoBIM-tech 팀의 활성 구성원을 확인합니다. 새로운 조직 팀과 robim-guest는 정식 권한을 받으며, robim-test·robim-dev·robim-admin의 활성 구성원만 TEST 권한을 받습니다. 팀이 여러 개면 지정된 최고 권한을 사용합니다. 조직 외 팀·초대 대기·조회 오류는 권한을 부여하지 않습니다. 각 도구의 GitHub 저장소 접근 권한은 별도입니다. 계정에는 GitHub read:org 및 필요한 조직 접근 승인이 필요합니다.
 
 Manager는 공개 GitHub Release를 로그인 없이 확인하고 SHA-256 검증 후 업데이트할 수 있습니다. 시작할 때 자동 업데이트 설정이 켜져 있으면 정식 버전을 확인하고 설치하며, TEST 수신은 기존 선택 설정을 따릅니다. 로그인 화면에서도 수동 확인·설치가 가능합니다. Setup 설치본이 대상이며 다운로드·설치 실패 시 기존 버전을 유지합니다.
+
+
+2026-11-04 TEST 후보: 도구별 저장소 권한·로더 별도 다운로드는 docs/developer/TOOL_REPOSITORY_ACCESS_20261104.md를 따릅니다. 실제 사용자 적용과 안정 배포는 별도 확인합니다.

@@ -114,12 +114,12 @@ public sealed partial class ManagerForm
         menu.Items.Add("설치 폴더 열기", null, (_, _) => { if (SelectedStatus() is { } row) OpenFolder(row.Path); });
         menu.Items.Add("GitHub 저장소", null, (_, _) => { if (SelectedStatus() is { } row) OpenUrl("https://github.com/" + row.Tool.Repository); });
         more.Click += (_, _) => menu.Show(more, new Point(0, more.Height));
-        actions.Controls.AddRange([install, offline, more]); layout.Controls.Add(actions);
+        actions.Controls.AddRange([install, more]); layout.Controls.Add(actions);
         layout.Controls.Add(Note("Revit의 새 사용자 설치는 운영 탭만 표시합니다. 기존 연결 설치의 코드와 브랜치는 그대로 유지합니다."));
         userPage.Controls.Add(layout);
         refresh.Click += async (_, _) => await Run("설치 상태 확인", RefreshStatuses);
         check.Click += async (_, _) => await Run("업데이트 확인", CheckLatest);
-        install.Click += async (_, _) => await InstallSelected(false); offline.Click += async (_, _) => await InstallSelected(true);
+        install.Click += async (_, _) => await InstallSelected(false);
         userApply.Click += async (_, _) => await ApplyProfile(false);
     }
 

@@ -71,6 +71,7 @@ public sealed partial class ManagerForm
             foreach (var cached in cachedCards.Values.ToArray()) cached.Control.Dispose();
             cachedCards.Clear(); RenderProductCards();
         }
+        RefreshCardActions();
         if (tray is not null) tray.Text = teamAccess.Allowed ? "RoBIM Manager · 팀 인증 완료" : "RoBIM Manager · 로그인/팀 인증 필요";
         if (!teamAccess.Allowed)
         {

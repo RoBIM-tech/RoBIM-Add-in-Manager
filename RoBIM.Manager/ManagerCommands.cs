@@ -151,7 +151,7 @@ public sealed partial class ManagerForm
     {
         await Run(owner.Status.Tool.Kind == ToolKind.NativeRevit ? "업데이트 확인" : "버튼 기능 목록 확인", async () =>
         {
-            if (owner.Status.Tool.Kind == ToolKind.AutoCAD) cadButtonPackage = authenticated ? await sources.DownloadCad(CanUseTest ? null : "stable") : await sources.OfflineCad(Path.Combine(AppContext.BaseDirectory, CadLoaderAssets.Name));
+            if (owner.Status.Tool.Kind == ToolKind.AutoCAD) cadButtonPackage = await sources.DownloadCad(CanUseTest ? null : "stable");
             else if (owner.Status.Tool.Kind == ToolKind.PyRevit) revitButtonPackage = await sources.DownloadRevit();
             else if (owner.Package is not null)
             {
@@ -206,6 +206,7 @@ public sealed partial class ManagerForm
         if (confirm && !Confirm((card.Channel == "test" && enable ? "[TEST 도구] 검증 중인 버전입니다.\n" : "") + card.Title + (legacyNative ? "을 Reload 방식으로 전환합니까?" : enable ? update ? " 버튼을 업데이트합니까?" : " 버튼을 설치합니까?" : " 버튼을 제거합니까?") + "\n\n" + channelMessage + card.Description + "\n\n" + (legacyNative ? "최초 전환은 Revit 종료 후 가능합니다. 확인된 구형 배포본과 파일별로 일치할 때만 설치 기록을 연결하고, 기존 파일을 백업한 뒤 전환합니다." : card.Kind == ButtonKind.Cad ? "변경을 준비한 뒤 AutoCAD의 RoBIM → 관리 → Reload로 적용합니다." : card.Kind == ButtonKind.Native ? "변경을 준비한 뒤 실행 중인 Revit에 자동 적용을 요청합니다." : "Revit 실행 중에는 버튼 선택을 준비한 뒤 자동 적용을 요청합니다. 기존 원본과 공용 파일은 보존합니다."))) return;
         await Run("버튼 " + (enable ? update ? "업데이트" : "설치" : "제거") + " 준비", async () =>
         {
+            if (enable && !RepositoryPermitted(card)) throw new IOException("이 도구의 저장소 접근 권한을 확인할 수 없습니다. 계정과 조직 접근 권한을 확인한 뒤 새로 고치십시오.");
             if (card.Kind == ButtonKind.Cad && card.Owner.Package is { } feature && CadFeaturePackages.IsFeature(feature.Package))
             {
                 SourcePackage? input = null;
