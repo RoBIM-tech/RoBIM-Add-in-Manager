@@ -265,3 +265,5 @@ Manager는 공개 GitHub Release를 로그인 없이 확인하고 SHA-256 검증
 2026-11-04 TEST 후보: 도구별 저장소 권한·로더 별도 다운로드는 docs/developer/TOOL_REPOSITORY_ACCESS_20261104.md를 따릅니다. 실제 사용자 적용과 안정 배포는 별도 확인합니다.
 
 Manager 1.1.4-test.2: 로그인 후 저장소별 권한 확인을 병렬 처리하고 확인된 도구부터 활성화합니다. Revit 재시작 후 적용 요청은 현재 실행 세션에 다시 준비합니다. docs/developer/SIGNIN_AND_SESSION_20261104.md 참조. 실제 PC 시간 측정·GUI 적용은 별도 검증입니다.
+
+2026-11-04 정식 승격: docs/developer/STABLE_ACCESS_20261104.md 참조. Manager 1.1.4 / Host 1.0.2 / CAD Loader 1.1.2 / Access 0.1.1은 함께 갱신합니다.
