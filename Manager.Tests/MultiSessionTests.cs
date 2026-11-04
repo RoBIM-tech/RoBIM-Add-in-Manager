@@ -22,6 +22,13 @@ internal static class MultiSessionTests
   test("AllRevitReceiptsRequiredForCompletion",()=>{Receipt(102,1002,"applied");Require(!native.State("fixture","run").Pending,"Complete multi status remains pending");});
   test("RevitPidReuseDoesNotReuseReceipt",()=>{live=[new(101,9999),new(102,1002)];Require(native.State("fixture","run").Pending,"Old PID receipt reused");live=[new(101,1001),new(102,1002)];});
   test("RevitWrongTargetListIsRejected",()=>{try{NativeProtocol.Validate(native.Data,desired! with{Targets=[new(101,1001),new(101,1002)]});}catch(InvalidDataException){return;}throw new Exception("Duplicate target accepted");});
+  test("RevitRestartRebindsValidatedSelectionAndRejectsOldReceipt",()=>{
+   var old=desired!;live=[new(101,9999)];native.RequestReload(false);var next=native.Desired()!;
+   Require(next.Id!=old.Id&&next.TargetPid==101&&next.TargetStartTicks==9999,"Restart was not rebound to a fresh request");
+   Require(next.Modules.SelectMany(m=>m.Selected).SequenceEqual(old.Modules.SelectMany(m=>m.Selected)),"Rebinding changed selected commands");
+   Require(native.State("fixture","run").Pending,"Previous session receipt counted as applied");
+   live=[new(101,1001),new(102,1002)];
+  });
   var ribbon=new RibbonLayouts(paths);
   void Ready(int pid,long ticks,int version)=>File.WriteAllText(Path.Combine(paths.Data,"UiBridgeSessions",pid+".json"),JsonSerializer.Serialize(new{Version=version,StartTicks=ticks}));
   Directory.CreateDirectory(Path.Combine(paths.Data,"UiBridgeSessions"));Ready(101,1001,4);Ready(102,1002,4);

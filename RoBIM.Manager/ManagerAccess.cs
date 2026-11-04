@@ -18,6 +18,11 @@ public sealed partial class ManagerForm
     private void InitializeAccess()
     {
         teamAccess = new TeamAccess();
+        teamAccess.ToolsChanged += () => {
+            if (IsDisposed || !IsHandleCreated) return;
+            try { BeginInvoke(() => { if (!IsDisposed) RefreshCardActions(); }); }
+            catch (InvalidOperationException) { }
+        };
         ApplyAccessState();
         accessTimer.Tick += async (_, _) =>
         {

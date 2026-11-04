@@ -55,7 +55,7 @@ public sealed partial class ManagerForm : Form
         if (!preview && !inspect) InitializeAccess();
         FormClosing += (_, e) => { if (busy) { e.Cancel = true; MessageBox.Show(this, "작업이 끝난 뒤 닫아 주십시오.", Text); } };
         if (preview) { ShowPreviewRows(); _ = RefreshProfileLabel(); }
-        else if (!inspect) Shown += async (_, _) => { await StartLocalDisplay(); _ = CheckManagerUpdate(); await RestoreAccountAccess(); };
+        else if (!inspect) Shown += async (_, _) => { var display = StartLocalDisplay(); _ = CheckManagerUpdate(); await RestoreAccountAccess(); await display; };
     }
     private static Button MakeButton(string text, bool primary = false) => new()
     {

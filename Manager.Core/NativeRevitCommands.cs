@@ -84,9 +84,12 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var request = NativeProtocol.Read<NativeRequest>(pending); NativeProtocol.Validate(Data, request);
         var sessions=CurrentSessions();
         var session=sessions.Count==1?sessions[0]:sessions.Count>1?new RevitSession(0,0):throw new IOException("Revit을 실행하면 준비한 기능을 시작 시 적용합니다.");
-        if(request.TargetPid!=0 && !sessions.Any(s=>s.Pid==request.TargetPid && s.StartTicks==request.TargetStartTicks)) EnsureTarget(request,session);
-        var outgoing=request with {TargetPid=session.Pid,TargetStartTicks=session.StartTicks,Targets=sessions.Count>1?sessions.Select(s=>new NativeTarget(s.Pid,s.StartTicks)).ToArray():null,ApplyRequested=true};
-        NativeProtocol.Validate(Data,outgoing);NativeProtocol.Save(pending,outgoing);
+        var rebound = request.TargetPid!=0 && !sessions.Any(s=>s.Pid==request.TargetPid && s.StartTicks==request.TargetStartTicks)
+            || request.Targets is { Length: > 0 } previous && !previous.Select(t=>(t.Pid,t.StartTicks)).Order().SequenceEqual(sessions.Select(s=>(s.Pid,s.StartTicks)).Order());
+        var outgoing=request with {Id=rebound?Guid.NewGuid().ToString("N"):request.Id,TargetPid=session.Pid,TargetStartTicks=session.StartTicks,Targets=sessions.Count>1?sessions.Select(s=>new NativeTarget(s.Pid,s.StartTicks)).ToArray():null,ApplyRequested=true};
+        NativeProtocol.Validate(Data,outgoing);
+        if(!sessions.OrderBy(s=>s.Pid).SequenceEqual(CurrentSessions().OrderBy(s=>s.Pid))) throw new IOException("적용 요청 중 Revit이 시작되거나 종료됐습니다. 실행 상태가 안정된 뒤 적용을 다시 누르십시오.");
+        NativeProtocol.Publish(Data,outgoing,request.Id);
     }
     public bool HasUpdate(string moduleId)
     {
@@ -97,7 +100,6 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     {
         var desired = Desired(); if (desired is null) return;
         var currentSession = CurrentSession();
-        if (currentSession is not null && currentSession.Pid!=0) EnsureTarget(desired, currentSession);
         NativeRequest? prepared = null;
         foreach (var entry in desired.Modules)
         {
@@ -124,10 +126,6 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         if (!File.Exists(file)) return null;
         var value = NativeProtocol.Read<NativeReceipt>(file);
         return value.RequestId == request.Id && value.Pid == session.Pid && value.StartTicks == session.StartTicks ? value : null;
-    }
-    private void EnsureTarget(NativeRequest request, RevitSession session)
-    {
-        if (request.TargetPid != 0 && (request.TargetPid != session.Pid || request.TargetStartTicks != session.StartTicks) && Receipt(request, session)?.Status != "applied") throw new IOException("준비했던 Revit 세션이 바뀌었습니다. 기능을 다시 준비하십시오.");
     }
     public (bool Selected, bool Pending, string Message) State(string moduleId, string commandId)
     {

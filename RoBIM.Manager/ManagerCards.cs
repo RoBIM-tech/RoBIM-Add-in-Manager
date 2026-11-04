@@ -248,7 +248,11 @@ public sealed partial class ManagerForm
             binding.Card.BorderColor = testUpdate ? Color.FromArgb(166, 120, 205) : updateState ? Color.FromArgb(223, 164, 78) : testInstalled ? Color.FromArgb(110, 160, 215) : testAvailable ? Color.FromArgb(202, 174, 66) : selected ? Color.FromArgb(155, 195, 169) : Color.FromArgb(214, 220, 229);
             binding.State.ForeColor = updateState ? Color.FromArgb(143, 79, 14) : testAvailable ? Color.FromArgb(102, 81, 131) : selected ? Color.FromArgb(39, 105, 67) : Color.FromArgb(102, 112, 131);
             binding.Card.Invalidate();
-            binding.State.Text = !repositoryAllowed ? "저장소 권한 확인 필요 · 설치 기록 보존" : (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
+            binding.State.Text = !repositoryAllowed ? RepositoryStatus(feature) switch {
+                ToolAccessStatus.Checking => "저장소 권한 확인 중…",
+                ToolAccessStatus.Denied => "저장소 권한 없음 · 설치 기록 보존",
+                _ => "저장소 확인 실패 · 다시 확인 필요"
+            } : (updateState ? "업데이트 · " : selected ? "설치 · " : feature.Pending ? "변경 준비 · " : "미설치 · ") + appearance.Message;
             if (binding.State is LinkLabel link)
             {
                 link.Links.Clear();
