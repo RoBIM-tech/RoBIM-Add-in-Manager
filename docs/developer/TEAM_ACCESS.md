@@ -87,7 +87,7 @@ preview.51은 Setup 설치본의 Manager 자체 자동 업데이트를 제공합
 Navisworks 메뉴는 등록 도구가 없는 빈 목록과 기본 경로 설치 버전을 제공합니다. Navisworks 플러그인 패키지 설치·실행 지원을 완료한 것은 아닙니다. .NET 8 호스트 지원은 이번 범위에서 제외합니다.
 
 
-## 조직 팀과 Manager 업데이트 · 1.1.3-test.1
+## 조직 팀과 Manager 업데이트 · 정식 1.1.3
 
 GitHub 로그인 사용자의 팀을 페이지별로 조회하고 RoBIM-tech 팀의 활성 구성원을 확인합니다. 새로운 조직 팀과 robim-guest는 정식 권한을 받으며, robim-test·robim-dev·robim-admin의 활성 구성원만 TEST 권한을 받습니다. 팀이 여러 개면 지정된 최고 권한을 사용합니다. 조직 외 팀·초대 대기·조회 오류는 권한을 부여하지 않습니다. 각 도구의 GitHub 저장소 접근 권한은 별도입니다. 계정에는 GitHub read:org 및 필요한 조직 접근 승인이 필요합니다.
 

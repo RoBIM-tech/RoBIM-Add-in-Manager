@@ -316,7 +316,7 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 여러 실행 창 TEST의 사용 방법·종료가 필요한 경우·실패 복구는 [여러 실행 창 적용](../developer/MULTI_SESSION_20261030.md)을 확인하세요.
 
 
-## 조직 팀과 Manager 업데이트 · 1.1.3-test.1
+## 조직 팀과 Manager 업데이트 · 정식 1.1.3
 
 GitHub 로그인 사용자의 팀을 페이지별로 조회하고 RoBIM-tech 팀의 활성 구성원을 확인합니다. 새로운 조직 팀과 robim-guest는 정식 권한을 받으며, robim-test·robim-dev·robim-admin의 활성 구성원만 TEST 권한을 받습니다. 팀이 여러 개면 지정된 최고 권한을 사용합니다. 조직 외 팀·초대 대기·조회 오류는 권한을 부여하지 않습니다. 각 도구의 GitHub 저장소 접근 권한은 별도입니다. 계정에는 GitHub read:org 및 필요한 조직 접근 승인이 필요합니다.
 
