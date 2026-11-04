@@ -113,8 +113,8 @@ public sealed partial class ManagerForm
             {
                 void Require(bool value, string name) { if (!value) throw new InvalidOperationException(name); checks.Add(name); }
                 teamAccess = new TeamAccess(false, () => Task.FromResult(new GitHubIdentity("fixture", "Browser")),
-                    _ => Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                    { Content = new System.Net.Http.StringContent("{\"state\":\"active\"}") }));
+                    route => Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                    { Content = new System.Net.Http.StringContent(route.StartsWith("/user/teams?") ? "[{\"slug\":\"robim\",\"organization\":{\"login\":\"RoBIM-tech\"}}]" : "{\"state\":\"active\"}") }));
                 ApplyAccessState();
                 Require(!productsPage.Enabled && !ribbonPage.Enabled && !locationsPage.Enabled && accountPage.Enabled, "UnauthenticatedToolsDisabledLoginAvailable");
                 Require(loginPage.Visible && mainViews.All(view => !view.Visible), "DedicatedLoginHidesNavigationAndTools");
@@ -133,8 +133,8 @@ public sealed partial class ManagerForm
                 {
                     teamAccess.Dispose();
                     teamAccess = new TeamAccess(false, () => Task.FromResult(new GitHubIdentity("fixture", "Browser")), route =>
-                        Task.FromResult(new System.Net.Http.HttpResponseMessage(route.Contains("/teams/" + roleTeam + "/") ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.NotFound)
-                        { Content = new System.Net.Http.StringContent("{\"state\":\"active\"}") }));
+                        Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                        { Content = new System.Net.Http.StringContent(route.StartsWith("/user/teams?") ? "[{\"slug\":\"" + roleTeam + "\",\"organization\":{\"login\":\"RoBIM-tech\"}}]" : "{\"state\":\"active\"}") }));
                     await teamAccess.Refresh(); ApplyAccessState();
                     Require(productsPage.Enabled && CanUseTest == (roleTeam != "robim"), "RoleUiScope_" + roleTeam);
                     SwitchPage("Test");
