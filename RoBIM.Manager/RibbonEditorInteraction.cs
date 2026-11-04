@@ -4,6 +4,15 @@ namespace RoBIM.Manager;
 
 internal sealed partial class RibbonEditorControl
 {
+    private sealed class RenameClickFilter(Action finish, TextBox input) : IMessageFilter
+    {
+        public bool PreFilterMessage(ref Message message)
+        {
+            if (message.Msg is 0x0201 or 0x0204 or 0x0207 or 0x00A1 or 0x00A4 &&
+                !input.IsDisposed && !input.RectangleToScreen(input.ClientRectangle).Contains(Cursor.Position)) finish();
+            return false;
+        }
+    }
     private bool suspendPreview;
     internal TextBox? PreviewNameInput => Controls.OfType<TextBox>().FirstOrDefault();
     internal Control? PreviewControl(TreeNode node, bool label = false)
@@ -47,6 +56,10 @@ internal sealed partial class RibbonEditorControl
         }
         input.KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Escape) { e.SuppressKeyPress = true; Finish(e.KeyCode == Keys.Enter); } };
         input.LostFocus += (_, _) => Finish(true);
+        // Labels and blank preview areas do not take keyboard focus, so LostFocus alone misses these clicks.
+        var clickFilter = new RenameClickFilter(() => Finish(true), input);
+        Application.AddMessageFilter(clickFilter);
+        input.Disposed += (_, _) => Application.RemoveMessageFilter(clickFilter);
         Controls.Add(input); input.BringToFront(); input.Focus(); input.SelectAll();
     }
     internal void DropOnPreview(object source, TreeNode target, bool after = false)
