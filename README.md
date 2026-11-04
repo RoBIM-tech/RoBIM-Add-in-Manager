@@ -267,3 +267,5 @@ Manager는 공개 GitHub Release를 로그인 없이 확인하고 SHA-256 검증
 Manager 1.1.4-test.2: 로그인 후 저장소별 권한 확인을 병렬 처리하고 확인된 도구부터 활성화합니다. Revit 재시작 후 적용 요청은 현재 실행 세션에 다시 준비합니다. docs/developer/SIGNIN_AND_SESSION_20261104.md 참조. 실제 PC 시간 측정·GUI 적용은 별도 검증입니다.
 
 2026-11-04 정식 승격: docs/developer/STABLE_ACCESS_20261104.md 참조. Manager 1.1.4 / Host 1.0.2 / CAD Loader 1.1.2 / Access 0.1.1은 함께 갱신합니다.
+
+권한 없는 도구 표시·제거 개선: docs/developer/REVOKED_TOOL_LIST_20261104.md. Revit 버튼은 비활성화 방식을 유지합니다.

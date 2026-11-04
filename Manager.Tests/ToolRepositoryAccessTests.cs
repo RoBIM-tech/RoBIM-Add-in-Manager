@@ -8,6 +8,12 @@ internal static class ToolRepositoryAccessTests
   static ExtensionRepository Repo(string name,string module,string host="revit") => new(name,"main",[new("pkg-"+module,module,host,"payload","payload","release","tool.zip","","stable",module,"run")],"");
   static HttpResponseMessage Reply(HttpStatusCode code,object body)=>new(code){Content=new StringContent(JsonSerializer.Serialize(body))};
   static void Require(bool condition,string message){if(!condition)throw new Exception(message);}
+  test("RevokedToolListingRetainsOnlyRemovalAndPending",()=>{
+   Require(ToolCardAccess.Visible(false,true,false)&&ToolCardAccess.RemovalOnly(false,true),"Installed revoked tool must remain removable");
+   Require(!ToolCardAccess.Visible(false,false,false),"Removed or merely cached revoked tool remains visible");
+   Require(ToolCardAccess.Visible(false,false,true)&&!ToolCardAccess.RemovalOnly(false,false),"Pending removal must remain visible without reinstall");
+   Require(ToolCardAccess.Visible(true,false,false)&&!ToolCardAccess.RemovalOnly(true,true),"Restored permission did not restore normal listing");
+  });
   test("ToolRepositoryRevocationAndRestoration",()=>{
    bool permitted=true;var entries=new[]{Repo("RoBIM-tech/A","alpha"),Repo("RoBIM-tech/B","beta","autocad")};
    var cache=new ToolRepositoryAccess(paths("tool-access"),route=>Task.FromResult(route.EndsWith("/contents") ? Reply(HttpStatusCode.OK,Array.Empty<object>()) : route.EndsWith("/A") && !permitted ? Reply(HttpStatusCode.NotFound,new{}) : Reply(HttpStatusCode.OK,new{full_name=route.EndsWith("/A")?"RoBIM-tech/A":"RoBIM-tech/B",@private=true,permissions=new{pull=true}})),()=>entries);

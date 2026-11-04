@@ -37,6 +37,8 @@ public sealed partial class ManagerForm
         if (!CanUseTest && page == "Test") yield break;
         foreach (var original in inventory ?? CommandInventory())
         {
+            if (!ToolCardAccess.Visible(RepositoryPermitted(original), original.Selected, original.Pending)) continue;
+            if (!RepositoryPermitted(original)) { yield return original; continue; }
             var card = original;
             if (!CanUseTest && IndependentRelease(card) && card.CollectionChannel != "stable" && !card.Selected)
             {
@@ -106,6 +108,7 @@ public sealed partial class ManagerForm
     }
     private async Task PrimaryCardAction(ButtonCard card)
     {
+        if (ToolCardAccess.RemovalOnly(RepositoryPermitted(card), card.Selected)) { await ToggleButton(card, false); return; }
         if (!CanUseTest && card.Selected && card.SelectedChannel != "stable") { await ToggleButton(card, false); return; }
         if (!CanUseTest && IndependentRelease(card) && !card.Selected && card.Channel == "stable") { await ToggleButton(card, true, "stable"); return; }
         if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test");

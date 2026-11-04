@@ -20,7 +20,7 @@ public sealed partial class ManagerForm
         teamAccess = new TeamAccess();
         teamAccess.ToolsChanged += () => {
             if (IsDisposed || !IsHandleCreated) return;
-            try { BeginInvoke(() => { if (!IsDisposed) RefreshCardActions(); }); }
+            try { BeginInvoke(() => { if (!IsDisposed) RenderProductCards(); }); }
             catch (InvalidOperationException) { }
         };
         ApplyAccessState();

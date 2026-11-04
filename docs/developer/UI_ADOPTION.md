@@ -110,3 +110,5 @@ Manager 1.0.1 후보는 Manager 자체 업데이트에서 Revit/AutoCAD 종료�
 Manager 1.1.1-test.2: 관리 버튼의 실제 이미지가 큰/작은/2단/3단 미리보기에 표시된다. 단독 Small 미리보기 크기도 선택을 반영한다. 기존 관리 버튼 ID·동작·사용자 저장 배치를 유지한다. MANAGEMENT_ICONS_AND_WORDING_20261030.md 참조.
 
 Manager 1.1.4-test.2: 로그인 후 저장소별 권한 확인을 병렬 처리하고 확인된 도구부터 활성화합니다. Revit 재시작 후 적용 요청은 현재 실행 세션에 다시 준비합니다. docs/developer/SIGNIN_AND_SESSION_20261104.md 참조. 실제 PC 시간 측정·GUI 적용은 별도 검증입니다.
+
+Manager 1.1.5-test.1: 권한 없는 미설치 카드 숨김, 설치 카드 제거 전용, 제거 적용 대기 표시. 기존 카드 스타일 사용. 실제 게스트 검증은 별도.
