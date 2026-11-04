@@ -40,6 +40,15 @@ public sealed partial class ManagerForm
         loginRemember.CheckedChanged += (_, _) => automaticLogin.Checked = loginRemember.Checked;
         automaticLogin.CheckedChanged += (_, _) => loginRemember.Checked = automaticLogin.Checked;
         card.Controls.Add(loginRemember); card.Controls.Add(loginMessage);
+        var updateCheckLogin = MakeButton("Manager 업데이트 확인");
+        var updateNowLogin = MakeButton("Manager 업데이트", true);
+        var updateLoginStatus = new Label { AutoSize = true, MaximumSize = new(496, 0) };
+        updateCheckLogin.Click += async (_, _) => await CheckManagerUpdateManually();
+        updateNowLogin.Click += async (_, _) => await InstallManagerUpdateManually();
+        managerUpdateStatus.TextChanged += (_, _) => { updateLoginStatus.Text = managerUpdateStatus.Text; updateNowLogin.Visible = manuallyCheckedManagerUpdate is not null; };
+        managerUpdateNow.VisibleChanged += (_, _) => updateNowLogin.Visible = managerUpdateNow.Visible;
+        updateNowLogin.Visible = false;
+        card.Controls.Add(updateCheckLogin); card.Controls.Add(updateNowLogin); card.Controls.Add(updateLoginStatus);
 
         card.Controls.Add(TextLine("Reload와 Manager 열기는 로그인하지 않아도 사용할 수 있습니다.", 9, false, Color.FromArgb(90, 105, 125)));
         card.Controls.Add(TextLine("Add-in Manager · " + Application.ProductVersion.Split('+')[0], 9, false, Color.FromArgb(120, 133, 150)));

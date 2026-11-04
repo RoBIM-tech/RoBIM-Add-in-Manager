@@ -9,6 +9,17 @@ public sealed record ManagerUpdateRequest(string Installer, string Digest, strin
 
 public static class ManagerUpdates
 {
+    private static readonly System.Net.Http.HttpClient PublicClient = new() { Timeout = TimeSpan.FromMinutes(3) };
+    private static async Task<System.Net.Http.HttpResponseMessage> PublicRequest(string path, string accept = "application/vnd.github+json")
+    {
+        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://api.github.com" + path);
+        request.Headers.UserAgent.ParseAdd("RoBIM-Manager/1.0");
+        request.Headers.Accept.ParseAdd(accept);
+        request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+        var response = await PublicClient.SendAsync(request, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+        if (!response.IsSuccessStatusCode) { var status = response.StatusCode; response.Dispose(); throw new IOException($"GitHub 업데이트 조회 실패 ({(int)status})"); }
+        return response;
+    }
     private const string Repository = "/repos/RoBIM-tech/RoBIM-Add-in-Manager";
     public static ManagerUpdate? Select(JsonElement releases, string current, bool allowPrerelease = false)
     {
@@ -31,7 +42,7 @@ public static class ManagerUpdates
     }
     public static async Task<ManagerUpdate?> Check(string current, bool allowPrerelease = false)
     {
-        using var response = await GitHubSession.Request(Repository + "/releases?per_page=100");
+        using var response = await PublicRequest(Repository + "/releases?per_page=100");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return Select(json.RootElement, current, allowPrerelease);
     }
@@ -39,7 +50,7 @@ public static class ManagerUpdates
     {
         var directory = SafeFiles.Child(paths.Data, "ManagerUpdates/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory); var file = SafeFiles.Child(directory, "RoBIM-Manager-Setup.exe");
-        using var response = await GitHubSession.Request(Repository + "/releases/assets/" + update.AssetId, "application/octet-stream");
+        using var response = await PublicRequest(Repository + "/releases/assets/" + update.AssetId, "application/octet-stream");
         await using (var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             await response.Content.CopyToAsync(output);
         if (!string.Equals(SafeFiles.Hash(file), update.Digest, StringComparison.OrdinalIgnoreCase)) throw new IOException("Manager 업데이트 파일 검증에 실패했습니다. 기존 버전을 유지합니다.");

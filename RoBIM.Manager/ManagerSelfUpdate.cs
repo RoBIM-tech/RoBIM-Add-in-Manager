@@ -18,10 +18,13 @@ public sealed partial class ManagerForm
     {
         managerUpdateNow.Visible=false;
         var row=Row(); row.Controls.Add(managerUpdateCheck); row.Controls.Add(managerUpdateNow); panel.Controls.Add(row);
-        managerUpdateCheck.Click += async (_, _) =>
-        {
+        managerUpdateCheck.Click += async (_, _) => await CheckManagerUpdateManually();
+        managerUpdateNow.Click += async (_, _) => await InstallManagerUpdateManually();
+    }
+    private async Task CheckManagerUpdateManually()
+    {
             if (preview) { managerUpdateStatus.Text="현재 버전 · "+Application.ProductVersion.Split('+')[0]+" · 미리보기"; return; }
-            if (teamAccess?.Allowed!=true || checkingManagerUpdate || busy) return;
+            if (checkingManagerUpdate || busy) return;
             managerUpdateCheck.Enabled=false;
             checkingManagerUpdate=true;
             try
@@ -32,10 +35,10 @@ public sealed partial class ManagerForm
             }
             catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 확인 실패 · "+error.Message; }
             finally { checkingManagerUpdate=false; if (!IsDisposed) managerUpdateCheck.Enabled=true; }
-        };
-        managerUpdateNow.Click += async (_, _) =>
-        {
-            if (preview || manuallyCheckedManagerUpdate is not { } update || teamAccess?.Allowed!=true || busy || checkingManagerUpdate) return;
+    }
+    private async Task InstallManagerUpdateManually()
+    {
+            if (preview || manuallyCheckedManagerUpdate is not { } update || busy || checkingManagerUpdate) return;
             if (!ManagerUpdates.NativeInstallation(Path.GetDirectoryName(Environment.ProcessPath!)!))
             { OpenUrl("https://github.com/RoBIM-tech/RoBIM-Add-in-Manager/releases/tag/v"+update.Version); return; }
             managerUpdateNow.Enabled=false;
@@ -49,11 +52,10 @@ public sealed partial class ManagerForm
             }
             catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 준비 실패 · "+error.Message; }
             finally { checkingManagerUpdate=false; if (!IsDisposed) managerUpdateNow.Enabled=true; }
-        };
     }
     private async Task CheckManagerUpdate(bool force = false)
     {
-        if (preview || teamAccess is null || !teamAccess.Allowed || busy || checkingManagerUpdate || IsDisposed ||
+        if (preview || busy || checkingManagerUpdate || IsDisposed ||
             (!force && !AccountPreferences.Read(paths).AutoUpdate)) return;
         checkingManagerUpdate = true;
         try
@@ -72,7 +74,7 @@ public sealed partial class ManagerForm
                 var installer = await ManagerUpdates.Download(paths,offer);
                 pendingManagerUpdate = (offer,installer);
             }
-            if (pendingManagerUpdate is not { } pending || busy || IsDisposed || !teamAccess.Allowed) return;
+            if (pendingManagerUpdate is not { } pending || busy || IsDisposed) return;
             ManagerUpdates.Launch(paths,pending.Installer,pending.Offer.Digest);
             exitRequested = true; Close();
         }
