@@ -395,6 +395,40 @@ public sealed partial class ManagerForm
             editor.LoadLayout(new(1,"Revit",[]));
             Require(editor.AvailableIds.Count()==2,"Deleting a tab restores its buttons to bank");
         }
+        // Exercise the production scroll finalizer after asynchronous card replacement.
+        SwitchPage("Revit"); Size = new Size(1760, 850); PerformLayout();
+        void SettleCards() { for (var pass=0;pass<6;pass++) { PerformLayout(); productCards.PerformLayout(); Application.DoEvents(); } }
+        productCards.Controls.Clear();
+        ToolCardPanel ScrollCard(int index) {
+            var card=new ToolCardPanel { Height=97, Name="scroll-"+index };
+            card.Controls.Add(new Button { Text="검증 "+index, Dock=DockStyle.Bottom, Height=24 }); return card;
+        }
+        productCards.Controls.Add(ScrollCard(0));SizeProductCards();QueueCardScroll(0);SettleCards();
+        Require(!productCards.VerticalScroll.Visible,"Short refreshed list has no vertical scrollbar");
+        productCards.SuspendLayout();
+        for(var index=1;index<40;index++)productCards.Controls.Add(ScrollCard(index));
+        productCards.ResumeLayout(true);SizeProductCards();QueueCardScroll(0);SettleCards();
+        void CheckLastAction(string scenario) {
+            Require(productCards.VerticalScroll.Visible,scenario+": vertical scrollbar visible");
+            productCards.AutoScrollPosition=new Point(0,productCards.VerticalScroll.Maximum);SettleCards();
+            var last=productCards.Controls.Cast<Control>().Last();var action=last.Controls.OfType<Button>().Single();
+            var point=productCards.PointToClient(action.PointToScreen(new Point(action.Width/2,action.Height/2)));
+            Require(productCards.ClientRectangle.Contains(point),scenario+": last action reachable inside viewport");
+            var clicked=false;action.Click+=(_,_)=>clicked=true;action.PerformClick();
+            Require(clicked,scenario+": last action accepts click");
+            using var screenshot=new Bitmap(Width,Height);
+            DrawToBitmap(screenshot,new Rectangle(Point.Empty,Size));
+            screenshot.Save(destination+".scroll-"+productCards.ClientSize.Width+"-"+checks.Count+".png");
+        }
+        CheckLastAction("Refresh grows one card to many rows");
+        productCards.AutoScrollPosition=new Point(0,productCards.VerticalScroll.Maximum/2);SettleCards();
+        var savedPosition=productCards.VerticalScroll.Value;
+        productCards.SuspendLayout();foreach(Control card in productCards.Controls)card.Height=97;productCards.ResumeLayout(true);
+        SizeProductCards();QueueCardScroll(savedPosition);SettleCards();
+        Require(Math.Abs(productCards.VerticalScroll.Value-savedPosition)<=2,"Mid-list refresh restores scroll position");
+        CheckLastAction("Mid-list refresh");
+        Size=new Size(1180,850);PerformLayout();SizeProductCards();QueueCardScroll(productCards.VerticalScroll.Value);SettleCards();
+        CheckLastAction("Narrow window adds rows");
         File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = checks.Count, Checks = checks }, new JsonSerializerOptions { WriteIndented = true })); Close();
     }
 }

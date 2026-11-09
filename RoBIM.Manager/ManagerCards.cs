@@ -15,6 +15,7 @@ public sealed partial class ManagerForm
     private readonly FlowLayoutPanel productCards = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new(0, 0, 5, 0) };
     private readonly Label productCount = new() { AutoSize = true, ForeColor = Color.FromArgb(106, 117, 136), Padding = new(0, 8, 0, 0) };
     private readonly Dictionary<string, CardBinding> cardBindings = [];
+    private Button? programRecovery;
     private readonly Dictionary<string, (Control Control, CardBinding Binding)> cachedCards = [];
     private sealed record CardBinding(ButtonCard Row, Button Action, Label Instruction, Label State, ToolTip Tips, Button More, ToolCardPanel Card, Button TestInstall);
 
@@ -47,7 +48,13 @@ public sealed partial class ManagerForm
                 WriteLog("Revit 도구 Reload 요청 완료");
             });
         };
-        layout.Controls.Add(searchRow, 0, 0); layout.Controls.Add(productCards, 0, 1); layout.Controls.Add(productCount, 0, 2);
+        var searchHeader = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 1, RowCount = 2 };
+        searchHeader.ColumnStyles.Add(new(SizeType.Percent, 100));
+        searchHeader.Controls.Add(searchRow, 0, 0);
+        var recovery = programRecovery = CreateSessionRecoveryButton();
+        recovery.Visible = currentPage == "Revit";
+        searchHeader.Controls.Add(recovery, 0, 1);
+        layout.Controls.Add(searchHeader, 0, 0); layout.Controls.Add(productCards, 0, 1); layout.Controls.Add(productCount, 0, 2);
         productsPage.Controls.Add(layout); layout.BringToFront();
         var searchDelay = new System.Windows.Forms.Timer { Interval = 180 };
         searchDelay.Tick += (_, _) => { searchDelay.Stop(); RenderProductCards(); };
@@ -55,7 +62,7 @@ public sealed partial class ManagerForm
         FormClosed += (_, _) => searchDelay.Dispose();
         FormClosed += (_, _) => { foreach (var item in cachedCards.Values) item.Control.Dispose(); cachedCards.Clear(); };
         productSort.SelectedIndexChanged += (_, _) => RenderProductCards();
-        productCards.ClientSizeChanged += (_, _) => SizeProductCards();
+        productCards.ClientSizeChanged += (_, _) => { SizeProductCards(); QueueCardScroll(productCards.VerticalScroll.Value); };
         refresh.Click += async (_, _) => await RefreshWithUpdates();
 
     }
@@ -63,6 +70,7 @@ public sealed partial class ManagerForm
     private void RenderProductCards()
     {
         if (!IsProductPage) return;
+        if (programRecovery is not null) programRecovery.Visible = currentPage == "Revit";
         if (CanUseTest && channelFilter.Items.Count == 1) { channelFilter.Items.AddRange(["모든 버전", "TEST"]); channelFilter.SelectedIndex=1; }
         var scroll = productCards.VerticalScroll.Value;
         IEnumerable<ButtonCard> rows = ProductCommands(currentPage);
@@ -117,7 +125,7 @@ public sealed partial class ManagerForm
         }
         finally { productCards.ResumeLayout(true); }
         SizeProductCards();
-        productCards.AutoScrollPosition = new Point(0, scroll);
+        QueueCardScroll(scroll);
         RefreshCardActions();
     }
 
@@ -223,6 +231,7 @@ public sealed partial class ManagerForm
 
     private void RefreshCardActions()
     {
+        RefreshRecoveryStatus();
         nativeReload.Visible = false;
         nativeReload.Text = currentPage is "Revit" or "Test" ? "도구 Reload" : "Revit 전체 Reload";
         var ready = !busy && !batchUpdating && !refreshingSnapshot && (preview || snapshotVerified);
@@ -292,6 +301,24 @@ public sealed partial class ManagerForm
             productCards.ResumeLayout(true);
         }
         finally { sizingProductCards = false; }
+    }
+
+    private int cardLayoutGeneration;
+    private void QueueCardScroll(int position)
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        var generation = ++cardLayoutGeneration;
+        BeginInvoke(() => {
+            if (IsDisposed || generation != cardLayoutGeneration) return;
+            SizeProductCards(); productCards.PerformLayout();
+            var offset = -productCards.AutoScrollPosition.Y;
+            var height = productCards.Controls.Cast<Control>().Where(c => c.Visible)
+                .Select(c => c.Bottom + offset + c.Margin.Bottom).DefaultIfEmpty(0).Max() + productCards.Padding.Bottom;
+            productCards.AutoScrollMinSize = new Size(0, height);
+            productCards.PerformLayout();
+            var maximum = Math.Max(0, productCards.VerticalScroll.Maximum - productCards.VerticalScroll.LargeChange + 1);
+            productCards.AutoScrollPosition = new Point(0, Math.Clamp(position, 0, maximum));
+        });
     }
 
     private sealed class ToolCardPanel : Panel

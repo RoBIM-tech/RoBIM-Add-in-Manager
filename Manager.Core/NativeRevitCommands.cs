@@ -91,6 +91,20 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         if(!sessions.OrderBy(s=>s.Pid).SequenceEqual(CurrentSessions().OrderBy(s=>s.Pid))) throw new IOException("적용 요청 중 Revit이 시작되거나 종료됐습니다. 실행 상태가 안정된 뒤 적용을 다시 누르십시오.");
         NativeProtocol.Publish(Data,outgoing,request.Id);
     }
+    public void ReprepareForCurrentSessions()
+    {
+        var basis = Desired() ?? throw new IOException("다시 준비할 도구 선택이 없습니다.");
+        var sessions = CurrentSessions();
+        if (sessions.Count == 0) throw new IOException("Revit을 실행한 뒤 현재 Revit에 다시 준비를 누르십시오.");
+        var next = basis with { Id = Guid.NewGuid().ToString("N"), ApplyRequested = true,
+            TargetPid = sessions.Count == 1 ? sessions[0].Pid : 0,
+            TargetStartTicks = sessions.Count == 1 ? sessions[0].StartTicks : 0,
+            Targets = sessions.Count > 1 ? sessions.Select(s => new NativeTarget(s.Pid, s.StartTicks)).ToArray() : null };
+        NativeProtocol.Validate(Data, next);
+        if (!sessions.OrderBy(s=>s.Pid).SequenceEqual(CurrentSessions().OrderBy(s=>s.Pid)))
+            throw new IOException("다시 준비하는 동안 Revit 실행 상태가 바뀌었습니다. 다시 시도하십시오.");
+        NativeProtocol.Publish(Data, next, basis.Id);
+    }
     public bool HasUpdate(string moduleId)
     {
         var entry = Desired()?.Modules.FirstOrDefault(x => x.Manifest.Id == moduleId); var file = NativeProtocol.Child(Data, "catalog-" + moduleId + ".json");
@@ -143,6 +157,8 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var applied = session is null ? null : Receipt(desired, session);
         if (applied?.Status == "failed") return (selected, true, "Reload 실패: " + applied.Message);
         if (applied?.Status == "applied" && applied.RequestId == desired.Id) return (selected, false, selected ? "설치됨 · Reload 완료" : "제거됨 · Reload 완료");
+        if (session is not null && !NativeProtocol.Matches(desired, session.Pid, session.StartTicks))
+            return (selected, true, "다른 세션용으로 준비됨 · 현재 Revit에 다시 준비를 누르십시오.");
         var activePath = NativeProtocol.Child(Data, "active.json");
         var active = File.Exists(activePath) ? NativeProtocol.Read<NativeRequest>(activePath) : null;
         if (session is null && active?.Id == desired.Id) return (selected, false, selected ? "설치됨 · Revit 시작 시 로드" : "설치 안 됨");
