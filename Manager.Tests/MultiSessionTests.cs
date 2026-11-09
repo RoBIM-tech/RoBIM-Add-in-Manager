@@ -30,6 +30,15 @@ internal static class MultiSessionTests
    live=[new(101,1001),new(102,1002)];
   });
   var ribbon=new RibbonLayouts(paths);
+  test("ExplicitRecoveryRequiresNewExactSessionReceipts",()=>{
+   native.ReprepareForCurrentSessions();var recovered=native.Desired()!;
+   Require(recovered.Id!=desired!.Id&&recovered.Targets!.Length==2,"Recovery reused old request or lost a session");
+   Require(native.State("fixture","run").Pending,"Recovery claimed success before replies");
+   NativeProtocol.Save(NativeProtocol.Child(native.Data,$"Results/{recovered.Id}-101-1001.json"),new NativeReceipt(recovered.Id,"applied","",101,1001,DateTimeOffset.UtcNow));
+   Require(native.State("fixture","run").Pending,"One reply counted as all sessions");
+   NativeProtocol.Save(NativeProtocol.Child(native.Data,$"Results/{recovered.Id}-102-1002.json"),new NativeReceipt(recovered.Id,"applied","",102,1002,DateTimeOffset.UtcNow));
+   Require(!native.State("fixture","run").Pending,"Exact completed replies were not accepted");
+  });
   void Ready(int pid,long ticks,int version)=>File.WriteAllText(Path.Combine(paths.Data,"UiBridgeSessions",pid+".json"),JsonSerializer.Serialize(new{Version=version,StartTicks=ticks}));
   Directory.CreateDirectory(Path.Combine(paths.Data,"UiBridgeSessions"));Ready(101,1001,4);Ready(102,1002,4);
   string batchId="";
