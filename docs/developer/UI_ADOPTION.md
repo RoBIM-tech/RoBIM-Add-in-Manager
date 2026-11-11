@@ -116,3 +116,5 @@ Manager 1.1.5-test.1: 권한 없는 미설치 카드 숨김, 설치 카드 제�
 2026-11-04 Manager 1.1.5 정식 승격은 docs/developer/STABLE_115_20261104.md 참조. 권한 없는 도구의 제거 전용 표시를 포함하며 로더는 변경하지 않습니다.
 
 2026-11-09: ‘현재 Revit에 다시 준비’는 새 세션별 적용 응답을 기다립니다. 도구 목록 스크롤은 배치 후 범위를 갱신하고 위치를 복원합니다. docs/developer/SESSION_RECOVERY_SCROLL_20261109.md 참조.
+
+2026-11-11 Manager 1.1.6 정식: 현재 Revit 세션 다시 준비와 카드 스크롤 복원 개선을 포함합니다. docs/developer/STABLE_116_20261111.md 참조.
