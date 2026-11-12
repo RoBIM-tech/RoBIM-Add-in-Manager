@@ -199,7 +199,7 @@
           "distribution": "release",
           "asset": "RoBIM.Feature.SheetViewPlacement-Revit2026.zip",
           "description": "시트 뷰 배치",
-          "channel": "stable",
+          "channel": "test",
           "moduleId": "sheet-view-placement",
           "commandId": "run"
         }
