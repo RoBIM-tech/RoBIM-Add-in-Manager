@@ -205,6 +205,27 @@
         }
       ],
       "recognition": "RoBIM 중앙 등록"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-GridLevel2dCopy",
+      "branch": "main",
+      "role": "button",
+      "packages": [
+        {
+          "id": "robim-grid-level-2d-copy",
+          "name": "그리드·레벨 2D 복사",
+          "host": "revit",
+          "path": "RoBIM.Feature.GridLevel2dCopy.bundle",
+          "folder": "RoBIM.Feature.GridLevel2dCopy.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Feature.GridLevel2dCopy-Revit2026.zip",
+          "description": "그리드·레벨 2D 복사",
+          "channel": "test",
+          "moduleId": "grid-level-2d-copy",
+          "commandId": "run"
+        }
+      ],
+      "recognition": "RoBIM 중앙 등록"
     }
   ],
   "commands": [
@@ -268,6 +289,13 @@
       "repository": "RoBIM-tech/RoBIM-Revit-SheetViewPlacement",
       "packageId": "robim-sheet-view-placement",
       "moduleId": "sheet-view-placement",
+      "commandId": "run",
+      "host": "revit"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-GridLevel2dCopy",
+      "packageId": "robim-grid-level-2d-copy",
+      "moduleId": "grid-level-2d-copy",
       "commandId": "run",
       "host": "revit"
     }
