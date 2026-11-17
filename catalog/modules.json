@@ -226,6 +226,27 @@
         }
       ],
       "recognition": "RoBIM 중앙 등록"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-WorksetManager",
+      "branch": "main",
+      "role": "button",
+      "packages": [
+        {
+          "id": "robim-workset-manager",
+          "name": "타입별 작업 세트 관리",
+          "host": "revit",
+          "path": "RoBIM.Feature.WorksetManager.bundle",
+          "folder": "RoBIM.Feature.WorksetManager.bundle",
+          "distribution": "release",
+          "asset": "RoBIM.Feature.WorksetManager-Revit2026.zip",
+          "description": "프로젝트 브라우저 스타일 단일 계층 트리에서 카테고리·패밀리·타입 및 모델 그룹 단위로 작업 세트(Workset)를 조회하고 일괄 지정·수정합니다. 열 머리글 정렬, 도면/미배치 필터링, 단일 Undo를 지원합니다.",
+          "channel": "test",
+          "moduleId": "workset-manager",
+          "commandId": "run"
+        }
+      ],
+      "recognition": "RoBIM 중앙 등록"
     }
   ],
   "commands": [
@@ -296,6 +317,13 @@
       "repository": "RoBIM-tech/RoBIM-Revit-GridLevel2dCopy",
       "packageId": "robim-grid-level-2d-copy",
       "moduleId": "grid-level-2d-copy",
+      "commandId": "run",
+      "host": "revit"
+    },
+    {
+      "repository": "RoBIM-tech/RoBIM-Revit-WorksetManager",
+      "packageId": "robim-workset-manager",
+      "moduleId": "workset-manager",
       "commandId": "run",
       "host": "revit"
     }
