@@ -241,7 +241,7 @@
           "distribution": "release",
           "asset": "RoBIM.Feature.WorksetManager-Revit2026.zip",
           "description": "프로젝트 브라우저 스타일 단일 계층 트리에서 카테고리·패밀리·타입 및 모델 그룹 단위로 작업 세트(Workset)를 조회하고 일괄 지정·수정합니다. 열 머리글 정렬, 도면/미배치 필터링, 단일 Undo를 지원합니다.",
-          "channel": "test",
+          "channel": "stable",
           "moduleId": "workset-manager",
           "commandId": "run"
         }
