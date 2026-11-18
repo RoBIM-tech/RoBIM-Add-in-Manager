@@ -29,6 +29,7 @@ public static class LoaderActions
         var offer = channel == "test" ? channels.Test : channels.Stable;
         if (offer is null) return new(false, "제공 버전 없음", "선택한 채널에 확인된 배포가 없습니다.");
         if (!state.Managed) return new(true, "설치", (channel == "test" ? "TEST " : "정식 ") + offer.Version + " 설치 가능");
+        if (state.Version.StartsWith("동봉 ")) return new(true, "업데이트", state.Version + " → " + offer.Version + " 업데이트 가능");
         if (!ReleaseUpdates.VersionsComparable(state.Version, offer.Version)) return new(false, "버전 확인 필요", "설치 버전을 제공 버전과 비교할 수 없습니다. 설치 기록을 확인하세요.");
         if (ReleaseUpdates.IsNewer(state.Version, "", offer)) return new(true, "업데이트", state.Version + " → " + offer.Version + " 업데이트 가능");
         if (ReleaseUpdates.IsNewer(offer.Version, "", new(state.Version, ""))) return new(false, "이전 버전", "선택한 제공 버전이 설치 버전보다 낮습니다.");

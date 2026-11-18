@@ -23,7 +23,8 @@ internal static class LoaderActionTests
         test("LoaderUnverifiedAndUnavailableVersionsHaveDifferentReasons",()=>{
             Require(LoaderActions.Evaluate(State(),null,"test",true).Text=="버전 확인 필요","Unchecked mislabeled latest");
             Require(LoaderActions.Evaluate(State(),new(null,null),"test",true).Text=="제공 버전 없음","Missing offer mislabeled latest");
-            Require(LoaderActions.Evaluate(State("동봉 unknown"),channels,"test",true).Text=="버전 확인 필요","Unknown version mislabeled latest");
+            Require(LoaderActions.Evaluate(State("unknown"),channels,"test",true).Text=="버전 확인 필요","Unknown version mislabeled latest");
+            Require(LoaderActions.Evaluate(State("동봉 99e1d5662205"),channels,"test",true).Enabled,"Bundled version enables update");
         });
         test("LoaderNormalRoleDoesNotSeeTestSuggestionOrInstall",()=>{
             Require(!LoaderActions.Evaluate(State(),channels,"test",false).Enabled,"TEST access permitted");
