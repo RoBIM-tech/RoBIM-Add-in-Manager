@@ -115,7 +115,7 @@
           "folder": "RoBIM.Cad.DrawingSplit.bundle",
           "distribution": "release",
           "asset": "RoBIM-CAD-DrawingSplit-AutoCAD2026.zip",
-          "description": "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다.",
+          "description": "도곽별 도면번호·도면명을 검토하고 DWG로 분할 저장합니다. 전처리·이름 일괄 편집·단일 Undo를 지원합니다.",
           "channel": "stable",
           "moduleId": "ezsplit",
           "commandId": "split"
