@@ -94,7 +94,7 @@
           "folder": "RoBIM.Cad.LayerCleanup.bundle",
           "distribution": "release",
           "asset": "RoBIM-CAD-LayerCleanup-AutoCAD2026.zip",
-          "description": "꺼짐·전체 동결 레이어 후보를 확인하고 선택 삭제합니다.",
+          "description": "꺼짐·전체 동결·비출력 레이어와 내부 객체를 조건별로 검토하고 일괄 정리합니다. 단일 Undo를 지원합니다.",
           "channel": "stable",
           "moduleId": "delhidden",
           "commandId": "cleanup"
