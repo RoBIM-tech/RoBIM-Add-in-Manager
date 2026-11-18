@@ -131,8 +131,34 @@ public sealed partial class ManagerForm
             EnvironmentProbe.EnsureHostClosed(Catalog.RevitHost);
             var archive = await sources.DownloadLoader(Catalog.RevitHost, channel);
             EnsureHostRuntime(cad: false);
-            await Task.Run(() => NativeCommands().InstallHost(archive,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026")));
+            await Task.Run(() =>
+            {
+                var baseAddins = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins");
+                var default2026 = Path.Combine(baseAddins, "2026");
+                NativeCommands().InstallHost(archive, default2026);
+
+                if (Directory.Exists(baseAddins))
+                {
+                    foreach (var yearDir in Directory.GetDirectories(baseAddins))
+                    {
+                        var name = Path.GetFileName(yearDir);
+                        if (int.TryParse(name, out var year) && year > 2026)
+                        {
+                            try
+                            {
+                                var addin = SafeFiles.Child(yearDir, "RoBIM.NativeHost.addin");
+                                var template = SafeFiles.Child(default2026, "RoBIM.NativeHost.addin");
+                                if (File.Exists(template))
+                                {
+                                    SafeFiles.NoLinks(addin);
+                                    if (!File.Exists(addin)) File.Copy(template, addin);
+                                }
+                            }
+                            catch (Exception error) { WriteLog("상위 버전 Addin 복사 건너뜀 (" + name + "): " + error.Message); }
+                        }
+                    }
+                }
+            });
             await RefreshStatuses(); RefreshLoaderStatus();
             WriteLog("Revit 로더 설치 완료 · Revit을 시작한 뒤 적용 상태를 확인하세요.");
         });

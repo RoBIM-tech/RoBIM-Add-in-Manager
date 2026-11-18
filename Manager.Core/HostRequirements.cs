@@ -39,6 +39,11 @@ public static class HostRequirements
             var fallback2027 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "AutoCAD 2027");
             if (File.Exists(Path.Combine(fallback2027, runtime))) return fallback2027;
         }
+        else
+        {
+            var fallback2027 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Autodesk", "Revit 2027");
+            if (File.Exists(Path.Combine(fallback2027, runtime))) return fallback2027;
+        }
         var driveRoot=Path.GetPathRoot(fallback)!;
         var driveInstall=Path.Combine(driveRoot,cad ? "AutoCAD 2026" : "Revit 2026");
         if (File.Exists(Path.Combine(driveInstall,runtime))) return driveInstall;
@@ -54,7 +59,9 @@ public static class HostRequirements
                 {
                     using var key = uninstall!.OpenSubKey(name);
                     var display = key?.GetValue("DisplayName") as string ?? "";
-                    if (!(cad ? (display.StartsWith("Autodesk AutoCAD 2026",StringComparison.OrdinalIgnoreCase) || display.StartsWith("Autodesk AutoCAD 2027",StringComparison.OrdinalIgnoreCase)) : display.Equals("Autodesk Revit 2026",StringComparison.OrdinalIgnoreCase))) continue;
+                    if (!(cad
+                        ? (display.StartsWith("Autodesk AutoCAD 2026", StringComparison.OrdinalIgnoreCase) || display.StartsWith("Autodesk AutoCAD 2027", StringComparison.OrdinalIgnoreCase))
+                        : (display.StartsWith("Autodesk Revit 2026", StringComparison.OrdinalIgnoreCase) || display.StartsWith("Autodesk Revit 2027", StringComparison.OrdinalIgnoreCase)))) continue;
                     var location = key?.GetValue("InstallLocation") as string;
                     if (location is not null && Path.IsPathFullyQualified(location) && File.Exists(Path.Combine(location,runtime))) return location;
                 }
