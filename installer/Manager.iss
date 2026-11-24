@@ -13,7 +13,7 @@ AppId=RoBIM.AddinManager
 #endif
 AppName=RoBIM Add-in Manager
 AppVersion=1.1.7
-AppVerName=RoBIM Add-in Manager 1.1.7-test.1
+AppVerName=RoBIM Add-in Manager 1.1.7
 AppPublisher=RoBIM
 AppPublisherURL=https://github.com/RoBIM-tech/RoBIM-Add-in-Manager
 DefaultDirName={localappdata}\Programs\RoBIM Manager
