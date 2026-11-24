@@ -76,7 +76,7 @@
           "distribution": "release",
           "asset": "RoBIM.Revit.ParameterBulkEdit-Revit2026.zip",
           "description": "카테고리의 파라미터 값을 일괄 수정합니다. 문자 추가·치환·삭제와 구분자 이전/이후 삭제 규칙을 순서대로 적용하고 미리보기합니다.",
-          "channel": "test"
+          "channel": "stable"
         }
       ]
     },
