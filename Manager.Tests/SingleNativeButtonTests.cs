@@ -95,6 +95,24 @@ internal static class SingleNativeButtonTests
             bool rejected = false;
             try { NativeProtocol.Module(badSplit.Path); } catch (InvalidDataException) { rejected = true; }
             require(rejected, "SplitButton across different tabs must be rejected");
+
+            var pulldown = Fixture("pulldown-valid");
+            var pdRun = new NativeCommand("copy", "도구 A", "description", "RoBIM TEST", "독립 도구 TEST", "Feature.dll", "Feature.Command", PulldownGroup: "menu", Availability: "document", HelpUrl: "https://github.com/RoBIM-tech/RoBIM-Revit-ParameterCopy/blob/main/docs/user/README.md");
+            var pdSet = pdRun with { Id = "settings", Title = "도구 B", Type = "Feature.SettingsCommand", Availability = "project" };
+            NativeProtocol.Save(Path.Combine(pulldown.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun, pdSet]));
+            require(SingleNativeButton.Validate(repo, package, pulldown).Commands.Length == 2, "PulldownButton group with availability and helpUrl should be accepted");
+
+            var badAvailability = Fixture("bad-availability");
+            NativeProtocol.Save(Path.Combine(badAvailability.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun with { Availability = "invalid", PulldownGroup = null }]));
+            bool badAvailRejected = false;
+            try { NativeProtocol.Module(badAvailability.Path); } catch (InvalidDataException) { badAvailRejected = true; }
+            require(badAvailRejected, "Invalid availability value must be rejected");
+
+            var badHelp = Fixture("bad-helpurl");
+            NativeProtocol.Save(Path.Combine(badHelp.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun with { HelpUrl = "http://example.org", PulldownGroup = null }]));
+            bool badHelpRejected = false;
+            try { NativeProtocol.Module(badHelp.Path); } catch (InvalidDataException) { badHelpRejected = true; }
+            require(badHelpRejected, "Non-HTTPS helpUrl must be rejected");
         });
         test("ReleasePromotionDownloadsStableWithoutRelabelingInstalledTest",()=> {
             var target=paths("single-promotion");var old=Fixture("promotion-old");

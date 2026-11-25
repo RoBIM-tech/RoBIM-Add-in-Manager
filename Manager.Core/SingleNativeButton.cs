@@ -15,7 +15,9 @@ public static class SingleNativeButton
 
     public static bool SupportsSingleFeature(NativeModule module) =>
         module.Commands.Length == 1 ||
-        (module.Commands.Length >= 2 && module.Commands.All(c => !string.IsNullOrEmpty(c.SplitGroup) && c.SplitGroup == module.Commands[0].SplitGroup));
+        (module.Commands.Length >= 2 && (
+            module.Commands.All(c => !string.IsNullOrEmpty(c.SplitGroup) && c.SplitGroup == module.Commands[0].SplitGroup) ||
+            module.Commands.All(c => !string.IsNullOrEmpty(c.PulldownGroup) && c.PulldownGroup == module.Commands[0].PulldownGroup)));
 
     public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source, bool requireChannel = true)
     {

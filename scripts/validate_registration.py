@@ -42,9 +42,17 @@ def validate_source(catalog, source, host, repository):
         module=read(manifest)
         commands=module['commands']
         split_groups={c.get('splitGroup') for c in commands}
-        is_single_split=len(commands)>=2 and len(split_groups)==1 and bool(next(iter(split_groups))) and len({(c.get('tab'),c.get('panel')) for c in commands})==1
+        pulldown_groups={c.get('pulldownGroup') for c in commands}
+        same_location=len({(c.get('tab'),c.get('panel')) for c in commands})==1
+        is_single_split=len(commands)>=2 and len(split_groups)==1 and bool(next(iter(split_groups))) and all(not c.get('pulldownGroup') for c in commands) and same_location
+        is_single_pulldown=len(commands)>=2 and len(pulldown_groups)==1 and bool(next(iter(pulldown_groups))) and all(not c.get('splitGroup') for c in commands) and same_location
+        for c in commands:
+            if c.get('availability') not in (None,'always','document','project','family','selection'):
+                raise ValueError('Invalid command availability: '+str(c.get('availability')))
+            if c.get('helpUrl') is not None and not str(c.get('helpUrl')).startswith('https://'):
+                raise ValueError('Command helpUrl must start with https://')
         definitions=[(module['id'],c['id']) for c in commands]
-        if len(definitions)!=1 and not is_single_split: raise ValueError('One command (or one SplitButton group) per native button repository required')
+        if len(definitions)!=1 and not is_single_split and not is_single_pulldown: raise ValueError('One command (or one SplitButton/PulldownButton group) per native button repository required')
         primary_definitions=[(module['id'],commands[0]['id'])]
         release=read(manifest.parent/'robim-release.json')
         entries={m['id']:m for m in release['modules']}

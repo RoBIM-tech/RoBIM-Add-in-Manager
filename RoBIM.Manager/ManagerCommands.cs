@@ -100,11 +100,12 @@ public sealed partial class ManagerForm
                         var selectedRelease = chosen is null ? null : ModuleReleases.Native(chosen.Directory, chosen.Manifest.Id, chosen.Manifest.Version);
                         var availableChannel = owner.Package?.Package.Channel is "test" or "stable" ? owner.Package.Package.Channel : release.Channel;
                         var availableLabel = availableChannel == release.Channel ? release.Label : availableChannel == "stable" ? "실사용 제공" : "TEST 제공";
-                        var emittedSplits = new HashSet<string>();
+                        var emittedGroups = new HashSet<string>();
                         foreach (var command in module.Commands)
                         {
-                            if (command.SplitGroup is { Length: > 0 } splitGroup && !emittedSplits.Add(splitGroup)) continue;
-                            var cardTitle = command.SplitGroup is { Length: > 0 } && owner.Package is { } pkg ? pkg.Package.Name : command.Title;
+                            var groupKey = command.SplitGroup is { Length: > 0 } s ? "split:" + s : command.PulldownGroup is { Length: > 0 } p ? "pulldown:" + p : null;
+                            if (groupKey is not null && !emittedGroups.Add(groupKey)) continue;
+                            var cardTitle = groupKey is not null && owner.Package is { } pkg ? pkg.Package.Name : command.Title;
                             var state = manager.State(module.Id, command.Id);
                             if (new NativeLegacyPackages(paths).Present(owner.Status.Tool)) state = (true, false, "기존 직접 설치 · Reload 방식 전환 필요");
                             cards.Add(new("native:" + module.Id + ":" + command.Id, cardTitle, command.Description, command.Tab + " / " + command.Panel, command.Icon is null ? null : NativeProtocol.Child(source.Path, command.Icon), owner, ButtonKind.Native, state.Selected, state.Pending, state.Message, source.Path, command.Id, module.Id, availableChannel, selectedRelease is not null && (state.Selected || state.Pending)

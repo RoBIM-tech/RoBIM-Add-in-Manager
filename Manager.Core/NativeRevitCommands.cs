@@ -61,9 +61,11 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var manifest = NativeProtocol.Module(package); var current = Desired();
         if (selected) requireChannel?.Invoke(ModuleReleases.Native(package, manifest.Id, manifest.Version).Channel);
         var targetCommand = manifest.Commands.FirstOrDefault(c => c.Id == commandId);
-        var groupIds = targetCommand?.SplitGroup is { Length: > 0 } group
-            ? manifest.Commands.Where(c => c.SplitGroup == group).Select(c => c.Id).ToArray()
-            : [commandId];
+        var groupIds = targetCommand?.SplitGroup is { Length: > 0 } splitGroup
+            ? manifest.Commands.Where(c => c.SplitGroup == splitGroup).Select(c => c.Id).ToArray()
+            : targetCommand?.PulldownGroup is { Length: > 0 } pulldownGroup
+                ? manifest.Commands.Where(c => c.PulldownGroup == pulldownGroup).Select(c => c.Id).ToArray()
+                : [commandId];
         if (!selected)
         {
             // Removal preserves the selected generation, even if a newer TEST catalog was imported.
