@@ -40,8 +40,20 @@ def validate_source(catalog, source, host, repository):
         manifest=next((p for p in candidates if p.is_file()),None)
         if manifest is None: raise ValueError('robim-module.json missing')
         module=read(manifest)
-        definitions=[(module['id'],c['id']) for c in module['commands']]
-        if len(definitions)!=1: raise ValueError('One command per native button repository required')
+        commands=module['commands']
+        split_groups={c.get('splitGroup') for c in commands}
+        pulldown_groups={c.get('pulldownGroup') for c in commands}
+        same_location=len({(c.get('tab'),c.get('panel')) for c in commands})==1
+        is_single_split=len(commands)>=2 and len(split_groups)==1 and bool(next(iter(split_groups))) and all(not c.get('pulldownGroup') for c in commands) and same_location
+        is_single_pulldown=len(commands)>=2 and len(pulldown_groups)==1 and bool(next(iter(pulldown_groups))) and all(not c.get('splitGroup') for c in commands) and same_location
+        for c in commands:
+            if c.get('availability') not in (None,'always','document','project','family','selection'):
+                raise ValueError('Invalid command availability: '+str(c.get('availability')))
+            if c.get('helpUrl') is not None and not str(c.get('helpUrl')).startswith('https://'):
+                raise ValueError('Command helpUrl must start with https://')
+        definitions=[(module['id'],c['id']) for c in commands]
+        if len(definitions)!=1 and not is_single_split and not is_single_pulldown: raise ValueError('One command (or one SplitButton/PulldownButton group) per native button repository required')
+        primary_definitions=[(module['id'],commands[0]['id'])]
         release=read(manifest.parent/'robim-release.json')
         entries={m['id']:m for m in release['modules']}
         maturity=entries[module['id']]
@@ -97,7 +109,8 @@ def validate_source(catalog, source, host, repository):
                 if 'ProjectReference' in project.read_text(encoding='utf-8-sig'): raise ValueError('Independent CAD feature cannot reference another project')
     else: raise ValueError('New pyRevit commands are not accepted; use a native module')
     registered={(c['moduleId'],c['commandId']) for c in catalog['commands'] if c['host']==host and c['repository']==repository and c['packageId'] in packageIds}
-    missing=set(definitions)-registered
+    expected_defs=primary_definitions if host=='revit' else definitions
+    missing=set(expected_defs)-registered
     if missing and not (host in ('revit','autocad') and self_described and not central): raise ValueError('Manager registration missing: '+repr(sorted(missing)))
     if len(definitions)!=len(set(definitions)): raise ValueError('Duplicate command ID in source')
     return len(definitions)

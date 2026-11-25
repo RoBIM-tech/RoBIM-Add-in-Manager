@@ -74,6 +74,46 @@ internal static class SingleNativeButtonTests
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("wrong-command",commandId:"wrong")));
             Reject(()=>SingleNativeButton.Validate(repo,package,Fixture("two",two:true)));
         });
+        test("SingleNativeAllowsSplitButtonGroupAndTogglesTogether", () => {
+            var split = Fixture("split-valid");
+            var runCmd = new NativeCommand("copy", "실행", "description", "RoBIM TEST", "독립 도구 TEST", "Feature.dll", "Feature.Command", SplitGroup: "main");
+            var setCmd = runCmd with { Id = "settings", Title = "설정", Type = "Feature.SettingsCommand" };
+            NativeProtocol.Save(Path.Combine(split.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [runCmd, setCmd]));
+            var validated = SingleNativeButton.Validate(repo, package, split);
+            require(validated.Commands.Length == 2, "SplitButton group should keep both commands");
+
+            var target = paths("split-toggle");
+            var manager = new NativeRevitCommands(target, () => null);
+            var cached = manager.Cache(split);
+            var added = manager.Toggle(cached.Path, "copy", true);
+            require(added.Modules.Single().Selected.SequenceEqual(["copy", "settings"]), "Toggling primary SplitButton command must select all group commands");
+            var removed = manager.Toggle(cached.Path, "copy", false);
+            require(removed.Modules.Length == 0, "Removing primary SplitButton command must remove all group commands");
+
+            var badSplit = Fixture("split-bad-tab");
+            NativeProtocol.Save(Path.Combine(badSplit.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [runCmd, setCmd with { Tab = "OtherTab" }]));
+            bool rejected = false;
+            try { NativeProtocol.Module(badSplit.Path); } catch (InvalidDataException) { rejected = true; }
+            require(rejected, "SplitButton across different tabs must be rejected");
+
+            var pulldown = Fixture("pulldown-valid");
+            var pdRun = new NativeCommand("copy", "도구 A", "description", "RoBIM TEST", "독립 도구 TEST", "Feature.dll", "Feature.Command", PulldownGroup: "menu", Availability: "document", HelpUrl: "https://github.com/RoBIM-tech/RoBIM-Revit-ParameterCopy/blob/main/docs/user/README.md");
+            var pdSet = pdRun with { Id = "settings", Title = "도구 B", Type = "Feature.SettingsCommand", Availability = "project" };
+            NativeProtocol.Save(Path.Combine(pulldown.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun, pdSet]));
+            require(SingleNativeButton.Validate(repo, package, pulldown).Commands.Length == 2, "PulldownButton group with availability and helpUrl should be accepted");
+
+            var badAvailability = Fixture("bad-availability");
+            NativeProtocol.Save(Path.Combine(badAvailability.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun with { Availability = "invalid", PulldownGroup = null }]));
+            bool badAvailRejected = false;
+            try { NativeProtocol.Module(badAvailability.Path); } catch (InvalidDataException) { badAvailRejected = true; }
+            require(badAvailRejected, "Invalid availability value must be rejected");
+
+            var badHelp = Fixture("bad-helpurl");
+            NativeProtocol.Save(Path.Combine(badHelp.Path, NativeProtocol.ManifestName), new NativeModule(1, "parameter-copy", "0.1.0-test.2", "command-only", [pdRun with { HelpUrl = "http://example.org", PulldownGroup = null }]));
+            bool badHelpRejected = false;
+            try { NativeProtocol.Module(badHelp.Path); } catch (InvalidDataException) { badHelpRejected = true; }
+            require(badHelpRejected, "Non-HTTPS helpUrl must be rejected");
+        });
         test("ReleasePromotionDownloadsStableWithoutRelabelingInstalledTest",()=> {
             var target=paths("single-promotion");var old=Fixture("promotion-old");
             var manager=new NativeRevitCommands(target,()=>null);var cached=manager.Cache(old);var before=manager.Toggle(cached.Path,"copy",true);
