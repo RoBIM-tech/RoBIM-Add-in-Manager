@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace RoBIM.Revit.Reload;
 
-public sealed record NativeCommand(string Id, string Title, string Description, string Tab, string Panel, string Assembly, string Type, string? Icon = null);
+public sealed record NativeCommand(string Id, string Title, string Description, string Tab, string Panel, string Assembly, string Type, string? Icon = null, string? SplitGroup = null);
 public sealed record NativeModule(int SchemaVersion, string Id, string Version, string ReloadPolicy, NativeCommand[] Commands);
 public sealed record NativeModuleEntry(string Directory, NativeModule Manifest, string[] Selected, Dictionary<string, string> Hashes);
 public sealed record NativeTarget(int Pid, long StartTicks);
@@ -62,6 +62,12 @@ public static class NativeProtocol
         {
             if (!Id(command.Id) || string.IsNullOrWhiteSpace(command.Title) || command.Title.Length > 120 || string.IsNullOrWhiteSpace(command.Tab) || command.Tab.Length > 80 || string.IsNullOrWhiteSpace(command.Panel) || command.Panel.Length > 80 || string.IsNullOrWhiteSpace(command.Type) || !command.Assembly.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || !File.Exists(Child(root, command.Assembly))) throw new InvalidDataException("Revit Reload 버튼 정의 오류");
             if (command.Icon is not null && !File.Exists(Child(root, command.Icon))) throw new InvalidDataException("Revit 버튼 아이콘 누락");
+            if (command.SplitGroup is not null && !Id(command.SplitGroup)) throw new InvalidDataException("Revit SplitButton 그룹 ID 오류");
+        }
+        foreach (var group in module.Commands.Where(c => c.SplitGroup is not null).GroupBy(c => c.SplitGroup!))
+        {
+            if (group.Count() < 2 || group.Select(c => (c.Tab, c.Panel)).Distinct().Count() != 1)
+                throw new InvalidDataException("Revit SplitButton 그룹은 동일 탭·패널에 2개 이상의 명령이 필요합니다.");
         }
         return module;
     }

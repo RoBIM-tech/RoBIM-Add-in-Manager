@@ -60,11 +60,15 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
     {
         var manifest = NativeProtocol.Module(package); var current = Desired();
         if (selected) requireChannel?.Invoke(ModuleReleases.Native(package, manifest.Id, manifest.Version).Channel);
+        var targetCommand = manifest.Commands.FirstOrDefault(c => c.Id == commandId);
+        var groupIds = targetCommand?.SplitGroup is { Length: > 0 } group
+            ? manifest.Commands.Where(c => c.SplitGroup == group).Select(c => c.Id).ToArray()
+            : [commandId];
         if (!selected)
         {
             // Removal preserves the selected generation, even if a newer TEST catalog was imported.
             var installed = current?.Modules.FirstOrDefault(x => x.Manifest.Id == manifest.Id);
-            var remaining = installed?.Selected.Where(id => id != commandId).ToArray() ?? [];
+            var remaining = installed?.Selected.Where(id => !groupIds.Contains(id)).ToArray() ?? [];
             var removalSession = CurrentSession();
             return NativeProtocol.Prepare(Data, installed?.Directory, manifest.Id, remaining,
                 removalSession?.Pid ?? 0, removalSession?.StartTicks ?? 0);
@@ -73,7 +77,7 @@ public sealed class NativeRevitCommands(ManagerPaths paths, Func<RevitSession?>?
         var cache = NativeProtocol.Read<NativeCatalogPackage>(cacheFile);
         if (!Path.GetFullPath(cache.Path).Equals(Path.GetFullPath(package), StringComparison.OrdinalIgnoreCase) || !NativeProtocol.Same(cache.Hashes, NativeProtocol.Hashes(package))) throw new IOException("Revit 기능 원본 캐시가 변경되어 적용하지 않습니다. 패키지를 다시 가져오십시오.");
         var ids = current?.Modules.FirstOrDefault(x => x.Manifest.Id == manifest.Id)?.Selected.ToHashSet() ?? [];
-        if (selected) ids.Add(commandId); else ids.Remove(commandId);
+        foreach (var id in groupIds) if (selected) ids.Add(id); else ids.Remove(id);
         var session = CurrentSession(); return NativeProtocol.Prepare(Data, package, manifest.Id, ids.ToArray(), session?.Pid ?? 0, session?.StartTicks ?? 0);
     }
     public void RequestReload(bool includeCachedUpdates = true)

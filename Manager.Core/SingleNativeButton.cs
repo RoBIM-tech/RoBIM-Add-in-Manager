@@ -13,11 +13,15 @@ public static class SingleNativeButton
         return new(repository.Repository, package.Id, package.ModuleId, package.CommandId, "revit");
     }
 
+    public static bool SupportsSingleFeature(NativeModule module) =>
+        module.Commands.Length == 1 ||
+        (module.Commands.Length >= 2 && module.Commands.All(c => !string.IsNullOrEmpty(c.SplitGroup) && c.SplitGroup == module.Commands[0].SplitGroup));
+
     public static NativeModule Validate(ExtensionRepository repository, ExtensionPackage package, SourcePackage source, bool requireChannel = true)
     {
         if (package.Host != "revit" || package.Distribution != "release") throw new IOException("Revit 도구 배포 패키지가 필요합니다.");
         var module = NativeProtocol.Module(source.Path);
-        if (module.Commands.Length != 1) throw new IOException("이 저장소의 배포 패키지는 버튼 하나만 포함해야 합니다.");
+        if (!SupportsSingleFeature(module)) throw new IOException("이 저장소의 배포 패키지는 버튼 하나(또는 단일 SplitButton 그룹)만 포함해야 합니다.");
         var expected = Registration(repository, package);
         if (expected is not null && (module.Id != expected.ModuleId || module.Commands[0].Id != expected.CommandId))
             throw new IOException("다운로드한 버튼의 ID가 Manager 등록 정보와 다릅니다. 설치하지 않습니다.");

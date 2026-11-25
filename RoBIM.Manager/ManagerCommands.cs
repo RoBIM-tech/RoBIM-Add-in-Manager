@@ -301,7 +301,7 @@ public sealed partial class ManagerForm
                     var downloaded = NativeProtocol.Module(source.Path);
                     if(expected is not null) ProgramUpdateBatch.Verify(expected,downloaded.Version,ModuleReleases.Native(source.Path,downloaded.Id,downloaded.Version).Channel);
                     WriteLog(card.Title + " 다운로드 검증 완료 · " + ModuleReleases.Native(source.Path, downloaded.Id, downloaded.Version).Label);
-                    commandId = NativeProtocol.Module(source.Path).Commands.Single().Id;
+                    commandId = NativeProtocol.Module(source.Path).Commands[0].Id;
                 }
                 else
                 {

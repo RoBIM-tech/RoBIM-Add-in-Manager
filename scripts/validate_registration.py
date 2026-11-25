@@ -40,8 +40,12 @@ def validate_source(catalog, source, host, repository):
         manifest=next((p for p in candidates if p.is_file()),None)
         if manifest is None: raise ValueError('robim-module.json missing')
         module=read(manifest)
-        definitions=[(module['id'],c['id']) for c in module['commands']]
-        if len(definitions)!=1: raise ValueError('One command per native button repository required')
+        commands=module['commands']
+        split_groups={c.get('splitGroup') for c in commands}
+        is_single_split=len(commands)>=2 and len(split_groups)==1 and bool(next(iter(split_groups))) and len({(c.get('tab'),c.get('panel')) for c in commands})==1
+        definitions=[(module['id'],c['id']) for c in commands]
+        if len(definitions)!=1 and not is_single_split: raise ValueError('One command (or one SplitButton group) per native button repository required')
+        primary_definitions=[(module['id'],commands[0]['id'])]
         release=read(manifest.parent/'robim-release.json')
         entries={m['id']:m for m in release['modules']}
         maturity=entries[module['id']]
@@ -97,7 +101,8 @@ def validate_source(catalog, source, host, repository):
                 if 'ProjectReference' in project.read_text(encoding='utf-8-sig'): raise ValueError('Independent CAD feature cannot reference another project')
     else: raise ValueError('New pyRevit commands are not accepted; use a native module')
     registered={(c['moduleId'],c['commandId']) for c in catalog['commands'] if c['host']==host and c['repository']==repository and c['packageId'] in packageIds}
-    missing=set(definitions)-registered
+    expected_defs=primary_definitions if host=='revit' else definitions
+    missing=set(expected_defs)-registered
     if missing and not (host in ('revit','autocad') and self_described and not central): raise ValueError('Manager registration missing: '+repr(sorted(missing)))
     if len(definitions)!=len(set(definitions)): raise ValueError('Duplicate command ID in source')
     return len(definitions)
