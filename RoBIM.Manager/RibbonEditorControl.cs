@@ -5,11 +5,19 @@ namespace RoBIM.Manager;
 
 internal sealed partial class RibbonEditorControl : UserControl
 {
-    private readonly ListBox bank = new() { Dock = DockStyle.Fill, IntegralHeight = false, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 30 };
-    private readonly TreeView tree = new() { Dock = DockStyle.Fill, AllowDrop = true, HideSelection = false, FullRowSelect = true, ItemHeight = 28 };
-    private readonly FlowLayoutPanel preview = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Color.FromArgb(250, 250, 250) };
-    private readonly TextBox caption = new() { Width = 220 };
-    private readonly ComboBox arrangement = new() { Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ListBox bank = new() { Dock = DockStyle.Fill, IntegralHeight = false, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 28 };
+    private readonly TextBox bankSearch = new() { Dock = DockStyle.Top, PlaceholderText = "미배치 버튼 검색..." };
+    private readonly TreeView tree = new() { Dock = DockStyle.Fill, AllowDrop = true, HideSelection = false, FullRowSelect = true, ItemHeight = 26 };
+    private readonly Panel preview = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(250, 250, 250) };
+    private readonly Panel tabsBar = new() { Dock = DockStyle.Top, Height = 32, BackColor = Color.FromArgb(241, 243, 246) };
+    private readonly FlowLayoutPanel tabsHost = new() { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new(6, 2, 0, 0) };
+    private readonly FlowLayoutPanel stripHost = new() { Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, BackColor = Color.FromArgb(250, 250, 250), Padding = new(6, 4, 6, 4) };
+    private readonly Button zoomCompactBtn = new() { Text = "작게", Width = 48, Height = 24, Margin = new(2, 2, 0, 2) };
+    private readonly Button zoomNormalBtn = new() { Text = "보통", Width = 48, Height = 24, Margin = new(2, 2, 4, 2) };
+    private readonly TextBox caption = new() { Width = 180 };
+    private readonly ComboBox arrangement = new() { Width = 130, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox moveTabBox = new() { Width = 130, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly Button moveTabBtn = new() { Text = "이동", Width = 52, Height = 25, Margin = new(4, 0, 0, 0) };
     private readonly Label status = new() { AutoSize = true, ForeColor = Color.FromArgb(75, 95, 125), MaximumSize = new(940, 0) };
     private readonly ToolTip tips = new();
     private readonly RibbonLayouts store;
@@ -17,6 +25,7 @@ internal sealed partial class RibbonEditorControl : UserControl
     private readonly string host;
     private List<RibbonTool> tools = [];
     private bool updating;
+    private bool compactPreview = true;
     private sealed record StackNode(string Id, int Rows);
     private sealed record BankTool(RibbonTool Tool) { public override string ToString() => Tool.Title + (Tool.Installed ? "" : "  · 미설치"); }
     internal IEnumerable<string> AvailableIds => bank.Items.Cast<BankTool>().Select(x=>x.Tool.Id);
@@ -37,11 +46,27 @@ internal sealed partial class RibbonEditorControl : UserControl
     {
         this.store = store; this.example = example; this.host = host; Dock = DockStyle.Fill;
         Disposed += (_, _) => tips.Dispose();
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         root.ColumnStyles.Add(new(SizeType.Percent, 100));
-        root.RowStyles.Add(new(SizeType.Absolute, 175)); root.RowStyles.Add(new(SizeType.AutoSize)); root.RowStyles.Add(new(SizeType.Percent, 100)); root.RowStyles.Add(new(SizeType.AutoSize)); root.RowStyles.Add(new(SizeType.AutoSize));
+        root.RowStyles.Add(new(SizeType.Percent, 100)); root.RowStyles.Add(new(SizeType.AutoSize)); root.RowStyles.Add(new(SizeType.AutoSize));
+
+        var zoomBar = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new(4, 2, 4, 0) };
+        zoomBar.Controls.Add(zoomCompactBtn); zoomBar.Controls.Add(zoomNormalBtn);
+        zoomCompactBtn.Click += (_, _) => { compactPreview = true; Changed(); };
+        zoomNormalBtn.Click += (_, _) => { compactPreview = false; Changed(); };
+        tabsBar.Controls.Add(tabsHost); tabsBar.Controls.Add(zoomBar);
+        preview.Controls.Add(stripHost); preview.Controls.Add(tabsBar);
+        stripHost.MouseWheel += (_, e) =>
+        {
+            if (!stripHost.HorizontalScroll.Visible) return;
+            var next = Math.Clamp(stripHost.HorizontalScroll.Value - e.Delta, stripHost.HorizontalScroll.Minimum, Math.Max(0, stripHost.HorizontalScroll.Maximum - stripHost.ClientSize.Width + 1));
+            stripHost.HorizontalScroll.Value = next;
+            stripHost.PerformLayout();
+            if (e is HandledMouseEventArgs h) h.Handled = true;
+        };
+
         var actions = new FlowLayoutPanel { AutoScroll = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
-        Button Add(string label, Action action) { var b = new Button { Text = label, Width = 94, Height = 32, Margin = new(0, 0, 4, 6) }; b.Click += (_, _) => Guard(action); actions.Controls.Add(b); return b; }
+        Button Add(string label, Action action) { var b = new Button { Text = label, Width = 94, Height = 30, Margin = new(0, 0, 4, 5) }; b.Click += (_, _) => Guard(action); actions.Controls.Add(b); return b; }
         Add("＋ 탭", () => { var tab = AddTab("새 탭"); tree.SelectedNode = tab; Changed(); });
         Add("＋ 패널", () => { var tab = SelectedTab() ?? AddTab("RoBIM 도구"); var panel = new TreeNode(Unique("새 패널", tab.Nodes)) { Tag = "Panel" }; tab.Nodes.Add(panel); tree.SelectedNode = panel; tab.Expand(); Changed(); });
         Add("＋ 2단 묶음", () => AddStack(2)); Add("＋ 3단 묶음", () => AddStack(3));
@@ -55,16 +80,33 @@ internal sealed partial class RibbonEditorControl : UserControl
         actions.Controls.SetChildIndex(save, 0); actions.Controls.SetChildIndex(apply, 1);
         apply.Click += async (_, _) => { var saved = false; try { var layout = Snapshot(); if (example) { status.Text = "미리보기 예시입니다."; return; } store.Save(layout); saved = true; if (ApplyRequested is not null) status.Text = await ApplyRequested(layout); } catch (Exception e) { status.Text = saved ? "배치는 저장되었으나 적용 준비에 실패했습니다." : "배치를 저장하지 못했습니다."; MessageBox.Show(this, status.Text + "\n" + e.Message, "리본 적용"); } };
         if (host == "Revit") Add("결과 확인", () => status.Text = store.RevitResult());
-        root.Controls.Add(preview, 0, 0);
-        root.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 0, 0, 10), Text = "큰 버튼은 한 칸을 사용합니다. 2단·3단 묶음을 만든 뒤 그 안으로 버튼을 드래그하면 한 칸에 세로로 쌓입니다.\n패널과 버튼 묶음은 가로로 배치됩니다. 미설치 버튼은 회색이며 배치를 저장해도 설치하지 않습니다." }, 0, 1);
+
+        var bankHost = new Panel { Dock = DockStyle.Fill };
+        bankHost.Controls.Add(bank); bankHost.Controls.Add(bankSearch);
+        bankSearch.TextChanged += (_, _) => RefreshBank();
+
         var columns = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
-        columns.ColumnStyles.Add(new(SizeType.Percent, 39)); columns.ColumnStyles.Add(new(SizeType.Percent, 61)); columns.ColumnStyles.Add(new(SizeType.Absolute, 220)); columns.RowStyles.Add(new(SizeType.Absolute, 30)); columns.RowStyles.Add(new(SizeType.Percent, 100));
+        columns.ColumnStyles.Add(new(SizeType.Percent, 36)); columns.ColumnStyles.Add(new(SizeType.Percent, 64)); columns.ColumnStyles.Add(new(SizeType.Absolute, 215)); columns.RowStyles.Add(new(SizeType.Absolute, 26)); columns.RowStyles.Add(new(SizeType.Percent, 100));
         foreach (var (title, col) in new[] { ("배치 가능한 버튼", 0), ("탭 / 패널 / 버튼 묶음", 1), ("편집 / 저장", 2) }) columns.Controls.Add(new Label { Text = title, AutoSize = true, Font = new Font(Font, FontStyle.Bold) }, col, 0);
-        columns.Controls.Add(bank, 0, 1); columns.Controls.Add(tree, 1, 1); columns.Controls.Add(actions, 2, 1); root.Controls.Add(columns, 0, 2);
-        var properties = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new(0, 10, 0, 8) };
-        properties.Controls.Add(new Label { Text = "표시 이름", AutoSize = true, Padding = new(0, 5, 5, 0) }); properties.Controls.Add(caption);
-        properties.Controls.Add(new Label { Text = "한 칸 구성", AutoSize = true, Padding = new(12, 5, 5, 0) }); arrangement.Items.AddRange(["큰 버튼 1개", "작은 버튼 2개", "작은 버튼 3개"]); arrangement.SelectedIndex = 0; properties.Controls.Add(arrangement);
-        root.Controls.Add(properties, 0, 3); root.Controls.Add(status, 0, 4); Controls.Add(root);
+        columns.Controls.Add(bankHost, 0, 1); columns.Controls.Add(tree, 1, 1); columns.Controls.Add(actions, 2, 1);
+
+        var bottomPane = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
+        bottomPane.ColumnStyles.Add(new(SizeType.Percent, 100));
+        bottomPane.RowStyles.Add(new(SizeType.AutoSize)); bottomPane.RowStyles.Add(new(SizeType.Percent, 100));
+        bottomPane.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 4, 0, 6), Text = "상단 탭은 스크롤과 무관하게 고정됩니다. 뒤쪽 버튼을 상단 탭으로 드래그하거나 하단 '다른 탭으로 이동'으로 옮기세요. 미리보기 위 마우스 휠로 좌우 스크롤합니다." }, 0, 0);
+        bottomPane.Controls.Add(columns, 0, 1);
+
+        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6, Panel1MinSize = 115, Panel2MinSize = 160, SplitterDistance = 138 };
+        split.Panel1.Controls.Add(preview);
+        split.Panel2.Controls.Add(bottomPane);
+        root.Controls.Add(split, 0, 0);
+
+        var properties = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new(0, 6, 0, 6) };
+        properties.Controls.Add(new Label { Text = "표시 이름", AutoSize = true, Padding = new(0, 5, 4, 0) }); properties.Controls.Add(caption);
+        properties.Controls.Add(new Label { Text = "한 칸 구성", AutoSize = true, Padding = new(10, 5, 4, 0) }); arrangement.Items.AddRange(["큰 버튼 1개", "작은 버튼 2개", "작은 버튼 3개"]); arrangement.SelectedIndex = 0; properties.Controls.Add(arrangement);
+        properties.Controls.Add(new Label { Text = "다른 탭으로 이동", AutoSize = true, Padding = new(10, 5, 4, 0) }); properties.Controls.Add(moveTabBox); properties.Controls.Add(moveTabBtn);
+        moveTabBtn.Click += (_, _) => Guard(MoveSelectedToChosenTab);
+        root.Controls.Add(properties, 0, 1); root.Controls.Add(status, 0, 2); Controls.Add(root);
         bank.DrawItem += (_, e) => { if (e.Index < 0) return; e.DrawBackground(); var item = (BankTool)bank.Items[e.Index]; TextRenderer.DrawText(e.Graphics, item.ToString(), Font, e.Bounds, item.Tool.Installed ? ForeColor : Color.Gray, TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter); e.DrawFocusRectangle(); };
         bank.MouseDown += (_, e) => { var index = bank.IndexFromPoint(e.Location); if (e.Button == MouseButtons.Left && index >= 0) { bank.SelectedIndex = index; StartPreviewDrag(((BankTool)bank.Items[index]).Tool.Id); } };
         bank.DoubleClick += (_, _) => { if (bank.SelectedItem is BankTool item) Guard(() => AddTool(item.Tool.Id, tree.SelectedNode)); };
@@ -143,7 +185,30 @@ internal sealed partial class RibbonEditorControl : UserControl
     private void UpdateProperties()
     {
         updating = true; var node = tree.SelectedNode; caption.Text = node?.Tag is RibbonPlacement b ? b.Title : node?.Text ?? ""; var separator = node?.Tag is RibbonPlacement { Kind: "Separator" }; caption.Enabled = node is not null && node.Tag is not StackNode && !separator;
-        arrangement.Enabled = !separator && (node?.Tag is RibbonPlacement or StackNode); var rows = (node?.Tag as StackNode ?? node?.Parent?.Tag as StackNode)?.Rows ?? 0; arrangement.SelectedIndex = rows == 0 ? 0 : rows - 1; updating = false;
+        arrangement.Enabled = !separator && (node?.Tag is RibbonPlacement or StackNode); var rows = (node?.Tag as StackNode ?? node?.Parent?.Tag as StackNode)?.Rows ?? 0; arrangement.SelectedIndex = rows == 0 ? 0 : rows - 1;
+        moveTabBox.Items.Clear();
+        foreach (TreeNode t in tree.Nodes) moveTabBox.Items.Add(t.Text);
+        var currentTab = SelectedTab();
+        if (currentTab is not null && currentTab.Index < moveTabBox.Items.Count) moveTabBox.SelectedIndex = currentTab.Index;
+        var canMoveTab = node is not null && node.Tag as string != "Tab" && tree.Nodes.Count > 1;
+        moveTabBox.Enabled = canMoveTab; moveTabBtn.Enabled = canMoveTab;
+        updating = false;
+    }
+    private void MoveSelectedToChosenTab()
+    {
+        if (tree.SelectedNode is not { } node || node.Tag as string == "Tab") return;
+        if (moveTabBox.SelectedIndex < 0 || moveTabBox.SelectedIndex >= tree.Nodes.Count) return;
+        var targetTab = tree.Nodes[moveTabBox.SelectedIndex];
+        if (targetTab == SelectedTab()) return;
+        DropNode(node, node.Tag as string == "Panel" ? targetTab : EnsurePanel(targetTab));
+    }
+    private void RefreshBank()
+    {
+        var placed = Descendants(tree.Nodes).Where(n => n.Tag is RibbonPlacement { Kind: not "Separator" }).Select(n => ((RibbonPlacement)n.Tag!).Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var query = bankSearch.Text.Trim();
+        bank.Items.Clear();
+        foreach (var tool in tools.Where(t => !placed.Contains(t.Id) && (query.Length == 0 || t.Title.Contains(query, StringComparison.OrdinalIgnoreCase))))
+            bank.Items.Add(new BankTool(tool));
     }
     private void SetArrangement(int rows)
     {
@@ -205,67 +270,78 @@ internal sealed partial class RibbonEditorControl : UserControl
     {
         var placement = (RibbonPlacement)node.Tag!;
         var tool = tools.FirstOrDefault(x => x.Id == placement.Id); var installed = tool?.Installed == true;
+        var iconPx = large ? (compactPreview ? 22 : 30) : (compactPreview ? 14 : 16);
         var box = new Panel { Width = width, Height = height, Margin = Padding.Empty, BackColor = installed ? Color.FromArgb(244, 247, 251) : Color.FromArgb(247, 247, 247) };
-        var icon = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, Size = new(large ? 30 : 16, large ? 30 : 16), Location = large ? new((width - 30) / 2, 5) : new(5, Math.Max(2, (height - 16) / 2)) };
+        var icon = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, Size = new(iconPx, iconPx), Location = large ? new((width - iconPx) / 2, compactPreview ? 4 : 5) : new(4, Math.Max(2, (height - iconPx) / 2)) };
         try { if (tool?.Icon is { } path && File.Exists(path)) { SafeFiles.NoLinks(path); if (new FileInfo(path).Length <= 2 * 1024 * 1024) { using var stream = File.OpenRead(path); using var image = Image.FromStream(stream); icon.Image = new Bitmap(image); } } } catch (Exception) { }
         if(icon.Image is null)icon.Image=ManagementButtonIcons.Create(placement.Id,large?32:16);
         if (icon.Image is not null) { icon.Disposed += (_, _) => icon.Image?.Dispose(); box.Controls.Add(icon); }
-        else { icon.Dispose(); box.Controls.Add(new Label { Text = "▣", ForeColor = installed ? Color.FromArgb(55, 100, 160) : Color.Gray, Font = new Font(Font.FontFamily, large ? 22 : 12), TextAlign = ContentAlignment.MiddleCenter, Bounds = large ? new((width - 36) / 2, 0, 36, 38) : new(2, 0, 22, height) }); }
-        var label = new Label { Text = placement.Title, ForeColor = installed ? Color.FromArgb(35, 45, 60) : Color.Gray, TextAlign = large ? ContentAlignment.TopCenter : ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, 8.5f), Bounds = large ? new(3, 40, width - 6, height - 40) : new(27, 0, width - 30, height) };
+        else { icon.Dispose(); box.Controls.Add(new Label { Text = "▣", ForeColor = installed ? Color.FromArgb(55, 100, 160) : Color.Gray, Font = new Font(Font.FontFamily, large ? (compactPreview ? 16 : 22) : 11), TextAlign = ContentAlignment.MiddleCenter, Bounds = large ? new((width - 30) / 2, 0, 30, iconPx + 6) : new(2, 0, 20, height) }); }
+        var textTop = iconPx + (compactPreview ? 6 : 10);
+        var label = new Label { Text = placement.Title, ForeColor = installed ? Color.FromArgb(35, 45, 60) : Color.Gray, TextAlign = large ? ContentAlignment.TopCenter : ContentAlignment.MiddleLeft, AutoEllipsis = true, Font = new Font(Font.FontFamily, compactPreview ? 7.5f : 8.5f), Bounds = large ? new(2, textTop, width - 4, Math.Max(14, height - textTop)) : new(iconPx + 7, 0, Math.Max(20, width - iconPx - 9), height) };
         box.Controls.Add(label); tips.SetToolTip(label, placement.Title + (installed ? "" : " · 미설치") + " · 클릭: 이름 수정 / 드래그: 이동");
         WirePreview(box, node); foreach (Control child in box.Controls) WirePreview(child, node, child == label); return box;
     }
     private void Changed()
     {
         if (suspendPreview) return;
-        var placed = Descendants(tree.Nodes).Where(n => n.Tag is RibbonPlacement { Kind: not "Separator" }).Select(n => ((RibbonPlacement)n.Tag!).Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        bank.Items.Clear();
-        foreach (var tool in tools.Where(t => !placed.Contains(t.Id))) bank.Items.Add(new BankTool(tool));
-        foreach (var child in preview.Controls.Cast<Control>().ToArray()) child.Dispose();
+        RefreshBank();
+        zoomCompactBtn.BackColor = compactPreview ? Color.FromArgb(30, 91, 166) : SystemColors.Control;
+        zoomCompactBtn.ForeColor = compactPreview ? Color.White : ForeColor;
+        zoomNormalBtn.BackColor = !compactPreview ? Color.FromArgb(30, 91, 166) : SystemColors.Control;
+        zoomNormalBtn.ForeColor = !compactPreview ? Color.White : ForeColor;
+        foreach (var child in tabsHost.Controls.Cast<Control>().ToArray()) child.Dispose();
+        foreach (var child in stripHost.Controls.Cast<Control>().ToArray()) child.Dispose();
         var selectedTab = SelectedTab() ?? tree.Nodes.Cast<TreeNode>().FirstOrDefault();
-        var tabs = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new(8, 4, 8, 0) };
         foreach (TreeNode tab in tree.Nodes)
         {
-            var header = new Label { Text = tab.Text, AutoSize = true, Padding = new(12, 5, 12, 5), Margin = new(0), BackColor = tab == selectedTab ? Color.White : Color.FromArgb(232, 235, 239), ForeColor = tab == selectedTab ? Color.FromArgb(30, 91, 166) : ForeColor, Font = new Font(Font, tab == selectedTab ? FontStyle.Bold : FontStyle.Regular) };
-            WirePreview(header, tab, true); tabs.Controls.Add(header);
+            var header = new Label { Text = tab.Text, AutoSize = true, Padding = new(10, 4, 10, 4), Margin = new(0, 0, 2, 0), BackColor = tab == selectedTab ? Color.White : Color.FromArgb(232, 235, 239), ForeColor = tab == selectedTab ? Color.FromArgb(30, 91, 166) : ForeColor, Font = new Font(Font, tab == selectedTab ? FontStyle.Bold : FontStyle.Regular) };
+            WirePreview(header, tab, true); tabsHost.Controls.Add(header);
         }
-        var addTab = new Button { Text = "＋", Width = 32, Height = 29, Margin = Padding.Empty, AccessibleName = "미리보기에서 탭 추가" };
-        addTab.Click += (_, _) => AddTabFromPreview(); tabs.Controls.Add(addTab); preview.Controls.Add(tabs);
+        var addTab = new Button { Text = "＋", Width = 28, Height = 26, Margin = Padding.Empty, AccessibleName = "미리보기에서 탭 추가" };
+        addTab.Click += (_, _) => AddTabFromPreview(); tabsHost.Controls.Add(addTab);
+        var largeW = compactPreview ? 74 : 104;
+        var largeH = compactPreview ? 58 : 78;
+        var stackW = compactPreview ? 112 : 148;
+        var smallW = compactPreview ? 108 : 143;
+        var panelH = compactPreview ? 88 : 112;
+        var sepW = compactPreview ? 10 : 13;
         foreach (TreeNode tab in tree.Nodes)
         {
             if (tab != selectedTab) continue;
-            var strip = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new(8, 0, 8, 12), BackColor = Color.FromArgb(241, 243, 246) };
+            var strip = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = Padding.Empty, BackColor = Color.FromArgb(241, 243, 246) };
             foreach (TreeNode panel in tab.Nodes)
             {
-                var group = new TableLayoutPanel { Width = Math.Max(110, panel.Nodes.Cast<TreeNode>().Sum(n => n.Tag is StackNode ? 148 : n.Tag is RibbonPlacement { Kind: "Separator" } ? 13 : 104) + 12), Height = 112, RowCount = 2, ColumnCount = 1, Margin = new(0, 0, 4, 0), Padding = new(5), BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.Single };
-                group.ColumnStyles.Add(new(SizeType.Percent, 100)); group.RowStyles.Add(new(SizeType.Percent, 100)); group.RowStyles.Add(new(SizeType.Absolute, 21));
+                var group = new TableLayoutPanel { Width = Math.Max(compactPreview ? 82 : 110, panel.Nodes.Cast<TreeNode>().Sum(n => n.Tag is StackNode ? stackW : n.Tag is RibbonPlacement { Kind: "Separator" } ? sepW : largeW) + 12), Height = panelH, RowCount = 2, ColumnCount = 1, Margin = new(0, 0, 4, 0), Padding = new(4), BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.Single };
+                group.ColumnStyles.Add(new(SizeType.Percent, 100)); group.RowStyles.Add(new(SizeType.Percent, 100)); group.RowStyles.Add(new(SizeType.Absolute, 19));
                 var columns = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = Padding.Empty };
                 WirePreview(group, panel); WirePreview(columns, panel);
                 foreach (TreeNode node in panel.Nodes)
                 {
                     if (node.Tag is RibbonPlacement { Kind: "Separator" })
                     {
-                        var separator = new Panel { Width = 13, Height = 78, Margin = Padding.Empty };
-                        separator.Controls.Add(new Panel { BackColor = Color.FromArgb(190, 195, 202), Bounds = new(6, 5, 1, 68) }); columns.Controls.Add(separator);
+                        var separator = new Panel { Width = sepW, Height = largeH, Margin = Padding.Empty };
+                        separator.Controls.Add(new Panel { BackColor = Color.FromArgb(190, 195, 202), Bounds = new(sepW / 2, 4, 1, largeH - 8) }); columns.Controls.Add(separator);
                         WirePreview(separator, node); WirePreview(separator.Controls[0], node);
                     }
-                    else if (node.Tag is RibbonPlacement placement) columns.Controls.Add(PreviewButton(node, placement.Size != "Small", placement.Size == "Small" ? 143 : 104, placement.Size == "Small" ? 26 : 78));
+                    else if (node.Tag is RibbonPlacement placement) columns.Controls.Add(PreviewButton(node, placement.Size != "Small", placement.Size == "Small" ? smallW : largeW, placement.Size == "Small" ? (compactPreview ? 22 : 26) : largeH));
                     else if (node.Tag is StackNode stack)
                     {
                         node.Text = $"{stack.Rows}단 묶음 ({node.Nodes.Count}/{stack.Rows})";
-                        var column = new FlowLayoutPanel { Width = 148, Height = 78, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty, Padding = new(5, 0, 0, 0), BackColor = Color.FromArgb(210, 220, 234) };
+                        var column = new FlowLayoutPanel { Width = stackW, Height = largeH, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty, Padding = new(4, 0, 0, 0), BackColor = Color.FromArgb(210, 220, 234) };
                         WirePreview(column, node); tips.SetToolTip(column, "왼쪽 여백을 드래그하면 묶음 전체를 옮깁니다.");
-                        foreach (TreeNode child in node.Nodes) column.Controls.Add(PreviewButton(child, false, 143, 78 / stack.Rows));
-                        for (var i = node.Nodes.Count; i < stack.Rows; i++) { var slot = new Label { Text = "버튼을 놓으세요", Width = 143, Height = 78 / stack.Rows, ForeColor = Color.Silver, TextAlign = ContentAlignment.MiddleCenter, BorderStyle = BorderStyle.FixedSingle, Margin = Padding.Empty }; WirePreview(slot, node); column.Controls.Add(slot); }
+                        foreach (TreeNode child in node.Nodes) column.Controls.Add(PreviewButton(child, false, smallW, largeH / stack.Rows));
+                        for (var i = node.Nodes.Count; i < stack.Rows; i++) { var slot = new Label { Text = "놓기", Width = smallW, Height = largeH / stack.Rows, ForeColor = Color.Silver, TextAlign = ContentAlignment.MiddleCenter, BorderStyle = BorderStyle.FixedSingle, Margin = Padding.Empty, Font = new Font(Font.FontFamily, compactPreview ? 7.5f : 8.5f) }; WirePreview(slot, node); column.Controls.Add(slot); }
                         columns.Controls.Add(column);
                     }
                 }
                 var panelName = new Label { Text = panel.Text, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.FromArgb(90, 95, 105), Font = new Font(Font.FontFamily, 8), Margin = Padding.Empty }; WirePreview(panelName, panel, true);
                 group.Controls.Add(columns, 0, 0); group.Controls.Add(panelName, 0, 1); strip.Controls.Add(group);
             }
-            var addPanel = new Button { Text = "＋ 패널", Width = 80, Height = 105, Margin = new(4) }; addPanel.Click += (_, _) => { var panel = new TreeNode(Unique("새 패널", tab.Nodes)) { Tag = "Panel" }; tab.Nodes.Add(panel); tree.SelectedNode = panel; Changed(); }; strip.Controls.Add(addPanel);
-            preview.Controls.Add(strip);
+            var addPanel = new Button { Text = "＋ 패널", Width = compactPreview ? 64 : 80, Height = panelH - 6, Margin = new(3) }; addPanel.Click += (_, _) => { var panel = new TreeNode(Unique("새 패널", tab.Nodes)) { Tag = "Panel" }; tab.Nodes.Add(panel); tree.SelectedNode = panel; Changed(); }; strip.Controls.Add(addPanel);
+            stripHost.Controls.Add(strip);
         }
-        status.Text = "미리보기에서 드래그: 배치 이동 · 이름 클릭: 수정 · 선택한 탭 이름 재클릭: 수정 · 저장 후 적용";
+        UpdateProperties();
+        status.Text = "미리보기에서 드래그: 배치 이동 · 상단 고정 탭으로 드롭: 다른 탭 이동 · 저장 후 적용";
     }
 }
