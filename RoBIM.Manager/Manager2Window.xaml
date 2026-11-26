@@ -9,6 +9,52 @@
         FontFamily="Malgun Gothic, Segoe UI"
         FontSize="13">
     <Window.Resources>
+        <Style TargetType="ScrollBar">
+            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+            <Setter Property="Foreground" Value="#CBD5E1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="7"/>
+            <Setter Property="MinWidth" Value="7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb x:Name="Thumb" Background="{TemplateBinding Foreground}" Margin="1,2">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="3.5"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Thumb" Property="Background" Value="#94A3B8"/>
+                            </Trigger>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Width" Value="Auto"/>
+                                <Setter Property="MinWidth" Value="0"/>
+                                <Setter Property="Height" Value="7"/>
+                                <Setter Property="MinHeight" Value="7"/>
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                                <Setter TargetName="Thumb" Property="Margin" Value="2,1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="RailHostButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#CBD5E1"/>
@@ -220,33 +266,35 @@
                 <!-- Filter & Search Bar -->
                 <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,10">
                     <DockPanel>
-                        <TextBox x:Name="ToolSearchBox" DockPanel.Dock="Left" Width="260" Padding="10,6" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" BorderThickness="1" TextChanged="OnToolFilterChanged">
-                            <TextBox.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="6"/>
-                                </Style>
-                            </TextBox.Resources>
-                        </TextBox>
-                        <TextBlock x:Name="ToolSearchHint" Text="도구 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="-248,0,0,0"/>
-
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <ComboBox x:Name="ToolSortBox" Width="125" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="OnToolSortChanged">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <ComboBox x:Name="ToolSortBox" Width="118" Margin="0,0,6,0" SelectedIndex="0" SelectionChanged="OnToolSortChanged">
                                 <ComboBoxItem Content="기본순"/>
                                 <ComboBoxItem Content="이름순"/>
                                 <ComboBoxItem Content="설치됨 먼저"/>
                                 <ComboBoxItem Content="업데이트 먼저"/>
                             </ComboBox>
-                            <Button x:Name="ToolsCadConfigBtn" Content="CAD 버튼 구성" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnConfigureCadButtonsClicked"/>
-                            <Button x:Name="ToolsImportZipBtn" Content="ZIP 가져오기" Style="{StaticResource SecondaryButton}" Click="OnImportZipClicked"/>
+                            <Button x:Name="ToolsCadConfigBtn" Content="CAD 버튼 구성" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,6,0" Click="OnConfigureCadButtonsClicked"/>
+                            <Button x:Name="ToolsImportZipBtn" Content="ZIP 가져오기" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnImportZipClicked"/>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
-                            <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterAll"/>
-                            <Button x:Name="FilterInstalledBtn" Content="설치됨" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterInstalled"/>
-                            <Button x:Name="FilterUninstalledBtn" Content="미설치" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterUninstalled"/>
-                            <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterUpdate"/>
-                            <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Click="OnFilterTest"/>
-                        </StackPanel>
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Grid Width="210" Margin="0,0,12,0">
+                                <TextBox x:Name="ToolSearchBox" Padding="10,6" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" BorderThickness="1" TextChanged="OnToolFilterChanged">
+                                    <TextBox.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="6"/>
+                                        </Style>
+                                    </TextBox.Resources>
+                                </TextBox>
+                                <TextBlock x:Name="ToolSearchHint" Text="도구 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="11,0,0,0"/>
+                            </Grid>
+
+                            <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterAll"/>
+                            <Button x:Name="FilterInstalledBtn" Content="설치됨" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterInstalled"/>
+                            <Button x:Name="FilterUninstalledBtn" Content="미설치" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterUninstalled"/>
+                            <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterUpdate"/>
+                            <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnFilterTest"/>
+                        </WrapPanel>
                     </DockPanel>
                 </Border>
 
@@ -308,9 +356,9 @@
                 <!-- Bottom 3-Pane Split Workspace -->
                 <Grid Grid.Row="2" Background="#FFFFFF">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="260"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="320"/>
+                        <ColumnDefinition Width="240" MinWidth="190"/>
+                        <ColumnDefinition Width="*" MinWidth="260"/>
+                        <ColumnDefinition Width="296" MinWidth="260"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Left: Unplaced Tools -->

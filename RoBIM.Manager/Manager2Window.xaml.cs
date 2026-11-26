@@ -338,8 +338,8 @@ public partial class Manager2Window : Window
     {
         var border = new Border
         {
-            Width = 330,
-            MinHeight = 156,
+            Width = 310,
+            MinHeight = 152,
             Margin = new Thickness(0, 0, 14, 14),
             Padding = new Thickness(16),
             Background = WpfBrushes.White,
