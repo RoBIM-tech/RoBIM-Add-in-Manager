@@ -287,8 +287,6 @@ public partial class Manager2Window : Window
         FilterTestBtn.Visibility = backend.IsTestAllowed ? Visibility.Visible : Visibility.Collapsed;
         ToolsCadConfigBtn.Visibility = currentHost == "autocad" ? Visibility.Visible : Visibility.Collapsed;
         ToolsCadConfigBtn.IsEnabled = !backend.IsBusy && backend.IsCadHostConfigurable;
-        ToolsImportZipBtn.Visibility = currentHost is "revit" or "autocad" ? Visibility.Visible : Visibility.Collapsed;
-        ToolsImportZipBtn.IsEnabled = !backend.IsBusy;
 
         void StyleFilter(WpfButton b, bool active)
         {
@@ -298,9 +296,10 @@ public partial class Manager2Window : Window
         }
         StyleFilter(FilterAllBtn, toolFilter == "all");
         StyleFilter(FilterInstalledBtn, toolFilter == "installed");
+        StyleFilter(FilterStableBtn, toolFilter == "stable");
+        StyleFilter(FilterTestBtn, toolFilter == "test");
         StyleFilter(FilterUninstalledBtn, toolFilter == "uninstalled");
         StyleFilter(FilterUpdateBtn, toolFilter == "update");
-        StyleFilter(FilterTestBtn, toolFilter == "test");
 
         ToolsCardsPanel.Children.Clear();
         if (currentHost == "navisworks")
@@ -316,9 +315,10 @@ public partial class Manager2Window : Window
             var installed = c.Selected || c.Pending;
             var appearance = backend.GetCardAppearance(c);
             if (toolFilter == "installed" && !installed) return false;
+            if (toolFilter == "stable" && (!installed || c.SelectedChannel == "test")) return false;
+            if (toolFilter == "test" && (!installed || c.SelectedChannel != "test")) return false;
             if (toolFilter == "uninstalled" && installed) return false;
             if (toolFilter == "update" && !appearance.Update) return false;
-            if (toolFilter == "test" && c.Channel != "test" && !backend.HasTestOfferForCard(c)) return false;
             return MatchesKoreanSearch(c.Title + " " + c.Description, query);
         });
 
@@ -1369,10 +1369,6 @@ public partial class Manager2Window : Window
             var rightControls = new StackPanel { Orientation = WpfOrientation.Vertical, Width = 176, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
             DockPanel.SetDock(rightControls, Dock.Right);
 
-            var checkBtn = new WpfButton { Content = "저장소 확인", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 0, 6), IsEnabled = !backend.IsBusy };
-            checkBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.CheckLoaderForHostAsync(hostKey); RenderLoadersView(); }, "저장소 확인");
-            rightControls.Children.Add(checkBtn);
-
             if (backend.IsTestAllowed)
             {
                 var channelBox = new System.Windows.Controls.ComboBox { Margin = new Thickness(0, 0, 0, 6) };
@@ -1387,6 +1383,10 @@ public partial class Manager2Window : Window
                 rightControls.Children.Add(channelBox);
             }
 
+            var checkBtn = new WpfButton { Content = "저장소 확인", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 0, 6), IsEnabled = !backend.IsBusy };
+            checkBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.CheckLoaderForHostAsync(hostKey); RenderLoadersView(); }, "저장소 확인");
+            rightControls.Children.Add(checkBtn);
+
             var applyBtn = new WpfButton
             {
                 Content = actionState.Text,
@@ -1397,13 +1397,9 @@ public partial class Manager2Window : Window
             applyBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.ApplyLoaderForHostAsync(hostKey, chosenChannel); RenderLoadersView(); }, "로더 적용");
             rightControls.Children.Add(applyBtn);
 
-            var folderBtn = new WpfButton { Content = "폴더 열기", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 0, 6) };
+            var folderBtn = new WpfButton { Content = "폴더 열기", Style = (Style)FindResource("SecondaryButton") };
             folderBtn.Click += (_, _) => backend.OpenLoaderFolderFromModern(spec);
             rightControls.Children.Add(folderBtn);
-
-            var repoBtn = new WpfButton { Content = "GitHub", Style = (Style)FindResource("SecondaryButton") };
-            repoBtn.Click += (_, _) => backend.OpenLoaderRepoFromModern(spec);
-            rightControls.Children.Add(repoBtn);
 
             dock.Children.Add(rightControls);
 
@@ -1867,9 +1863,10 @@ public partial class Manager2Window : Window
     private void OnToolSortChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded && !syncUi) RenderToolsView(); }
     private void OnFilterAll(object sender, RoutedEventArgs e) { toolFilter = "all"; RenderToolsView(); }
     private void OnFilterInstalled(object sender, RoutedEventArgs e) { toolFilter = "installed"; RenderToolsView(); }
+    private void OnFilterStable(object sender, RoutedEventArgs e) { toolFilter = "stable"; RenderToolsView(); }
+    private void OnFilterTest(object sender, RoutedEventArgs e) { toolFilter = "test"; RenderToolsView(); }
     private void OnFilterUninstalled(object sender, RoutedEventArgs e) { toolFilter = "uninstalled"; RenderToolsView(); }
     private void OnFilterUpdate(object sender, RoutedEventArgs e) { toolFilter = "update"; RenderToolsView(); }
-    private void OnFilterTest(object sender, RoutedEventArgs e) { toolFilter = "test"; RenderToolsView(); }
 
     private void OnRibbonStripDragOver(object sender, WpfDragEventArgs e)
     {
@@ -2287,6 +2284,7 @@ public partial class Manager2Window : Window
         var loginName = SavedAccountsBox.SelectedItem as string ?? "";
         await RunBusyActionAsync(() => backend.UseSavedAccountFromModernAsync(loginName), "계정 전환");
     }
+    private void OnAccountOpenGitHub(object sender, RoutedEventArgs e) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/RoBIM-tech") { UseShellExecute = true });
     private void OnAccountSignOut(object sender, RoutedEventArgs e) { backend.SignOutFromModern(); RefreshAllViews(); }
     private async void OnCheckManagerUpdate(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.CheckManagerUpdateFromModernAsync(), "Manager 업데이트 확인");
     private async void OnInstallManagerUpdate(object sender, RoutedEventArgs e)

@@ -273,8 +273,7 @@
                                 <ComboBoxItem Content="설치됨 먼저"/>
                                 <ComboBoxItem Content="업데이트 먼저"/>
                             </ComboBox>
-                            <Button x:Name="ToolsCadConfigBtn" Content="CAD 버튼 구성" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,6,0" Click="OnConfigureCadButtonsClicked"/>
-                            <Button x:Name="ToolsImportZipBtn" Content="ZIP 가져오기" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnImportZipClicked"/>
+                            <Button x:Name="ToolsCadConfigBtn" Content="CAD 버튼 구성" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnConfigureCadButtonsClicked"/>
                         </StackPanel>
 
                         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -291,9 +290,10 @@
 
                             <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterAll"/>
                             <Button x:Name="FilterInstalledBtn" Content="설치됨" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterInstalled"/>
+                            <Button x:Name="FilterStableBtn" Content="정식" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterStable"/>
+                            <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterTest"/>
                             <Button x:Name="FilterUninstalledBtn" Content="미설치" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterUninstalled"/>
-                            <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Padding="10,5" Margin="0,0,5,0" Click="OnFilterUpdate"/>
-                            <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnFilterTest"/>
+                            <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Padding="10,5" Click="OnFilterUpdate"/>
                         </WrapPanel>
                     </DockPanel>
                 </Border>
@@ -434,6 +434,7 @@
                             <TextBlock x:Name="AccountSummaryLabel" Text="상태 확인 중..." Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,14"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                 <Button x:Name="AccountOtherLoginBtn" Content="다른 계정으로 로그인" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="OnAccountOtherLogin"/>
+                                <Button x:Name="AccountOpenGitHubBtn" Content="GitHub 열기" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnAccountOpenGitHub"/>
                                 <Button x:Name="AccountSignOutBtn" Content="로그아웃" Style="{StaticResource SecondaryButton}" Click="OnAccountSignOut"/>
                             </StackPanel>
 
