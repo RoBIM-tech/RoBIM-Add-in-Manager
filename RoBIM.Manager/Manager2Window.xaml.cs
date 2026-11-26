@@ -465,8 +465,10 @@ public partial class Manager2Window : Window
         {
             if (hasUpdate)
             {
-                var updBtn = new WpfButton { Content = "업데이트", Style = (Style)FindResource("PrimaryButton"), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 6, 0), FontSize = 12, IsEnabled = !backend.IsBusy };
-                updBtn.Click += async (_, _) => await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, card.SelectedChannel == "test" ? "test" : "stable"), "도구 업데이트");
+                var targetChannel = updateOffer?.Channel is "test" or "stable" ? updateOffer.Channel : (card.SelectedChannel == "test" ? "test" : "stable");
+                var updLabel = targetChannel == "stable" && card.SelectedChannel == "test" ? "정식 업데이트" : "업데이트";
+                var updBtn = new WpfButton { Content = updLabel, Style = (Style)FindResource("PrimaryButton"), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 6, 0), FontSize = 12, IsEnabled = !backend.IsBusy };
+                updBtn.Click += async (_, _) => await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, targetChannel), "도구 업데이트");
                 btnStack.Children.Add(updBtn);
             }
             if (!card.Selected)
@@ -1841,8 +1843,10 @@ public partial class Manager2Window : Window
             {
                 if (hasUpdate)
                 {
-                    var updBtn = new WpfButton { Content = "업데이트", Style = (Style)FindResource("PrimaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
-                    updBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, card.SelectedChannel == "test" ? "test" : "stable"), "도구 업데이트"); };
+                    var targetChannel = updateOffer?.Channel is "test" or "stable" ? updateOffer.Channel : (card.SelectedChannel == "test" ? "test" : "stable");
+                    var updLabel = targetChannel == "stable" && card.SelectedChannel == "test" ? "정식 업데이트" : "업데이트";
+                    var updBtn = new WpfButton { Content = updLabel, Style = (Style)FindResource("PrimaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
+                    updBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, targetChannel), "도구 업데이트"); };
                     btnStack.Children.Add(updBtn);
                 }
                 if (!card.Selected)
