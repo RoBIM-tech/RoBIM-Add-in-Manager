@@ -1279,13 +1279,26 @@ public partial class Manager2Window : Window
                 {
                     if (item is RibbonPlacement rp)
                     {
-                        pItem.Items.Add(new TreeViewItem { Header = rp.Kind == "Separator" ? "│ 구분선" : rp.Title, Tag = rp, IsSelected = ReferenceEquals(selectedRibbonItem, rp) });
+                        var installed = rp.Kind == "Separator" || (ribbonTools.FirstOrDefault(x => x.Id == rp.Id)?.Installed ?? true);
+                        var node = new TreeViewItem
+                        {
+                            Header = rp.Kind == "Separator" ? "│ 구분선" : rp.Title,
+                            Tag = rp,
+                            IsSelected = ReferenceEquals(selectedRibbonItem, rp)
+                        };
+                        if (!installed) node.Foreground = new SolidColorBrush(WpfColor.FromRgb(148, 163, 184));
+                        pItem.Items.Add(node);
                     }
                     else if (item is RibbonStackModel st)
                     {
                         var sItem = new TreeViewItem { Header = $"{st.Rows}단 묶음 ({st.Children.Count}/{st.Rows})", Tag = st, IsExpanded = true, IsSelected = ReferenceEquals(selectedRibbonItem, st) };
                         foreach (var c in st.Children)
-                            sItem.Items.Add(new TreeViewItem { Header = c.Title, Tag = c, IsSelected = ReferenceEquals(selectedRibbonItem, c) });
+                        {
+                            var installed = ribbonTools.FirstOrDefault(x => x.Id == c.Id)?.Installed ?? true;
+                            var cNode = new TreeViewItem { Header = c.Title, Tag = c, IsSelected = ReferenceEquals(selectedRibbonItem, c) };
+                            if (!installed) cNode.Foreground = new SolidColorBrush(WpfColor.FromRgb(148, 163, 184));
+                            sItem.Items.Add(cNode);
+                        }
                         pItem.Items.Add(sItem);
                     }
                 }
