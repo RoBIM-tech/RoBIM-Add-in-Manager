@@ -34,12 +34,12 @@ public sealed partial class ManagerForm
         };
         accessTimer.Start();
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Manager 열기", null, (_, _) => { Show(); WindowState = FormWindowState.Normal; Activate(); });
-        menu.Items.Add("GitHub 로그인", null, (_, _) => { Show(); WindowState = FormWindowState.Normal; SwitchPage("Account"); Activate(); });
+        menu.Items.Add("Manager 열기", null, (_, _) => { if (OpenModernUiRequested is not null) OpenModernUiRequested(); else { Show(); WindowState = FormWindowState.Normal; Activate(); } });
+        menu.Items.Add("GitHub 로그인", null, (_, _) => { if (OpenModernUiRequested is not null) OpenModernUiRequested(); else { Show(); WindowState = FormWindowState.Normal; SwitchPage("Account"); Activate(); } });
         menu.Items.Add("로그아웃", null, (_, _) => SignOut());
-        menu.Items.Add("종료", null, (_, _) => { if (busy) { Show(); Activate(); return; } exitRequested = true; Close(); });
+        menu.Items.Add("종료", null, (_, _) => { if (busy) { if (OpenModernUiRequested is not null) OpenModernUiRequested(); else { Show(); Activate(); } return; } exitRequested = true; Close(); });
         tray = new NotifyIcon { Icon = Icon, Text = "RoBIM Manager · 로그인 필요", Visible = true, ContextMenuStrip = menu };
-        tray.DoubleClick += (_, _) => { Show(); WindowState = FormWindowState.Normal; Activate(); };
+        tray.DoubleClick += (_, _) => { if (OpenModernUiRequested is not null) OpenModernUiRequested(); else { Show(); WindowState = FormWindowState.Normal; Activate(); } };
         FormClosing += (_, e) =>
         {
             if (e.CloseReason == CloseReason.UserClosing && !exitRequested && !busy)
@@ -65,6 +65,7 @@ public sealed partial class ManagerForm
         if (teamAccess is null) return;
         UpdateLoginPage();
         var allowed = teamAccess.Allowed && !busy;
+        BackendChanged?.Invoke();
         userPage.Enabled = developerPage.Enabled = extensionsPage.Enabled = productsPage.Enabled = locationsPage.Enabled = ribbonPage.Enabled = cadRibbonPage.Enabled = navisworksRibbonPage.Enabled = loadersPage.Enabled = allowed;
         toolbar.Enabled = actions.Enabled = grid.Enabled = allowed;
         foreach (var item in navigation.Where(n => (string?)n.Tag == "Test")) item.Visible = teamAccess.TestAllowed;

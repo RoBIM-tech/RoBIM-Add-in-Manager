@@ -248,7 +248,17 @@ internal static class Program
                 MessageBox.Show("기존 RoBIM Manager가 시작 중입니다. 잠시 후 다시 실행하십시오.", "RoBIM Manager");
             return 0;
         }
-        DesktopInstance.Run(new ManagerForm(), args.Contains("--background"));
+        if (args.Contains("--legacy-ui"))
+        {
+            DesktopInstance.Run(new ManagerForm(), args.Contains("--background"));
+            return 0;
+        }
+        using var backend = new ManagerForm();
+        var wpfApp = System.Windows.Application.Current ?? new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose };
+        var modern = new Manager2Window(backend);
+        wpfApp.MainWindow = modern;
+        if (!args.Contains("--background")) modern.Show();
+        wpfApp.Run();
         return 0;
     }
 }

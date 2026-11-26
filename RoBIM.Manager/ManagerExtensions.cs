@@ -15,7 +15,7 @@ public sealed partial class ManagerForm
         AllowUserToDeleteRows = false, AllowUserToResizeRows = false, RowHeadersVisible = false, MultiSelect = false,
         SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
         BackgroundColor = Color.White, BorderStyle = BorderStyle.None, RowTemplate = { Height = 46 } };
-    private sealed record PackageRow(ExtensionRepository Repository, ExtensionPackage Package);
+    internal sealed record PackageRow(ExtensionRepository Repository, ExtensionPackage Package);
 
     private void BuildExtensionsPage()
     {

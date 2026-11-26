@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <PlatformTarget>x64</PlatformTarget>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -14,6 +15,10 @@
     <Description>AutoCAD 및 Revit 도구 설치 관리자</Description>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Manager.Core\Manager.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Windows.Forms" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\assets\RoBIM.Manager.ico" LogicalName="RoBIM.Manager.AppIcon.ico" />
     <Content Include="..\assets\RoBIM.Manager.ico" Link="RoBIM.Manager.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

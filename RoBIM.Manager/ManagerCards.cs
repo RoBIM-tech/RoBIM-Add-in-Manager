@@ -69,6 +69,7 @@ public sealed partial class ManagerForm
 
     private void RenderProductCards()
     {
+        BackendChanged?.Invoke();
         if (!IsProductPage) return;
         if (programRecovery is not null) programRecovery.Visible = currentPage == "Revit";
         if (CanUseTest && channelFilter.Items.Count == 1) { channelFilter.Items.AddRange(["모든 버전", "TEST"]); channelFilter.SelectedIndex=1; }

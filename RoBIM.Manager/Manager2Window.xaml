@@ -1,0 +1,385 @@
+<Window x:Class="RoBIM.Manager.Manager2Window"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RoBIM Add-in Manager · 2.0"
+        Width="1340" Height="860"
+        MinWidth="1060" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#F8FAFC"
+        FontFamily="Malgun Gothic, Segoe UI"
+        FontSize="13">
+    <Window.Resources>
+        <Style x:Key="RailHostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RailNavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F1F5F9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="#1E5BA6"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1E5BA6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#174885"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Dark Navigation Rail -->
+        <Border Grid.Column="0" Background="#1E293B" Padding="14,16">
+            <DockPanel LastChildFill="False">
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="2,0,0,18">
+                    <Border Width="30" Height="30" CornerRadius="7" Background="#2563EB" VerticalAlignment="Center">
+                        <TextBlock Text="R" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="RoBIM Manager" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock Text="2.0 Workspace" Foreground="#94A3B8" FontSize="11"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Target Program Switcher -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <TextBlock Text="대상 프로그램" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
+                    <Button x:Name="HostRevitBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostRevit">
+                        <DockPanel>
+                            <Ellipse x:Name="RevitDot" DockPanel.Dock="Right" Width="8" Height="8" Fill="#22C55E" VerticalAlignment="Center"/>
+                            <TextBlock Text="Revit 2026" FontWeight="Medium"/>
+                        </DockPanel>
+                    </Button>
+                    <Button x:Name="HostCadBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostCad">
+                        <DockPanel>
+                            <Ellipse x:Name="CadDot" DockPanel.Dock="Right" Width="8" Height="8" Fill="#22C55E" VerticalAlignment="Center"/>
+                            <TextBlock Text="AutoCAD 2026" FontWeight="Medium"/>
+                        </DockPanel>
+                    </Button>
+                    <Button x:Name="HostNavisBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostNavis">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Right" Background="#334155" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                <TextBlock Text="예정" FontSize="10" Foreground="#94A3B8"/>
+                            </Border>
+                            <TextBlock Text="Navisworks 2026" FontWeight="Medium"/>
+                        </DockPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Navigation Menu -->
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="메뉴" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
+                    <Button x:Name="NavToolsBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavTools">
+                        <TextBlock Text="도구 카탈로그"/>
+                    </Button>
+                    <Button x:Name="NavRibbonBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavRibbon">
+                        <TextBlock Text="리본 편집기"/>
+                    </Button>
+                    <Button x:Name="NavLoadersBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavLoaders">
+                        <TextBlock Text="호스트 로더"/>
+                    </Button>
+                    <Button x:Name="NavAccountBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavAccount">
+                        <TextBlock Text="계정 · 설정"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- User Footer -->
+                <Border DockPanel.Dock="Bottom" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="4,12,4,0">
+                    <StackPanel>
+                        <TextBlock x:Name="RailUserText" Text="로그인 확인 중..." Foreground="White" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="RailRoleText" Text="권한 확인 중" Foreground="#94A3B8" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="54"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="28"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top Header Bar -->
+            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,0">
+                <DockPanel VerticalAlignment="Center">
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="HeaderTitle" Text="Revit 2026 · 도구 카탈로그" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                        <Border x:Name="HeaderBadge" Background="#F1F5F9" CornerRadius="10" Padding="9,3" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="HeaderBadgeText" Text="준비 중" FontSize="11" Foreground="#475569"/>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel x:Name="HeaderActions" DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="HeaderRefreshBtn" Content="새로고침" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnRefreshClicked"/>
+                        <Button x:Name="HeaderBatchUpdateBtn" Content="일괄 업데이트" Style="{StaticResource PrimaryButton}" Click="OnBatchUpdateClicked"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- View 1: Tools Catalog -->
+            <Grid x:Name="ToolsView" Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Filter & Search Bar -->
+                <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,10">
+                    <DockPanel>
+                        <TextBox x:Name="ToolSearchBox" DockPanel.Dock="Left" Width="260" Padding="10,6" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" BorderThickness="1" TextChanged="OnToolFilterChanged">
+                            <TextBox.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </TextBox.Resources>
+                        </TextBox>
+                        <TextBlock x:Name="ToolSearchHint" Text="도구 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="-248,0,0,0"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterAll"/>
+                            <Button x:Name="FilterInstalledBtn" Content="설치됨" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterInstalled"/>
+                            <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterUpdate"/>
+                            <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Click="OnFilterTest"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Cards Grid -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="ToolsEmptyNotice" Visibility="Collapsed" Text="표시할 도구가 없습니다." Foreground="#64748B" FontSize="13" Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                        <WrapPanel x:Name="ToolsCardsPanel" Orientation="Horizontal"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- View 2: Ribbon Studio -->
+            <Grid x:Name="RibbonView" Grid.Row="1" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="180" MinHeight="120"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="*" MinHeight="220"/>
+                </Grid.RowDefinitions>
+
+                <!-- Top Preview Area (Sticky Tab Bar + Scrollable Strip) -->
+                <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Sticky Tab Bar -->
+                        <Border Grid.Row="0" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,0">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="크기:" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="RibbonZoomCompactBtn" Content="작게" Style="{StaticResource PrimaryButton}" Padding="9,4" Margin="0,0,4,0" Click="OnZoomCompact"/>
+                                    <Button x:Name="RibbonZoomNormalBtn" Content="보통" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,10,0" Click="OnZoomNormal"/>
+                                    <Button Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,6,0" Click="OnRibbonDefaults"/>
+                                    <Button x:Name="RibbonSaveBtn" Content="저장" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,6,0" Click="OnRibbonSave"/>
+                                    <Button x:Name="RibbonApplyBtn" Content="Revit 적용" Style="{StaticResource PrimaryButton}" Padding="12,4" Click="OnRibbonApply"/>
+                                </StackPanel>
+
+                                <StackPanel x:Name="RibbonTabsHost" Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Horizontal Scrollable Ribbon Strip -->
+                        <ScrollViewer x:Name="RibbonStripScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="#F8FAFC" Padding="12,8" PreviewMouseWheel="OnRibbonStripMouseWheel">
+                            <StackPanel x:Name="RibbonStripHost" Orientation="Horizontal" VerticalAlignment="Top">
+                                <StackPanel.LayoutTransform>
+                                    <ScaleTransform x:Name="RibbonScaleTransform" ScaleX="0.78" ScaleY="0.78"/>
+                                </StackPanel.LayoutTransform>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="#E2E8F0" Cursor="SizeNS"/>
+
+                <!-- Bottom 3-Pane Split Workspace -->
+                <Grid Grid.Row="2" Background="#FFFFFF">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="320"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Unplaced Tools -->
+                    <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="배치 가능한 버튼" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <TextBox x:Name="RibbonBankSearchBox" DockPanel.Dock="Top" Padding="8,5" Margin="0,0,0,8" BorderBrush="#CBD5E1" TextChanged="OnRibbonBankSearchChanged"/>
+                            <ListBox x:Name="RibbonBankList" BorderBrush="#E2E8F0" MouseDoubleClick="OnRibbonBankDoubleClick" PreviewMouseLeftButtonDown="OnRibbonBankMouseDown" PreviewMouseMove="OnRibbonBankMouseMove"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Center: Hierarchy Tree -->
+                    <Border Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="탭 / 패널 / 버튼 계층 구조 (상단 고정 탭으로 드래그 이동 가능)" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <TreeView x:Name="RibbonTree" BorderBrush="#E2E8F0" SelectedItemChanged="OnRibbonTreeSelected"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Right: Inspector & Quick Move -->
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="선택 항목 속성 · 빠른 이동" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="표시 이름" Foreground="#64748B" FontSize="11" Margin="0,0,0,4"/>
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Button DockPanel.Dock="Right" Content="변경" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="6,0,0,0" Click="OnRenameNodeClicked"/>
+                                        <TextBox x:Name="RibbonCaptionBox" Padding="6,4" BorderBrush="#CBD5E1"/>
+                                    </DockPanel>
+
+                                    <TextBlock Text="한 칸 구성" Foreground="#64748B" FontSize="11" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="RibbonArrangementBox" Margin="0,0,0,12" SelectionChanged="OnArrangementChanged">
+                                        <ComboBoxItem Content="큰 버튼 1개"/>
+                                        <ComboBoxItem Content="작은 버튼 2개"/>
+                                        <ComboBoxItem Content="작은 버튼 3개"/>
+                                    </ComboBox>
+
+                                    <TextBlock Text="다른 탭으로 빠른 이동" Foreground="#64748B" FontSize="11" Margin="0,0,0,4"/>
+                                    <DockPanel>
+                                        <Button x:Name="RibbonMoveTabBtn" DockPanel.Dock="Right" Content="이동" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="6,0,0,0" Click="OnQuickMoveTabClicked"/>
+                                        <ComboBox x:Name="RibbonMoveTabBox"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <UniformGrid Columns="2">
+                                <Button Content="＋ 2단 묶음" Style="{StaticResource SecondaryButton}" Margin="0,0,4,6" Click="OnAddStack2"/>
+                                <Button Content="＋ 3단 묶음" Style="{StaticResource SecondaryButton}" Margin="4,0,0,6" Click="OnAddStack3"/>
+                                <Button Content="＋ 패널" Style="{StaticResource SecondaryButton}" Margin="0,0,4,6" Click="OnAddPanel"/>
+                                <Button Content="＋ 구분선" Style="{StaticResource SecondaryButton}" Margin="4,0,0,6" Click="OnAddSeparator"/>
+                                <Button Content="↑ 위로" Style="{StaticResource SecondaryButton}" Margin="0,0,4,6" Click="OnMoveUp"/>
+                                <Button Content="↓ 아래로" Style="{StaticResource SecondaryButton}" Margin="4,0,0,6" Click="OnMoveDown"/>
+                            </UniformGrid>
+                            <Button Content="선택 항목 삭제" Style="{StaticResource SecondaryButton}" Foreground="#DC2626" Margin="0,4,0,0" Click="OnDeleteNode"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <!-- View 3: Host Loaders -->
+            <ScrollViewer x:Name="LoadersView" Grid.Row="1" Visibility="Collapsed" Padding="24">
+                <StackPanel x:Name="LoadersPanel" MaxWidth="820" HorizontalAlignment="Left"/>
+            </ScrollViewer>
+
+            <!-- View 4: Account & Settings -->
+            <ScrollViewer x:Name="AccountView" Grid.Row="1" Visibility="Collapsed" Padding="24">
+                <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="GitHub 계정 및 팀 권한" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="AccountSummaryLabel" Text="상태 확인 중..." Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="AccountSignInBtn" Content="GitHub 연결 확인 / 로그인" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="OnAccountSignIn"/>
+                                <Button x:Name="AccountSignOutBtn" Content="로그아웃" Style="{StaticResource SecondaryButton}" Click="OnAccountSignOut"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="업데이트 및 실행 설정" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                            <CheckBox x:Name="AccountTestCheck" Content="테스트(Pre-release) 업데이트 수신" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
+                            <CheckBox x:Name="AccountAutoLoginCheck" Content="자동 로그인" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
+                            <CheckBox x:Name="AccountStartupCheck" Content="Windows 로그인 시 알림 영역에서 자동 시작" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom Status Bar -->
+            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="16,0">
+                <DockPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="BottomStatusText" Text="준비됨" FontSize="11" Foreground="#64748B"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

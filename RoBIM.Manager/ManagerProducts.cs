@@ -14,7 +14,7 @@ public sealed partial class ManagerForm
     private readonly List<PackageRow> availablePackages = [];
     private bool authenticated;
     private string connectedLogin = "";
-    private sealed record ProductRow(ToolStatus Status, PackageRow? Package);
+    internal sealed record ProductRow(ToolStatus Status, PackageRow? Package);
 
     private void InitializeProductSelection()
     {

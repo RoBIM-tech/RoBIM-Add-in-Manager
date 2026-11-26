@@ -8,8 +8,8 @@ namespace RoBIM.Manager;
 
 public sealed partial class ManagerForm
 {
-    private enum ButtonKind { Cad, PyRevit, Native, Discover }
-    private sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
+    internal enum ButtonKind { Cad, PyRevit, Native, Discover }
+    internal sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
         ButtonKind Kind, bool Selected, bool Pending, string Message, string? Source, string CommandId, string ModuleId = "", string Channel = "unknown", string ReleaseLabel = "미확인", string ReleaseDetail = "", string SelectedChannel = "", string SelectedVersion = "", string ViewChannel = "", ReleaseOffer? CachedOffer = null)
     {
         public bool TestView => ViewChannel == "test";
