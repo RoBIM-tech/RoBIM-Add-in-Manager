@@ -111,5 +111,11 @@ public static class GitHubSession
         var auth = Current(); if (auth.Mode != "Token") return;
         WindowsTokenStore.Remove(auth.Login); Save(new());
     }
-    public static void Disconnect() => Save(new());
+    public static void Disconnect(bool removeSaved = false)
+    {
+        var auth = Current();
+        if (removeSaved && !string.IsNullOrWhiteSpace(auth.Login))
+            WindowsTokenStore.Remove(auth.Login);
+        Save(new());
+    }
 }

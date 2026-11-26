@@ -27,7 +27,6 @@ public partial class Manager2Window : Window
     private string currentHost = "revit";
     private string currentNav = "tools";
     private string toolFilter = "all";
-    private bool compactRibbon = true;
     private bool syncUi;
     private bool ribbonDirty;
 
@@ -39,6 +38,7 @@ public partial class Manager2Window : Window
     private object? dragPayload;
     private object? activeDragPayload;
     private TreeViewItem? highlightedTreeTarget;
+    private bool treeInsertAfter;
     private Window? dragGhost;
     private DispatcherTimer? dragGhostTimer;
     private readonly Dictionary<string, string> loaderSelectedChannel = new(StringComparer.OrdinalIgnoreCase);
@@ -522,11 +522,6 @@ public partial class Manager2Window : Window
         RibbonCheckResultBtn.Visibility = currentHost == "revit" ? Visibility.Visible : Visibility.Collapsed;
         RibbonCheckResultBtn.IsEnabled = canAct;
 
-        RibbonScaleTransform.ScaleX = compactRibbon ? 0.78 : 1.0;
-        RibbonScaleTransform.ScaleY = compactRibbon ? 0.78 : 1.0;
-        RibbonZoomCompactBtn.Style = (Style)FindResource(compactRibbon ? "PrimaryButton" : "SecondaryButton");
-        RibbonZoomNormalBtn.Style = (Style)FindResource(!compactRibbon ? "PrimaryButton" : "SecondaryButton");
-
         RenderRibbonTabsAndStrip();
         RefreshRibbonBank();
         RefreshRibbonTree();
@@ -556,7 +551,18 @@ public partial class Manager2Window : Window
             };
             var normalBg = btn.Background;
             var normalBorder = btn.BorderBrush;
-            btn.Click += (_, _) => { selectedTabIndex = idx; selectedRibbonItem = tab; RenderRibbonView(); };
+            btn.Click += (_, _) =>
+            {
+                if (active && ReferenceEquals(selectedRibbonItem, tab))
+                {
+                    BeginInlineRename(btn, tab);
+                    return;
+                }
+                selectedTabIndex = idx;
+                selectedRibbonItem = tab;
+                RenderRibbonView();
+            };
+            btn.MouseDoubleClick += (_, e) => { e.Handled = true; BeginInlineRename(btn, tab); };
             btn.DragOver += (_, e) =>
             {
                 if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
@@ -614,24 +620,25 @@ public partial class Manager2Window : Window
             Margin = new Thickness(0, 0, 8, 0),
             AllowDrop = true
         };
-        var normalCardBrush = card.BorderBrush;
-        var normalCardThickness = card.BorderThickness;
         card.DragOver += (_, e) =>
         {
             if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
             e.Effects = System.Windows.DragDropEffects.Move;
-            card.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
-            card.BorderThickness = new Thickness(1, 1, 3, 1);
+            var after = e.GetPosition(card).X >= card.ActualWidth / 2;
+            ShowPreviewInsertionBar(card, horizontalBar: false, after: after);
             e.Handled = true;
         };
-        card.DragLeave += (_, _) => { card.BorderBrush = normalCardBrush; card.BorderThickness = normalCardThickness; };
+        card.DragLeave += (_, _) => HidePreviewInsertionBar();
         card.Drop += (_, e) =>
         {
-            card.BorderBrush = normalCardBrush;
-            card.BorderThickness = normalCardThickness;
+            var after = e.GetPosition(card).X >= card.ActualWidth / 2;
+            HidePreviewInsertionBar();
             if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
             {
-                MoveRibbonPayloadToPanel(payload, panel);
+                if (payload is RibbonPanelModel)
+                    MoveRibbonPayloadToPanel(payload, panel, panel, after);
+                else
+                    MoveRibbonPayloadToPanel(payload, panel, after ? null : panel.Items.FirstOrDefault(), after: false);
                 ribbonDirty = true;
                 RenderRibbonView();
                 e.Handled = true;
@@ -661,27 +668,24 @@ public partial class Manager2Window : Window
                     };
                     sep.Child = new Border { Width = 2, Background = new SolidColorBrush(isSel ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(203, 213, 225)), Margin = new Thickness(4, 4, 4, 4) };
                     WireRibbonDraggable(sep, rp);
-                    var normalSepBrush = sep.BorderBrush;
-                    var normalSepThick = sep.BorderThickness;
                     sep.DragOver += (_, e) =>
                     {
                         if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
                         e.Effects = System.Windows.DragDropEffects.Move;
                         if (!ReferenceEquals(activeDragPayload, rp))
                         {
-                            sep.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
-                            sep.BorderThickness = new Thickness(3, 0, 0, 0);
+                            var after = e.GetPosition(sep).X >= sep.ActualWidth / 2;
+                            ShowPreviewInsertionBar(sep, horizontalBar: false, after: after);
                         }
                         e.Handled = true;
                     };
-                    sep.DragLeave += (_, _) => { sep.BorderBrush = normalSepBrush; sep.BorderThickness = normalSepThick; };
                     sep.Drop += (_, e) =>
                     {
-                        sep.BorderBrush = normalSepBrush;
-                        sep.BorderThickness = normalSepThick;
+                        var after = e.GetPosition(sep).X >= sep.ActualWidth / 2;
+                        HidePreviewInsertionBar();
                         if (e.Data.GetData("RoBIM.RibbonItem") is { } payload && !ReferenceEquals(payload, rp))
                         {
-                            MoveRibbonPayloadToPanel(payload, panel, rp);
+                            MoveRibbonPayloadToPanel(payload, panel, rp, after);
                             ribbonDirty = true;
                             RenderRibbonView();
                             e.Handled = true;
@@ -720,10 +724,13 @@ public partial class Manager2Window : Window
                         col.Background = new SolidColorBrush(WpfColor.FromRgb(219, 234, 254));
                         col.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
                         col.BorderThickness = new Thickness(2);
+                        HidePreviewInsertionBar();
                     }
                     else
                     {
-                        e.Effects = System.Windows.DragDropEffects.None;
+                        e.Effects = System.Windows.DragDropEffects.Move;
+                        var after = e.GetPosition(col).X >= col.ActualWidth / 2;
+                        ShowPreviewInsertionBar(col, horizontalBar: false, after: after);
                     }
                     e.Handled = true;
                 };
@@ -733,15 +740,21 @@ public partial class Manager2Window : Window
                     col.Background = normalColBg;
                     col.BorderBrush = normalColBrush;
                     col.BorderThickness = normalColThick;
-                    if (e.Data.GetData("RoBIM.RibbonItem") is RibbonPlacement child && child.Kind != "Separator")
+                    var after = e.GetPosition(col).X >= col.ActualWidth / 2;
+                    HidePreviewInsertionBar();
+                    if (e.Data.GetData("RoBIM.RibbonItem") is RibbonPlacement child && child.Kind != "Separator" && st.Children.Count < st.Rows)
                     {
-                        if (st.Children.Count < st.Rows)
-                        {
-                            RemoveRibbonPayload(child);
-                            st.Children.Add(child);
-                            ribbonDirty = true;
-                            RenderRibbonView();
-                        }
+                        RemoveRibbonPayload(child);
+                        st.Children.Add(child);
+                        ribbonDirty = true;
+                        RenderRibbonView();
+                        e.Handled = true;
+                    }
+                    else if (e.Data.GetData("RoBIM.RibbonItem") is { } payload && !ReferenceEquals(payload, st))
+                    {
+                        MoveRibbonPayloadToPanel(payload, panel, st, after);
+                        ribbonDirty = true;
+                        RenderRibbonView();
                         e.Handled = true;
                     }
                 };
@@ -755,10 +768,37 @@ public partial class Manager2Window : Window
                         CornerRadius = new CornerRadius(3),
                         Margin = new Thickness(0, 0, 0, 2),
                         Padding = new Thickness(4, 0, 4, 0),
+                        AllowDrop = true,
                         Cursor = System.Windows.Input.Cursors.Hand
                     };
                     rowBtn.Child = new TextBlock { Text = child.Title, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                     WireRibbonDraggable(rowBtn, child);
+                    rowBtn.DragOver += (_, e) =>
+                    {
+                        if (activeDragPayload is RibbonPlacement cp && cp.Kind != "Separator" && !ReferenceEquals(cp, child) && (st.Children.Contains(cp) || st.Children.Count < st.Rows))
+                        {
+                            e.Effects = System.Windows.DragDropEffects.Move;
+                            var after = e.GetPosition(rowBtn).Y >= rowBtn.ActualHeight / 2;
+                            ShowPreviewInsertionBar(rowBtn, horizontalBar: true, after: after);
+                            e.Handled = true;
+                        }
+                    };
+                    rowBtn.Drop += (_, e) =>
+                    {
+                        if (e.Data.GetData("RoBIM.RibbonItem") is RibbonPlacement cp && cp.Kind != "Separator" && !ReferenceEquals(cp, child) && (st.Children.Contains(cp) || st.Children.Count < st.Rows))
+                        {
+                            var after = e.GetPosition(rowBtn).Y >= rowBtn.ActualHeight / 2;
+                            HidePreviewInsertionBar();
+                            RemoveRibbonPayload(cp);
+                            var idx = st.Children.IndexOf(child);
+                            if (idx >= 0 && after) idx++;
+                            if (idx >= 0 && idx <= st.Children.Count) st.Children.Insert(idx, cp);
+                            else st.Children.Add(cp);
+                            ribbonDirty = true;
+                            RenderRibbonView();
+                            e.Handled = true;
+                        }
+                    };
                     colStack.Children.Add(rowBtn);
                 }
                 col.Child = colStack;
@@ -806,8 +846,6 @@ public partial class Manager2Window : Window
         sp.Children.Add(new TextBlock { Text = rp.Title, FontSize = 11, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis });
         btn.Child = sp;
 
-        var normalBtnBrush = btn.BorderBrush;
-        var normalBtnThick = btn.BorderThickness;
         WireRibbonDraggable(btn, rp);
         btn.DragOver += (_, e) =>
         {
@@ -815,19 +853,18 @@ public partial class Manager2Window : Window
             e.Effects = System.Windows.DragDropEffects.Move;
             if (!ReferenceEquals(activeDragPayload, rp))
             {
-                btn.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
-                btn.BorderThickness = new Thickness(3, 1, 1, 1);
+                var after = e.GetPosition(btn).X >= btn.ActualWidth / 2;
+                ShowPreviewInsertionBar(btn, horizontalBar: false, after: after);
             }
             e.Handled = true;
         };
-        btn.DragLeave += (_, _) => { btn.BorderBrush = normalBtnBrush; btn.BorderThickness = normalBtnThick; };
         btn.Drop += (_, e) =>
         {
-            btn.BorderBrush = normalBtnBrush;
-            btn.BorderThickness = normalBtnThick;
+            var after = e.GetPosition(btn).X >= btn.ActualWidth / 2;
+            HidePreviewInsertionBar();
             if (e.Data.GetData("RoBIM.RibbonItem") is { } payload && !ReferenceEquals(payload, rp))
             {
-                MoveRibbonPayloadToPanel(payload, panel, rp);
+                MoveRibbonPayloadToPanel(payload, panel, rp, after);
                 ribbonDirty = true;
                 RenderRibbonView();
                 e.Handled = true;
@@ -845,6 +882,12 @@ public partial class Manager2Window : Window
         };
         element.MouseLeftButtonDown += (_, e) =>
         {
+            if (e.ClickCount >= 2 && model is RibbonPanelModel or RibbonPlacement { Kind: not "Separator" })
+            {
+                e.Handled = true;
+                BeginInlineRename(element, model);
+                return;
+            }
             selectedRibbonItem = model;
             e.Handled = true;
             syncUi = true;
@@ -887,6 +930,109 @@ public partial class Manager2Window : Window
         highlightedTreeTarget = null;
     }
 
+    private void ShowPreviewInsertionBar(FrameworkElement target, bool horizontalBar, bool after)
+    {
+        if (!target.IsLoaded || !RibbonInsertionOverlay.IsLoaded) return;
+        var origin = target.TranslatePoint(new WpfPoint(0, 0), RibbonInsertionOverlay);
+        if (horizontalBar)
+        {
+            Canvas.SetLeft(RibbonInsertionBar, origin.X);
+            Canvas.SetTop(RibbonInsertionBar, origin.Y + (after ? target.ActualHeight - 1.5 : -1.5));
+            RibbonInsertionBar.Width = Math.Max(20, target.ActualWidth);
+            RibbonInsertionBar.Height = 3;
+        }
+        else
+        {
+            Canvas.SetLeft(RibbonInsertionBar, origin.X + (after ? target.ActualWidth - 1.5 : -1.5));
+            Canvas.SetTop(RibbonInsertionBar, origin.Y);
+            RibbonInsertionBar.Width = 3;
+            RibbonInsertionBar.Height = Math.Max(20, target.ActualHeight);
+        }
+        RibbonInsertionBar.Visibility = Visibility.Visible;
+    }
+
+    private void HidePreviewInsertionBar() => RibbonInsertionBar.Visibility = Visibility.Collapsed;
+
+    private void BeginInlineRename(FrameworkElement anchor, object target)
+    {
+        var current = target switch
+        {
+            RibbonTabModel t => t.Name,
+            RibbonPanelModel p => p.Name,
+            RibbonPlacement rp when rp.Kind != "Separator" => rp.Title,
+            _ => null
+        };
+        if (current is null) return;
+
+        var box = new System.Windows.Controls.TextBox
+        {
+            Text = current,
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3),
+            BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)),
+            BorderThickness = new Thickness(1.5),
+            Background = WpfBrushes.White,
+            MinWidth = Math.Max(120, anchor.ActualWidth)
+        };
+        var popup = new System.Windows.Controls.Primitives.Popup
+        {
+            PlacementTarget = anchor,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
+            HorizontalOffset = 0,
+            VerticalOffset = 0,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Child = box
+        };
+
+        var done = false;
+        void Finish(bool commit)
+        {
+            if (done) return;
+            done = true;
+            popup.IsOpen = false;
+            if (!commit) return;
+            var next = box.Text.Trim();
+            if (string.IsNullOrWhiteSpace(next) || next == current) return;
+            CommitRibbonRename(target, next);
+        }
+
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter) { e.Handled = true; Finish(true); }
+            else if (e.Key == Key.Escape) { e.Handled = true; Finish(false); }
+        };
+        box.LostKeyboardFocus += (_, _) => Finish(true);
+        popup.Closed += (_, _) => Finish(false);
+        popup.IsOpen = true;
+        box.Focus();
+        box.SelectAll();
+    }
+
+    private void CommitRibbonRename(object target, string text)
+    {
+        if (target is RibbonTabModel t) t.Name = text;
+        else if (target is RibbonPanelModel p) p.Name = text;
+        else if (target is RibbonPlacement rp && rp.Kind != "Separator")
+        {
+            var updated = rp with { Title = text };
+            var panel = FindParentPanel(rp);
+            if (panel is not null)
+            {
+                var idx = panel.Items.IndexOf(rp);
+                if (idx >= 0) panel.Items[idx] = updated;
+                else if (FindParentStack(rp) is { } st)
+                {
+                    var ci = st.Children.IndexOf(rp);
+                    if (ci >= 0) st.Children[ci] = updated;
+                }
+            }
+            if (ReferenceEquals(selectedRibbonItem, rp)) selectedRibbonItem = updated;
+        }
+        ribbonDirty = true;
+        RenderRibbonView();
+    }
+
     private void StartRibbonDrag(FrameworkElement source, object payload)
     {
         activeDragPayload = payload;
@@ -900,6 +1046,7 @@ public partial class Manager2Window : Window
         {
             activeDragPayload = null;
             ClearTreeDragHighlight();
+            HidePreviewInsertionBar();
             CloseDragGhost();
         }
     }
@@ -1147,7 +1294,6 @@ public partial class Manager2Window : Window
         AccountStartupCheck.IsChecked = backend.StartWithWindowsChecked;
 
         var busy = backend.IsBusy;
-        AccountSignInBtn.IsEnabled = !busy;
         AccountOtherLoginBtn.IsEnabled = !busy;
         AccountSignOutBtn.IsEnabled = !busy && backend.IsSignedIn;
         CheckManagerUpdateBtn.IsEnabled = !busy;
@@ -1256,7 +1402,7 @@ public partial class Manager2Window : Window
         targetTab.Panels[0].Items.Add(payload);
     }
 
-    private void MoveRibbonPayloadToPanel(object payload, RibbonPanelModel targetPanel, RibbonPlacement? before = null)
+    private void MoveRibbonPayloadToPanel(object payload, RibbonPanelModel targetPanel, object? anchor = null, bool after = false)
     {
         if (payload is RibbonTabModel) return;
         if (payload is RibbonPanelModel pm)
@@ -1265,12 +1411,17 @@ public partial class Manager2Window : Window
             if (destTab is null || pm == targetPanel) return;
             RemoveRibbonPayload(pm);
             var idx = destTab.Panels.IndexOf(targetPanel);
-            destTab.Panels.Insert(Math.Max(0, idx), pm);
+            if (idx >= 0 && after) idx++;
+            destTab.Panels.Insert(Math.Clamp(idx, 0, destTab.Panels.Count), pm);
             return;
         }
         RemoveRibbonPayload(payload);
-        var insertAt = before is not null ? targetPanel.Items.IndexOf(before) : -1;
-        if (insertAt >= 0) targetPanel.Items.Insert(insertAt, payload);
+        var insertAt = anchor is not null ? targetPanel.Items.IndexOf(anchor) : -1;
+        if (insertAt >= 0)
+        {
+            if (after) insertAt++;
+            targetPanel.Items.Insert(Math.Clamp(insertAt, 0, targetPanel.Items.Count), payload);
+        }
         else targetPanel.Items.Add(payload);
     }
 
@@ -1534,8 +1685,17 @@ public partial class Manager2Window : Window
     private void OnFilterUpdate(object sender, RoutedEventArgs e) { toolFilter = "update"; RenderToolsView(); }
     private void OnFilterTest(object sender, RoutedEventArgs e) { toolFilter = "test"; RenderToolsView(); }
 
-    private void OnZoomCompact(object sender, RoutedEventArgs e) { compactRibbon = true; RenderRibbonView(); }
-    private void OnZoomNormal(object sender, RoutedEventArgs e) { compactRibbon = false; RenderRibbonView(); }
+    private void OnRibbonStripDragOver(object sender, WpfDragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) return;
+        var pt = e.GetPosition(RibbonStripScroller);
+        const double edge = 48;
+        if (pt.X < edge)
+            RibbonStripScroller.ScrollToHorizontalOffset(Math.Max(0, RibbonStripScroller.HorizontalOffset - 22));
+        else if (pt.X > RibbonStripScroller.ViewportWidth - edge)
+            RibbonStripScroller.ScrollToHorizontalOffset(Math.Min(RibbonStripScroller.ScrollableWidth, RibbonStripScroller.HorizontalOffset + 22));
+    }
+
     private void OnRibbonStripMouseWheel(object sender, MouseWheelEventArgs e)
     {
         RibbonStripScroller.ScrollToHorizontalOffset(RibbonStripScroller.HorizontalOffset - e.Delta);
@@ -1580,20 +1740,53 @@ public partial class Manager2Window : Window
         }
     }
 
+    private static ScrollViewer? FindDescendantScrollViewer(DependencyObject? root)
+    {
+        if (root is null) return null;
+        if (root is ScrollViewer sv) return sv;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindDescendantScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
+        return null;
+    }
+
     private void OnRibbonTreeDragOver(object sender, WpfDragEventArgs e)
     {
         if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
         e.Effects = System.Windows.DragDropEffects.Move;
-        var tvi = FindTreeViewItemUnder(e.OriginalSource as DependencyObject);
-        if (!ReferenceEquals(tvi, highlightedTreeTarget))
+
+        if (FindDescendantScrollViewer(RibbonTree) is { } sv)
         {
-            ClearTreeDragHighlight();
-            if (tvi is not null && !ReferenceEquals(tvi.Tag, activeDragPayload))
+            var treePt = e.GetPosition(RibbonTree);
+            const double edge = 36;
+            if (treePt.Y < edge) sv.ScrollToVerticalOffset(Math.Max(0, sv.VerticalOffset - 16));
+            else if (treePt.Y > RibbonTree.ActualHeight - edge) sv.ScrollToVerticalOffset(Math.Min(sv.ScrollableHeight, sv.VerticalOffset + 16));
+        }
+
+        var tvi = FindTreeViewItemUnder(e.OriginalSource as DependencyObject);
+        ClearTreeDragHighlight();
+        if (tvi is not null && !ReferenceEquals(tvi.Tag, activeDragPayload))
+        {
+            highlightedTreeTarget = tvi;
+            var pos = e.GetPosition(tvi);
+            var h = Math.Max(22, Math.Min(28, tvi.ActualHeight));
+            if (tvi.Tag is RibbonPlacement)
             {
-                highlightedTreeTarget = tvi;
+                treeInsertAfter = pos.Y >= h / 2;
+                tvi.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
+                tvi.BorderThickness = treeInsertAfter ? new Thickness(0, 0, 0, 2) : new Thickness(0, 2, 0, 0);
+            }
+            else if (tvi.Tag is RibbonPanelModel && activeDragPayload is RibbonPanelModel)
+            {
+                treeInsertAfter = pos.Y >= h / 2;
+                tvi.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
+                tvi.BorderThickness = treeInsertAfter ? new Thickness(0, 0, 0, 2) : new Thickness(0, 2, 0, 0);
+            }
+            else
+            {
+                treeInsertAfter = false;
                 tvi.Background = new SolidColorBrush(WpfColor.FromRgb(219, 234, 254));
                 tvi.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
-                tvi.BorderThickness = new Thickness(0, 0, 0, 2);
+                tvi.BorderThickness = new Thickness(1);
             }
         }
         e.Handled = true;
@@ -1603,6 +1796,7 @@ public partial class Manager2Window : Window
 
     private void OnRibbonTreeDrop(object sender, WpfDragEventArgs e)
     {
+        var after = treeInsertAfter;
         ClearTreeDragHighlight();
         if (e.Data.GetData("RoBIM.RibbonItem") is not { } payload) return;
         var targetItem = FindTreeViewItemUnder(e.OriginalSource as DependencyObject)?.Tag;
@@ -1614,16 +1808,24 @@ public partial class Manager2Window : Window
         }
         else if (targetItem is RibbonPanelModel targetPanel)
         {
-            MoveRibbonPayloadToPanel(payload, targetPanel);
+            MoveRibbonPayloadToPanel(payload, targetPanel, payload is RibbonPanelModel ? targetPanel : null, after);
         }
         else if (targetItem is RibbonStackModel targetStack && payload is RibbonPlacement child && child.Kind != "Separator" && targetStack.Children.Count < targetStack.Rows)
         {
             RemoveRibbonPayload(child);
             targetStack.Children.Add(child);
         }
-        else if (targetItem is RibbonPlacement targetPlacement && FindParentPanel(targetPlacement) is { } parentPanel)
+        else if (targetItem is RibbonPlacement targetPlacement && FindParentStack(targetPlacement) is { } parentSt && payload is RibbonPlacement stackChild && stackChild.Kind != "Separator" && (parentSt.Children.Contains(stackChild) || parentSt.Children.Count < parentSt.Rows))
         {
-            MoveRibbonPayloadToPanel(payload, parentPanel, targetPlacement);
+            RemoveRibbonPayload(stackChild);
+            var idx = parentSt.Children.IndexOf(targetPlacement);
+            if (idx >= 0 && after) idx++;
+            if (idx >= 0 && idx <= parentSt.Children.Count) parentSt.Children.Insert(idx, stackChild);
+            else parentSt.Children.Add(stackChild);
+        }
+        else if (targetItem is RibbonPlacement targetPlacement2 && FindParentPanel(targetPlacement2) is { } parentPanel)
+        {
+            MoveRibbonPayloadToPanel(payload, parentPanel, targetPlacement2, after);
         }
         ribbonDirty = true;
         RenderRibbonView();
@@ -1667,6 +1869,12 @@ public partial class Manager2Window : Window
 
     private void OnRibbonTreeDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (FindTreeViewItemUnder(e.OriginalSource as DependencyObject) is { Tag: not null } tvi)
+        {
+            e.Handled = true;
+            BeginInlineRename(tvi, tvi.Tag);
+            return;
+        }
         if (RibbonCaptionBox.IsEnabled)
         {
             RibbonCaptionBox.Focus();
@@ -1677,27 +1885,8 @@ public partial class Manager2Window : Window
     private void OnRenameNodeClicked(object sender, RoutedEventArgs e)
     {
         var text = RibbonCaptionBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(text)) return;
-        if (selectedRibbonItem is RibbonTabModel t) t.Name = text;
-        else if (selectedRibbonItem is RibbonPanelModel p) p.Name = text;
-        else if (selectedRibbonItem is RibbonPlacement rp && rp.Kind != "Separator")
-        {
-            var updated = rp with { Title = text };
-            var panel = FindParentPanel(rp);
-            if (panel is not null)
-            {
-                var idx = panel.Items.IndexOf(rp);
-                if (idx >= 0) panel.Items[idx] = updated;
-                else
-                {
-                    var st = FindParentStack(rp);
-                    if (st is not null) { var ci = st.Children.IndexOf(rp); if (ci >= 0) st.Children[ci] = updated; }
-                }
-            }
-            selectedRibbonItem = updated;
-        }
-        ribbonDirty = true;
-        RenderRibbonView();
+        if (string.IsNullOrWhiteSpace(text) || selectedRibbonItem is null) return;
+        CommitRibbonRename(selectedRibbonItem, text);
     }
 
     private void OnArrangementChanged(object sender, SelectionChangedEventArgs e)

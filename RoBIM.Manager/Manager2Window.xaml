@@ -262,7 +262,7 @@
             <!-- View 2: Ribbon Studio -->
             <Grid x:Name="RibbonView" Grid.Row="1" Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="180" MinHeight="120"/>
+                    <RowDefinition Height="200" MinHeight="140"/>
                     <RowDefinition Height="6"/>
                     <RowDefinition Height="*" MinHeight="220"/>
                 </Grid.RowDefinitions>
@@ -279,9 +279,6 @@
                         <Border Grid.Row="0" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,0">
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="크기:" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <Button x:Name="RibbonZoomCompactBtn" Content="작게" Style="{StaticResource PrimaryButton}" Padding="9,4" Margin="0,0,4,0" Click="OnZoomCompact"/>
-                                    <Button x:Name="RibbonZoomNormalBtn" Content="보통" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,10,0" Click="OnZoomNormal"/>
                                     <Button x:Name="RibbonReloadBtn" Content="새로 읽기" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonReloadFromDisk"/>
                                     <Button x:Name="RibbonDefaultsBtn" Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonDefaults"/>
                                     <Button x:Name="RibbonRecoverBtn" Content="Revit 다시 준비" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonRecoverSessions"/>
@@ -294,13 +291,14 @@
                             </DockPanel>
                         </Border>
 
-                        <!-- Horizontal Scrollable Ribbon Strip -->
-                        <ScrollViewer x:Name="RibbonStripScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="#F8FAFC" Padding="12,8" PreviewMouseWheel="OnRibbonStripMouseWheel">
-                            <StackPanel x:Name="RibbonStripHost" Orientation="Horizontal" VerticalAlignment="Top">
-                                <StackPanel.LayoutTransform>
-                                    <ScaleTransform x:Name="RibbonScaleTransform" ScaleX="0.78" ScaleY="0.78"/>
-                                </StackPanel.LayoutTransform>
-                            </StackPanel>
+                        <!-- Horizontal Scrollable Ribbon Strip + Insertion Overlay -->
+                        <ScrollViewer x:Name="RibbonStripScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="#F8FAFC" Padding="12,8" AllowDrop="True" PreviewDragOver="OnRibbonStripDragOver" PreviewMouseWheel="OnRibbonStripMouseWheel">
+                            <Grid>
+                                <StackPanel x:Name="RibbonStripHost" Orientation="Horizontal" VerticalAlignment="Top"/>
+                                <Canvas x:Name="RibbonInsertionOverlay" IsHitTestVisible="False">
+                                    <Border x:Name="RibbonInsertionBar" Background="#2563EB" CornerRadius="1.5" Visibility="Collapsed"/>
+                                </Canvas>
+                            </Grid>
                         </ScrollViewer>
                     </Grid>
                 </Border>
@@ -390,8 +388,7 @@
                             <TextBlock Text="GitHub 계정 및 팀 권한" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <TextBlock x:Name="AccountSummaryLabel" Text="상태 확인 중..." Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,14"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <Button x:Name="AccountSignInBtn" Content="GitHub 연결 확인 / 로그인" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="OnAccountSignIn"/>
-                                <Button x:Name="AccountOtherLoginBtn" Content="다른 계정으로 로그인" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnAccountOtherLogin"/>
+                                <Button x:Name="AccountOtherLoginBtn" Content="다른 계정으로 로그인" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="OnAccountOtherLogin"/>
                                 <Button x:Name="AccountSignOutBtn" Content="로그아웃" Style="{StaticResource SecondaryButton}" Click="OnAccountSignOut"/>
                             </StackPanel>
 

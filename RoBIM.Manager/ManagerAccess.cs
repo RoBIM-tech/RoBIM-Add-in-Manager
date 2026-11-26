@@ -56,7 +56,9 @@ public sealed partial class ManagerForm
     }
     private void SignOut()
     {
-        teamAccess?.Lock(); sessionStarted = false; GitHubSession.Disconnect(); authenticated = false; connectedLogin = "";
+        var previousLogin = connectedLogin;
+        teamAccess?.Lock(); sessionStarted = false; GitHubSession.Disconnect(removeSaved: true); authenticated = false; connectedLogin = "";
+        if (!string.IsNullOrWhiteSpace(previousLogin)) savedAccounts.Items.Remove(previousLogin);
         accountStatus.Text = "로그아웃됨 · GitHub 로그인이 필요합니다."; ApplyAccessState();
         SwitchPage("Account");
     }
