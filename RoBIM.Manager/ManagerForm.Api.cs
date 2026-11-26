@@ -52,7 +52,8 @@ public sealed partial class ManagerForm
         };
     }
 
-    internal bool HasUpdateForCard(ButtonCard card) => (card.Selected && ChannelOffer(card, card.SelectedChannel == "test" ? "test" : "stable") is not null) || (CanUseTest && NewTestAvailable(card));
+    internal ReleaseOffer? GetUpdateOfferForCard(ButtonCard card) => card.Selected ? OfferFor(card) : null;
+    internal bool HasUpdateForCard(ButtonCard card) => card.Selected && OfferFor(card) is not null;
     internal bool HasTestOfferForCard(ButtonCard card) => CanUseTest && NewTestAvailable(card);
     internal int GetBatchUpdateCount(string hostKey) => hostKey is "revit" or "autocad" ? BatchPlan(hostKey).Length : 0;
 

@@ -234,7 +234,8 @@ public partial class Manager2Window : Window
         var bottom = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
         DockPanel.SetDock(bottom, Dock.Bottom);
 
-        var hasUpdate = backend.HasUpdateForCard(card);
+        var updateOffer = backend.GetUpdateOfferForCard(card);
+        var hasUpdate = updateOffer is not null;
         var badgeBg = card.Selected
             ? (hasUpdate ? WpfColor.FromRgb(254, 243, 199) : WpfColor.FromRgb(220, 252, 231))
             : (card.Channel == "test" ? WpfColor.FromRgb(237, 233, 254) : WpfColor.FromRgb(241, 245, 249));
@@ -242,7 +243,7 @@ public partial class Manager2Window : Window
             ? (hasUpdate ? WpfColor.FromRgb(146, 64, 14) : WpfColor.FromRgb(22, 101, 52))
             : (card.Channel == "test" ? WpfColor.FromRgb(109, 40, 217) : WpfColor.FromRgb(71, 85, 105));
         var badgeLabel = card.Selected
-            ? (hasUpdate ? $"▲ 업데이트 · {card.SelectedVersion}" : $"● 설치됨 · {card.SelectedVersion}")
+            ? (hasUpdate ? $"▲ {card.SelectedVersion} → {updateOffer!.Version}" : $"● 설치됨 · {card.SelectedVersion}")
             : (card.Channel == "test" ? "◆ TEST" : "○ 미설치");
 
         var badge = new Border { Background = new SolidColorBrush(badgeBg), CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 3, 8, 3), VerticalAlignment = VerticalAlignment.Center };
