@@ -125,13 +125,13 @@
                     <Button x:Name="HostRevitBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostRevit">
                         <DockPanel>
                             <Ellipse x:Name="RevitDot" DockPanel.Dock="Right" Width="8" Height="8" Fill="#22C55E" VerticalAlignment="Center"/>
-                            <TextBlock Text="Revit 2026" FontWeight="Medium"/>
+                            <TextBlock Text="Revit" FontWeight="Medium"/>
                         </DockPanel>
                     </Button>
                     <Button x:Name="HostCadBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostCad">
                         <DockPanel>
                             <Ellipse x:Name="CadDot" DockPanel.Dock="Right" Width="8" Height="8" Fill="#22C55E" VerticalAlignment="Center"/>
-                            <TextBlock Text="AutoCAD 2026" FontWeight="Medium"/>
+                            <TextBlock Text="AutoCAD" FontWeight="Medium"/>
                         </DockPanel>
                     </Button>
                     <Button x:Name="HostNavisBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostNavis">
@@ -139,7 +139,7 @@
                             <Border DockPanel.Dock="Right" Background="#334155" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
                                 <TextBlock Text="예정" FontSize="10" Foreground="#94A3B8"/>
                             </Border>
-                            <TextBlock Text="Navisworks 2026" FontWeight="Medium"/>
+                            <TextBlock Text="Navisworks" FontWeight="Medium"/>
                         </DockPanel>
                     </Button>
                 </StackPanel>
@@ -217,6 +217,7 @@
                         <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                             <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterAll"/>
                             <Button x:Name="FilterInstalledBtn" Content="설치됨" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterInstalled"/>
+                            <Button x:Name="FilterUninstalledBtn" Content="미설치" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterUninstalled"/>
                             <Button x:Name="FilterUpdateBtn" Content="업데이트" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterUpdate"/>
                             <Button x:Name="FilterTestBtn" Content="TEST" Style="{StaticResource SecondaryButton}" Click="OnFilterTest"/>
                         </StackPanel>
@@ -298,7 +299,7 @@
                     <Border Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="탭 / 패널 / 버튼 계층 구조 (상단 고정 탭으로 드래그 이동 가능)" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <TreeView x:Name="RibbonTree" BorderBrush="#E2E8F0" SelectedItemChanged="OnRibbonTreeSelected"/>
+                            <TreeView x:Name="RibbonTree" BorderBrush="#E2E8F0" AllowDrop="True" SelectedItemChanged="OnRibbonTreeSelected" PreviewMouseLeftButtonDown="OnRibbonTreeMouseDown" PreviewMouseMove="OnRibbonTreeMouseMove" DragOver="OnRibbonTreeDragOver" Drop="OnRibbonTreeDrop"/>
                         </DockPanel>
                     </Border>
 
@@ -363,13 +364,23 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="업데이트 및 실행 설정" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
                             <CheckBox x:Name="AccountTestCheck" Content="테스트(Pre-release) 업데이트 수신" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountAutoLoginCheck" Content="자동 로그인" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountStartupCheck" Content="Windows 로그인 시 알림 영역에서 자동 시작" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                         </StackPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                        <DockPanel>
+                            <Button x:Name="CheckManagerUpdateBtn" DockPanel.Dock="Right" Content="Manager 업데이트 확인" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center" Click="OnCheckManagerUpdate"/>
+                            <StackPanel>
+                                <TextBlock Text="RoBIM Add-in Manager 버전" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="ManagerVersionLabel" Text="현재 버전 확인 중..." Foreground="#475569" FontSize="12"/>
+                            </StackPanel>
+                        </DockPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

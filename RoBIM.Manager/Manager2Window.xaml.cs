@@ -1,8 +1,10 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using RoBIM.Manager.Core;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfButton = System.Windows.Controls.Button;
@@ -34,6 +36,15 @@ public partial class Manager2Window : Window
     private object? selectedRibbonItem;
     private WpfPoint dragStartPoint;
     private object? dragPayload;
+    private Window? dragGhost;
+    private DispatcherTimer? dragGhostTimer;
+    private readonly Dictionary<string, string> loaderSelectedChannel = new(StringComparer.OrdinalIgnoreCase);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Win32Point { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out Win32Point pt);
 
     private sealed class RibbonTabModel(string name)
     {
@@ -142,7 +153,7 @@ public partial class Manager2Window : Window
 
     private void UpdateHeader()
     {
-        var hostTitle = currentHost == "autocad" ? "AutoCAD 2026" : currentHost == "navisworks" ? "Navisworks 2026" : "Revit 2026";
+        var hostTitle = currentHost == "autocad" ? "AutoCAD" : currentHost == "navisworks" ? "Navisworks" : "Revit";
         var navTitle = currentNav switch { "tools" => "도구 카탈로그", "ribbon" => "리본 편집기", "loaders" => "호스트 로더", _ => "계정 · 설정" };
         HeaderTitle.Text = $"{hostTitle} · {navTitle}";
 
@@ -187,6 +198,7 @@ public partial class Manager2Window : Window
         }
         StyleFilter(FilterAllBtn, toolFilter == "all");
         StyleFilter(FilterInstalledBtn, toolFilter == "installed");
+        StyleFilter(FilterUninstalledBtn, toolFilter == "uninstalled");
         StyleFilter(FilterUpdateBtn, toolFilter == "update");
         StyleFilter(FilterTestBtn, toolFilter == "test");
 
@@ -202,6 +214,7 @@ public partial class Manager2Window : Window
         var cards = backend.GetCardsForHost(currentHost).Where(c =>
         {
             if (toolFilter == "installed" && !c.Selected) return false;
+            if (toolFilter == "uninstalled" && c.Selected) return false;
             if (toolFilter == "update" && !backend.HasUpdateForCard(c)) return false;
             if (toolFilter == "test" && c.Channel != "test" && !backend.HasTestOfferForCard(c)) return false;
             return MatchesKoreanSearch(c.Title + " " + c.Description, query);
@@ -402,7 +415,7 @@ public partial class Manager2Window : Window
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             btn.Click += (_, _) => { selectedTabIndex = idx; selectedRibbonItem = tab; RenderRibbonView(); };
-            btn.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(typeof(object)) ? System.Windows.DragDropEffects.Move : System.Windows.DragDropEffects.None; e.Handled = true; };
+            btn.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent("RoBIM.RibbonItem") ? System.Windows.DragDropEffects.Move : System.Windows.DragDropEffects.None; e.Handled = true; };
             btn.Drop += (_, e) =>
             {
                 if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
@@ -592,11 +605,81 @@ public partial class Manager2Window : Window
             var diff = e.GetPosition(null) - dragStartPoint;
             if (Math.Abs(diff.X) > 6 || Math.Abs(diff.Y) > 6)
             {
-                var dataObj = new System.Windows.DataObject("RoBIM.RibbonItem", dragPayload);
+                var payload = dragPayload;
                 dragPayload = null;
-                WpfDragDrop.DoDragDrop(element, dataObj, System.Windows.DragDropEffects.Move);
+                StartRibbonDrag(element, payload);
             }
         };
+    }
+
+    private string DescribeRibbonPayload(object payload) => payload switch
+    {
+        RibbonTabModel t => "탭: " + t.Name,
+        RibbonPanelModel p => "패널: " + p.Name,
+        RibbonStackModel s => $"{s.Rows}단 묶음",
+        RibbonPlacement rp => rp.Kind == "Separator" ? "구분선" : rp.Title,
+        _ => "항목"
+    };
+
+    private void StartRibbonDrag(FrameworkElement source, object payload)
+    {
+        ShowDragGhost(DescribeRibbonPayload(payload));
+        try
+        {
+            var dataObj = new System.Windows.DataObject("RoBIM.RibbonItem", payload);
+            WpfDragDrop.DoDragDrop(source, dataObj, System.Windows.DragDropEffects.Move);
+        }
+        finally
+        {
+            CloseDragGhost();
+        }
+    }
+
+    private void ShowDragGhost(string text)
+    {
+        CloseDragGhost();
+        var badge = new Border
+        {
+            Background = new SolidColorBrush(WpfColor.FromArgb(235, 30, 91, 166)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 5, 10, 5),
+            Child = new TextBlock { Text = text, Foreground = WpfBrushes.White, FontSize = 12, FontWeight = FontWeights.SemiBold }
+        };
+        dragGhost = new Window
+        {
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = WpfBrushes.Transparent,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            IsHitTestVisible = false,
+            Topmost = true,
+            Content = badge
+        };
+        MoveDragGhost();
+        dragGhost.Show();
+        dragGhostTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Input, (_, _) => MoveDragGhost(), Dispatcher);
+        dragGhostTimer.Start();
+    }
+
+    private void MoveDragGhost()
+    {
+        if (dragGhost is null || !GetCursorPos(out var pt)) return;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        dragGhost.Left = pt.X / dpi.DpiScaleX + 14;
+        dragGhost.Top = pt.Y / dpi.DpiScaleY + 18;
+    }
+
+    private void CloseDragGhost()
+    {
+        dragGhostTimer?.Stop();
+        dragGhostTimer = null;
+        if (dragGhost is not null)
+        {
+            dragGhost.Close();
+            dragGhost = null;
+        }
     }
 
     private void RefreshRibbonBank()
@@ -676,17 +759,81 @@ public partial class Manager2Window : Window
         {
             var card = new Border { Background = WpfBrushes.White, BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(18), Margin = new Thickness(0, 0, 0, 12) };
             var dock = new DockPanel();
-            var btn = new WpfButton { Content = spec is null ? "지원 예정" : "최신 정식 로더 적용 / 업데이트", Style = (Style)FindResource("PrimaryButton"), IsEnabled = spec is not null && !backend.IsBusy };
-            DockPanel.SetDock(btn, Dock.Right);
-            if (spec is not null) btn.Click += async (_, _) => await backend.ApplyLoaderForHostAsync(hostKey);
-            dock.Children.Add(btn);
 
-            var info = new StackPanel();
-            info.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold });
-            info.Children.Add(new TextBlock { Text = repo, FontSize = 11, Foreground = new SolidColorBrush(WpfColor.FromRgb(100, 116, 139)), Margin = new Thickness(0, 2, 0, 6) });
-            var statusText = spec is null ? "Navisworks 호스트 로더는 향후 추가될 예정입니다." : FormatLoaderStatus(backend.GetLoaderStatus(spec));
-            info.Children.Add(new TextBlock { Text = statusText, FontSize = 12, Foreground = new SolidColorBrush(WpfColor.FromRgb(51, 65, 85)), TextWrapping = TextWrapping.Wrap });
-            dock.Children.Add(info);
+            if (spec is null)
+            {
+                var btn = new WpfButton { Content = "지원 예정", Style = (Style)FindResource("SecondaryButton"), IsEnabled = false };
+                DockPanel.SetDock(btn, Dock.Right);
+                dock.Children.Add(btn);
+                var info = new StackPanel();
+                info.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold });
+                info.Children.Add(new TextBlock { Text = repo, FontSize = 11, Foreground = new SolidColorBrush(WpfColor.FromRgb(100, 116, 139)), Margin = new Thickness(0, 2, 0, 6) });
+                info.Children.Add(new TextBlock { Text = "Navisworks 호스트 로더는 향후 추가될 예정입니다.", FontSize = 12, Foreground = new SolidColorBrush(WpfColor.FromRgb(51, 65, 85)) });
+                dock.Children.Add(info);
+                card.Child = dock;
+                LoadersPanel.Children.Add(card);
+                return;
+            }
+
+            var status = backend.GetLoaderStatus(spec);
+            var offers = backend.GetLoaderOffers(spec);
+            var chosenChannel = loaderSelectedChannel.GetValueOrDefault(hostKey, "stable");
+            if (chosenChannel == "test" && !backend.IsTestAllowed) chosenChannel = "stable";
+            var actionState = LoaderActions.Evaluate(status, offers, chosenChannel, backend.IsTestAllowed);
+
+            var rightControls = new StackPanel { Orientation = WpfOrientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(rightControls, Dock.Right);
+
+            var checkBtn = new WpfButton { Content = "저장소 확인", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
+            checkBtn.Click += async (_, _) => { await backend.CheckLoaderForHostAsync(hostKey); RenderLoadersView(); };
+            rightControls.Children.Add(checkBtn);
+
+            if (backend.IsTestAllowed)
+            {
+                var channelBox = new System.Windows.Controls.ComboBox { Width = 84, Margin = new Thickness(0, 0, 6, 0) };
+                channelBox.Items.Add("정식");
+                channelBox.Items.Add("TEST");
+                channelBox.SelectedIndex = chosenChannel == "test" ? 1 : 0;
+                channelBox.SelectionChanged += (_, _) =>
+                {
+                    loaderSelectedChannel[hostKey] = channelBox.SelectedIndex == 1 ? "test" : "stable";
+                    RenderLoadersView();
+                };
+                rightControls.Children.Add(channelBox);
+            }
+
+            var applyBtn = new WpfButton
+            {
+                Content = actionState.Text,
+                Style = (Style)FindResource(actionState.Enabled ? "PrimaryButton" : "SecondaryButton"),
+                IsEnabled = actionState.Enabled && !backend.IsBusy
+            };
+            applyBtn.Click += async (_, _) => { await backend.ApplyLoaderForHostAsync(hostKey, chosenChannel); RenderLoadersView(); };
+            rightControls.Children.Add(applyBtn);
+            dock.Children.Add(rightControls);
+
+            var leftInfo = new StackPanel();
+            var titleRow = new StackPanel { Orientation = WpfOrientation.Horizontal };
+            titleRow.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+            var isInstalledTest = status.Managed && status.Version.Contains('-');
+            var chText = !status.Managed ? "미설치" : isInstalledTest ? "TEST 설치됨" : "정식 설치됨";
+            var chBg = !status.Managed ? WpfColor.FromRgb(241, 245, 249) : isInstalledTest ? WpfColor.FromRgb(237, 233, 254) : WpfColor.FromRgb(220, 252, 231);
+            var chFg = !status.Managed ? WpfColor.FromRgb(71, 85, 105) : isInstalledTest ? WpfColor.FromRgb(109, 40, 217) : WpfColor.FromRgb(22, 101, 52);
+            titleRow.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(chBg),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(8, 0, 0, 0),
+                Child = new TextBlock { Text = chText, FontSize = 11, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(chFg) }
+            });
+            leftInfo.Children.Add(titleRow);
+            leftInfo.Children.Add(new TextBlock { Text = repo, FontSize = 11, Foreground = new SolidColorBrush(WpfColor.FromRgb(100, 116, 139)), Margin = new Thickness(0, 2, 0, 6) });
+            var offerSummary = offers is null
+                ? "원격 버전 미확인 ('저장소 확인'을 누르면 최신 정식/TEST 버전을 비교합니다)"
+                : $"원격 정식: {offers.Stable?.Version ?? "없음"}" + (backend.IsTestAllowed ? $" · 원격 TEST: {offers.Test?.Version ?? "없음"}" : "");
+            leftInfo.Children.Add(new TextBlock { Text = $"{FormatLoaderStatus(status)}\n{offerSummary}\n{actionState.Detail}", FontSize = 12, Foreground = new SolidColorBrush(WpfColor.FromRgb(51, 65, 85)), TextWrapping = TextWrapping.Wrap });
+            dock.Children.Add(leftInfo);
             card.Child = dock;
             LoadersPanel.Children.Add(card);
         }
@@ -704,6 +851,7 @@ public partial class Manager2Window : Window
         AccountAutoLoginCheck.IsChecked = backend.AutoLoginChecked;
         AccountStartupCheck.IsChecked = backend.StartWithWindowsChecked;
         AccountSignOutBtn.IsEnabled = backend.IsSignedIn;
+        ManagerVersionLabel.Text = $"현재 버전: v{backend.ManagerProductVersion} (테스트 업데이트 수신 시 프리릴리즈 포함 확인)";
     }
 
     private static string FormatLoaderStatus(ToolStatus status) =>
@@ -820,12 +968,20 @@ public partial class Manager2Window : Window
     private void OnSelectNavLoaders(object sender, RoutedEventArgs e) { currentNav = "loaders"; RefreshAllViews(); }
     private void OnSelectNavAccount(object sender, RoutedEventArgs e) { currentNav = "account"; RefreshAllViews(); }
 
-    private async void OnRefreshClicked(object sender, RoutedEventArgs e) { await backend.RefreshAllAsync(); RefreshAllViews(); }
+    private async void OnRefreshClicked(object sender, RoutedEventArgs e)
+    {
+        if (currentNav == "loaders" && currentHost is "revit" or "autocad")
+            await backend.CheckLoaderForHostAsync(currentHost);
+        else
+            await backend.RefreshAllAsync();
+        RefreshAllViews();
+    }
     private async void OnBatchUpdateClicked(object sender, RoutedEventArgs e) { await backend.RunBatchUpdateForHostAsync(currentHost); RefreshAllViews(); }
 
     private void OnToolFilterChanged(object sender, TextChangedEventArgs e) { if (!syncUi) RenderToolsView(); }
     private void OnFilterAll(object sender, RoutedEventArgs e) { toolFilter = "all"; RenderToolsView(); }
     private void OnFilterInstalled(object sender, RoutedEventArgs e) { toolFilter = "installed"; RenderToolsView(); }
+    private void OnFilterUninstalled(object sender, RoutedEventArgs e) { toolFilter = "uninstalled"; RenderToolsView(); }
     private void OnFilterUpdate(object sender, RoutedEventArgs e) { toolFilter = "update"; RenderToolsView(); }
     private void OnFilterTest(object sender, RoutedEventArgs e) { toolFilter = "test"; RenderToolsView(); }
 
@@ -846,8 +1002,66 @@ public partial class Manager2Window : Window
         if (Math.Abs(diff.X) > 6 || Math.Abs(diff.Y) > 6)
         {
             var rp = new RibbonPlacement(tool.Id, tool.Title);
-            WpfDragDrop.DoDragDrop(RibbonBankList, new System.Windows.DataObject("RoBIM.RibbonItem", rp), System.Windows.DragDropEffects.Move);
+            StartRibbonDrag(RibbonBankList, rp);
         }
+    }
+
+    private static TreeViewItem? FindTreeViewItemUnder(DependencyObject? source)
+    {
+        while (source is not null && source is not TreeViewItem)
+            source = VisualTreeHelper.GetParent(source);
+        return source as TreeViewItem;
+    }
+
+    private void OnRibbonTreeMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        dragStartPoint = e.GetPosition(null);
+        dragPayload = FindTreeViewItemUnder(e.OriginalSource as DependencyObject)?.Tag;
+    }
+
+    private void OnRibbonTreeMouseMove(object sender, WpfMouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || dragPayload is null) return;
+        var diff = e.GetPosition(null) - dragStartPoint;
+        if (Math.Abs(diff.X) > 6 || Math.Abs(diff.Y) > 6)
+        {
+            var payload = dragPayload;
+            dragPayload = null;
+            StartRibbonDrag(RibbonTree, payload);
+        }
+    }
+
+    private void OnRibbonTreeDragOver(object sender, WpfDragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent("RoBIM.RibbonItem") ? System.Windows.DragDropEffects.Move : System.Windows.DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnRibbonTreeDrop(object sender, WpfDragEventArgs e)
+    {
+        if (e.Data.GetData("RoBIM.RibbonItem") is not { } payload) return;
+        var targetItem = FindTreeViewItemUnder(e.OriginalSource as DependencyObject)?.Tag;
+        if (targetItem is null || ReferenceEquals(targetItem, payload)) return;
+        if (targetItem is RibbonTabModel targetTab)
+        {
+            MoveRibbonPayloadToTab(payload, targetTab);
+            selectedTabIndex = ribbonTabs.IndexOf(targetTab);
+        }
+        else if (targetItem is RibbonPanelModel targetPanel)
+        {
+            MoveRibbonPayloadToPanel(payload, targetPanel);
+        }
+        else if (targetItem is RibbonStackModel targetStack && payload is RibbonPlacement child && child.Kind != "Separator" && targetStack.Children.Count < targetStack.Rows)
+        {
+            RemoveRibbonPayload(child);
+            targetStack.Children.Add(child);
+        }
+        else if (targetItem is RibbonPlacement targetPlacement && FindParentPanel(targetPlacement) is { } parentPanel)
+        {
+            MoveRibbonPayloadToPanel(payload, parentPanel, targetPlacement);
+        }
+        RenderRibbonView();
+        e.Handled = true;
     }
 
     private void OnRibbonBankDoubleClick(object sender, MouseButtonEventArgs e)
@@ -1026,6 +1240,7 @@ public partial class Manager2Window : Window
 
     private async void OnAccountSignIn(object sender, RoutedEventArgs e) { await backend.SignInOrRefreshFromModernAsync(); RefreshAllViews(); }
     private void OnAccountSignOut(object sender, RoutedEventArgs e) { backend.SignOutFromModern(); RefreshAllViews(); }
+    private async void OnCheckManagerUpdate(object sender, RoutedEventArgs e) { await backend.CheckManagerUpdateFromModernAsync(); RefreshAllViews(); }
     private void OnOptionChanged(object sender, RoutedEventArgs e)
     {
         if (syncUi) return;

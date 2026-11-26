@@ -31,6 +31,12 @@ public sealed partial class ManagerForm
     internal string AccountSummaryText => accountStatus.Text;
     internal string FooterSummaryText => footer.Text;
     internal string ConnectedLogin => connectedLogin;
+    internal string ManagerProductVersion => Application.ProductVersion.Split('+')[0];
+    internal async Task CheckManagerUpdateFromModernAsync()
+    {
+        await CheckManagerUpdateManually();
+        BackendChanged?.Invoke();
+    }
     internal bool AllowPrereleaseChecked => allowPrerelease.Checked;
     internal bool AutoLoginChecked => automaticLogin.Checked;
     internal bool StartWithWindowsChecked => startWithWindows.Checked;
@@ -73,11 +79,19 @@ public sealed partial class ManagerForm
     }
 
     internal ToolStatus GetLoaderStatus(ToolSpec tool) => installer.Status(tool);
+    internal ReleaseChannels? GetLoaderOffers(ToolSpec tool) => loaderOffers.GetValueOrDefault(tool.Id);
 
-    internal async Task ApplyLoaderForHostAsync(string hostKey)
+    internal async Task CheckLoaderForHostAsync(string hostKey)
     {
-        if (hostKey == "revit") await ApplyRevitLoader("stable");
-        else if (hostKey == "autocad") await ApplyCadLoader("stable");
+        var tool = hostKey == "autocad" ? Catalog.Cad : Catalog.RevitHost;
+        await CheckLoaderRepository(tool, hostKey == "autocad" ? cadLoaderStatus : revitLoaderStatus, "stable");
+        BackendChanged?.Invoke();
+    }
+
+    internal async Task ApplyLoaderForHostAsync(string hostKey, string channel = "stable")
+    {
+        if (hostKey == "revit") await ApplyRevitLoader(channel);
+        else if (hostKey == "autocad") await ApplyCadLoader(channel);
         BackendChanged?.Invoke();
     }
 
