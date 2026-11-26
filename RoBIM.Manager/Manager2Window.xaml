@@ -362,7 +362,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Left: Unplaced Tools -->
-                    <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
+                    <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12" AllowDrop="True" DragOver="OnRibbonBankDragOver" DragLeave="OnRibbonBankDragLeave" Drop="OnRibbonBankDrop">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="배치 가능한 버튼" FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <Grid DockPanel.Dock="Top" Margin="0,0,0,8">

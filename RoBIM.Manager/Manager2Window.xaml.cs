@@ -1267,7 +1267,16 @@ public partial class Manager2Window : Window
         var query = RibbonBankSearchBox.Text.Trim();
         RibbonBankList.Items.Clear();
         foreach (var tool in ribbonTools.Where(t => !placedIds.Contains(t.Id) && MatchesKoreanSearch(t.Title, query)))
-            RibbonBankList.Items.Add(new System.Windows.Controls.ListBoxItem { Content = tool.Title + (tool.Installed ? "" : " · 미설치"), Tag = tool });
+        {
+            var item = new System.Windows.Controls.ListBoxItem
+            {
+                Content = tool.Title + (tool.Installed ? "" : " · 미설치"),
+                Tag = tool
+            };
+            if (!tool.Installed)
+                item.Foreground = new SolidColorBrush(WpfColor.FromRgb(148, 163, 184));
+            RibbonBankList.Items.Add(item);
+        }
     }
 
     private static bool SelectTreeItemByTag(System.Windows.Controls.ItemCollection items, object? target)
@@ -2126,6 +2135,46 @@ public partial class Manager2Window : Window
             var rp = new RibbonPlacement(tool.Id, tool.Title);
             StartRibbonDrag(RibbonBankList, rp);
         }
+    }
+
+    private bool IsPlacedInRibbon(object? payload) => payload switch
+    {
+        RibbonPanelModel pm => ribbonTabs.Any(t => t.Panels.Contains(pm)),
+        RibbonStackModel st => ribbonTabs.SelectMany(t => t.Panels).Any(p => p.Items.Contains(st)),
+        RibbonPlacement rp => ribbonTabs.SelectMany(t => t.Panels).Any(p => p.Items.Contains(rp) || p.Items.OfType<RibbonStackModel>().Any(s => s.Children.Contains(rp))),
+        _ => false
+    };
+
+    private void OnRibbonBankDragOver(object sender, WpfDragEventArgs e)
+    {
+        var payload = e.Data.GetDataPresent("RoBIM.RibbonItem") ? e.Data.GetData("RoBIM.RibbonItem") : null;
+        if (!IsPlacedInRibbon(payload))
+        {
+            e.Effects = System.Windows.DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+        e.Effects = System.Windows.DragDropEffects.Move;
+        RibbonBankList.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(59, 130, 246));
+        e.Handled = true;
+    }
+
+    private void OnRibbonBankDragLeave(object sender, WpfDragEventArgs e)
+    {
+        RibbonBankList.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240));
+    }
+
+    private void OnRibbonBankDrop(object sender, WpfDragEventArgs e)
+    {
+        RibbonBankList.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240));
+        if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) return;
+        var payload = e.Data.GetData("RoBIM.RibbonItem");
+        if (payload is null || !IsPlacedInRibbon(payload)) return;
+        RemoveRibbonPayload(payload);
+        if (ReferenceEquals(selectedRibbonItem, payload)) selectedRibbonItem = null;
+        ribbonDirty = true;
+        RenderRibbonView();
+        e.Handled = true;
     }
 
     private static TreeViewItem? FindTreeViewItemUnder(DependencyObject? source)
