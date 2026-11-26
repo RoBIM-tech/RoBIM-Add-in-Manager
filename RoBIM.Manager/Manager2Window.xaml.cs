@@ -340,13 +340,9 @@ public partial class Manager2Window : Window
 
     private void UpdateToolsCardWidths()
     {
-        var avail = ToolsCardsPanel.ActualWidth;
+        var avail = ToolsScrollViewer.ViewportWidth > 0 ? ToolsScrollViewer.ViewportWidth - 40 : ToolsCardsPanel.ActualWidth;
         if (avail <= 0) return;
-        const double gap = 14;
-        var cols = Math.Max(1, (int)(avail / (260 + gap)));
-        var cardWidth = Math.Floor(avail / cols - gap) - 1;
-        foreach (var child in ToolsCardsPanel.Children.OfType<Border>())
-            child.Width = Math.Max(240, cardWidth);
+        ToolsCardsPanel.Columns = Math.Max(1, (int)((avail + 14) / 290));
     }
 
     private Border BuildToolCard(ManagerForm.ButtonCard card)
@@ -366,7 +362,7 @@ public partial class Manager2Window : Window
                     ? WpfColor.FromRgb(255, 251, 235)
                     : card.Selected
                         ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(236, 253, 245))
-                        : (card.Channel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(248, 250, 252));
+                        : (card.Channel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(255, 255, 255));
         var cardBorderColor = !cardStatusTint
             ? WpfColor.FromRgb(226, 232, 240)
             : !permitted
@@ -375,11 +371,10 @@ public partial class Manager2Window : Window
                     ? WpfColor.FromRgb(252, 211, 77)
                     : card.Selected
                         ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(196, 181, 253) : WpfColor.FromRgb(110, 231, 183))
-                        : (card.Channel == "test" ? WpfColor.FromRgb(221, 214, 254) : WpfColor.FromRgb(203, 213, 225));
+                        : (card.Channel == "test" ? WpfColor.FromRgb(221, 214, 254) : WpfColor.FromRgb(226, 232, 240));
 
         var border = new Border
         {
-            Width = 310,
             MinHeight = 152,
             Margin = new Thickness(0, 0, 14, 14),
             Padding = new Thickness(16),
