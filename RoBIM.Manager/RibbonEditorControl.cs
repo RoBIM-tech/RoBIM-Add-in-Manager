@@ -96,7 +96,16 @@ internal sealed partial class RibbonEditorControl : UserControl
         bottomPane.Controls.Add(new Label { AutoSize = true, MaximumSize = new(1000, 0), Padding = new(0, 4, 0, 6), Text = "상단 탭은 스크롤과 무관하게 고정됩니다. 뒤쪽 버튼을 상단 탭으로 드래그하거나 하단 '다른 탭으로 이동'으로 옮기세요. 미리보기 위 마우스 휠로 좌우 스크롤합니다." }, 0, 0);
         bottomPane.Controls.Add(columns, 0, 1);
 
-        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6, Panel1MinSize = 115, Panel2MinSize = 160, SplitterDistance = 138 };
+        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6 };
+        var splitInitialized = false;
+        split.SizeChanged += (_, _) =>
+        {
+            if (splitInitialized || split.Height < 300) return;
+            splitInitialized = true;
+            split.Panel1MinSize = 115;
+            split.Panel2MinSize = 160;
+            split.SplitterDistance = Math.Clamp(142, 115, split.Height - 166);
+        };
         split.Panel1.Controls.Add(preview);
         split.Panel2.Controls.Add(bottomPane);
         root.Controls.Add(split, 0, 0);
