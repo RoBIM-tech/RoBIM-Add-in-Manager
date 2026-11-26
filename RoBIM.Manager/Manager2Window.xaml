@@ -249,7 +249,7 @@
                     </StackPanel>
                     <StackPanel x:Name="HeaderActions" DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="HeaderLogsBtn" Content="작업 기록" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnShowLogsClicked"/>
-                        <Button x:Name="HeaderManualReloadBtn" Content="Reload" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnManualReloadClicked"/>
+                        <Button x:Name="HeaderManualReloadBtn" Content="Revit Reload" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnManualReloadClicked"/>
                         <Button x:Name="HeaderRefreshBtn" Content="새로고침" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnRefreshClicked"/>
                         <Button x:Name="HeaderBatchUpdateBtn" Content="일괄 업데이트" Style="{StaticResource PrimaryButton}" Click="OnBatchUpdateClicked"/>
                     </StackPanel>
@@ -454,6 +454,7 @@
                             <CheckBox x:Name="AccountTestCheck" Content="테스트(Pre-release) 업데이트 수신" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountAutoLoginCheck" Content="자동 로그인" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountAutoUpdateCheck" Content="Manager 자동 업데이트" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
+                            <CheckBox x:Name="AccountCardTintCheck" Content="도구 카드에 설치 · 미설치 · 업데이트 상태 색상 표시" Margin="0,0,0,10" Checked="OnCardTintChanged" Unchecked="OnCardTintChanged"/>
                             <CheckBox x:Name="AccountStartupCheck" Content="Windows 로그인 시 알림 영역에서 자동 시작" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                         </StackPanel>
                     </Border>

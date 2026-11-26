@@ -29,6 +29,7 @@ public partial class Manager2Window : Window
     private string toolFilter = "all";
     private bool syncUi;
     private bool ribbonDirty;
+    private bool cardStatusTint = true;
 
     private List<RibbonTool> ribbonTools = [];
     private readonly List<RibbonTabModel> ribbonTabs = [];
@@ -82,6 +83,7 @@ public partial class Manager2Window : Window
         catch (Exception) { }
 
         backend.BackendChanged += () => Dispatcher.BeginInvoke(RefreshAllViews);
+        LoadUiPreferences();
         ToolsCardsPanel.SizeChanged += (_, _) => UpdateToolsCardWidths();
         backend.ManagerUpdateProgressChanged += (pct, text) => Dispatcher.BeginInvoke(() => ApplyManagerUpdateProgress(pct, text));
         backend.ModernDeviceLoginRequested = ShowModernDeviceLoginAsync;
@@ -341,22 +343,48 @@ public partial class Manager2Window : Window
         var avail = ToolsCardsPanel.ActualWidth;
         if (avail <= 0) return;
         const double gap = 14;
-        var cols = Math.Max(1, (int)((avail + gap) / (290 + gap)));
-        var cardWidth = Math.Floor((avail - (cols - 1) * gap) / cols) - 1;
+        var cols = Math.Max(1, (int)(avail / (260 + gap)));
+        var cardWidth = Math.Floor(avail / cols - gap) - 1;
         foreach (var child in ToolsCardsPanel.Children.OfType<Border>())
-            child.Width = Math.Max(260, cardWidth);
+            child.Width = Math.Max(240, cardWidth);
     }
 
     private Border BuildToolCard(ManagerForm.ButtonCard card)
     {
+        var permitted = backend.IsRepositoryPermitted(card);
+        var appearance = backend.GetCardAppearance(card);
+        var isLegacy = backend.IsLegacyNativeCard(card);
+        var hasNewTest = backend.HasTestOfferForCard(card);
+        var updateOffer = backend.GetUpdateOfferForCard(card);
+        var hasUpdate = appearance.Update || updateOffer is not null;
+
+        var cardBgColor = !cardStatusTint
+            ? WpfColor.FromRgb(255, 255, 255)
+            : !permitted
+                ? WpfColor.FromRgb(254, 242, 242)
+                : isLegacy || hasUpdate
+                    ? WpfColor.FromRgb(255, 251, 235)
+                    : card.Selected
+                        ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(236, 253, 245))
+                        : (card.Channel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(248, 250, 252));
+        var cardBorderColor = !cardStatusTint
+            ? WpfColor.FromRgb(226, 232, 240)
+            : !permitted
+                ? WpfColor.FromRgb(252, 165, 165)
+                : isLegacy || hasUpdate
+                    ? WpfColor.FromRgb(252, 211, 77)
+                    : card.Selected
+                        ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(196, 181, 253) : WpfColor.FromRgb(110, 231, 183))
+                        : (card.Channel == "test" ? WpfColor.FromRgb(221, 214, 254) : WpfColor.FromRgb(203, 213, 225));
+
         var border = new Border
         {
             Width = 310,
             MinHeight = 152,
             Margin = new Thickness(0, 0, 14, 14),
             Padding = new Thickness(16),
-            Background = WpfBrushes.White,
-            BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
+            Background = new SolidColorBrush(cardBgColor),
+            BorderBrush = new SolidColorBrush(cardBorderColor),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8)
         };
@@ -366,13 +394,6 @@ public partial class Manager2Window : Window
         // Bottom status + action bar
         var bottom = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
         DockPanel.SetDock(bottom, Dock.Bottom);
-
-        var permitted = backend.IsRepositoryPermitted(card);
-        var appearance = backend.GetCardAppearance(card);
-        var isLegacy = backend.IsLegacyNativeCard(card);
-        var hasNewTest = backend.HasTestOfferForCard(card);
-        var updateOffer = backend.GetUpdateOfferForCard(card);
-        var hasUpdate = appearance.Update || updateOffer is not null;
 
         var badgeBg = !permitted
             ? WpfColor.FromRgb(254, 226, 226)
@@ -1394,6 +1415,7 @@ public partial class Manager2Window : Window
         AccountTestCheck.IsEnabled = backend.IsTestAllowed;
         AccountAutoLoginCheck.IsChecked = backend.AutoLoginChecked;
         AccountAutoUpdateCheck.IsChecked = backend.ManagerAutoUpdateChecked;
+        AccountCardTintCheck.IsChecked = cardStatusTint;
         AccountStartupCheck.IsChecked = backend.StartWithWindowsChecked;
 
         var busy = backend.IsBusy;
@@ -2235,6 +2257,38 @@ public partial class Manager2Window : Window
     {
         if (!IsLoaded || syncUi) return;
         backend.SetAutoLoginOption(LoginAutoLoginCheck.IsChecked == true);
+        RefreshAllViews();
+    }
+
+    private void LoadUiPreferences()
+    {
+        try
+        {
+            var file = Path.Combine(backend.CorePaths.Data, "ui-prefs.json");
+            if (!File.Exists(file)) return;
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(file));
+            if (doc.RootElement.TryGetProperty("cardTint", out var v) && v.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False)
+                cardStatusTint = v.GetBoolean();
+        }
+        catch (Exception) { }
+    }
+
+    private void SaveUiPreferences()
+    {
+        try
+        {
+            Directory.CreateDirectory(backend.CorePaths.Data);
+            var file = Path.Combine(backend.CorePaths.Data, "ui-prefs.json");
+            File.WriteAllText(file, System.Text.Json.JsonSerializer.Serialize(new { cardTint = cardStatusTint }));
+        }
+        catch (Exception) { }
+    }
+
+    private void OnCardTintChanged(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || syncUi) return;
+        cardStatusTint = AccountCardTintCheck.IsChecked == true;
+        SaveUiPreferences();
         RefreshAllViews();
     }
 
