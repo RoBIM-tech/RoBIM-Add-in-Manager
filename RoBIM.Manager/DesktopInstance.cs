@@ -6,7 +6,8 @@ namespace RoBIM.Manager;
 
 internal static class DesktopInstance
 {
-    private const string EventName = "Local\\RoBIM.Manager.Activate";
+    internal const string ActivationEventName = "Local\\RoBIM.Manager.Activate";
+    private const string EventName = ActivationEventName;
     private delegate bool EnumWindow(nint window, nint parameter);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindow callback, nint parameter);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out uint pid);

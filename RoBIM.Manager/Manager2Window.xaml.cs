@@ -87,12 +87,7 @@ public partial class Manager2Window : Window
         ToolsCardsPanel.SizeChanged += (_, _) => UpdateToolsCardWidths();
         backend.ManagerUpdateProgressChanged += (pct, text) => Dispatcher.BeginInvoke(() => ApplyManagerUpdateProgress(pct, text));
         backend.ModernDeviceLoginRequested = ShowModernDeviceLoginAsync;
-        backend.OpenModernUiRequested = () => Dispatcher.BeginInvoke(() =>
-        {
-            if (!IsVisible) Show();
-            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-            Activate();
-        });
+        backend.OpenModernUiRequested = () => Dispatcher.BeginInvoke(ActivateFromSingleInstance);
         Loaded += async (_, _) =>
         {
             await backend.StartHiddenBackendAsync();
@@ -123,6 +118,17 @@ public partial class Manager2Window : Window
                 e.Handled = true;
             }
         };
+    }
+
+    internal void ActivateFromSingleInstance()
+    {
+        if (!IsVisible) Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        ShowInTaskbar = true;
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        Focus();
     }
 
     private void RefreshAllViews()

@@ -256,11 +256,25 @@ internal static class Program
         using var backend = new ManagerForm();
         var wpfApp = System.Windows.Application.Current ?? new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
         var modern = new Manager2Window(backend);
-        backend.BackendClosed += () => wpfApp.Dispatcher.BeginInvoke(() => wpfApp.Shutdown());
-        wpfApp.MainWindow = modern;
-        if (args.Contains("--background")) _ = backend.StartHiddenBackendAsync();
-        else modern.Show();
-        wpfApp.Run();
+        using var activateSignal = new EventWaitHandle(false, EventResetMode.AutoReset, DesktopInstance.ActivationEventName);
+        var waitRegistration = ThreadPool.RegisterWaitForSingleObject(
+            activateSignal,
+            (_, _) => wpfApp.Dispatcher.BeginInvoke(modern.ActivateFromSingleInstance),
+            null,
+            Timeout.Infinite,
+            executeOnlyOnce: false);
+        try
+        {
+            backend.BackendClosed += () => wpfApp.Dispatcher.BeginInvoke(() => wpfApp.Shutdown());
+            wpfApp.MainWindow = modern;
+            if (args.Contains("--background")) _ = backend.StartHiddenBackendAsync();
+            else modern.Show();
+            wpfApp.Run();
+        }
+        finally
+        {
+            waitRegistration.Unregister(null);
+        }
         return 0;
     }
 }
