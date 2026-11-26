@@ -8,6 +8,7 @@ public sealed partial class ManagerForm
     internal event Action? BackendChanged;
     internal event Action? BackendClosed;
     internal Action? OpenModernUiRequested;
+    internal Func<GitHubDeviceCode, CancellationTokenSource, Func<Task>, Task>? ModernDeviceLoginRequested;
     private bool hiddenBackendStarted;
 
     internal async Task StartHiddenBackendAsync()

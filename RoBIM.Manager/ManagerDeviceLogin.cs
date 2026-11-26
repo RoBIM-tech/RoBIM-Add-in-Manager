@@ -11,6 +11,20 @@ public sealed partial class ManagerForm
         var device = new GitHubDeviceLogin();
         using var cancellation = new CancellationTokenSource();
         var code = await device.Begin(cancellation.Token);
+        if (ModernDeviceLoginRequested is not null)
+        {
+            var modernCompleted = false;
+            await ModernDeviceLoginRequested(code, cancellation, async () =>
+            {
+                Process.Start(new ProcessStartInfo(code.VerificationUri.AbsoluteUri) { UseShellExecute = true });
+                var token = await device.Complete(code, cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                await GitHubSession.UseDeviceToken(token, cancellation.Token);
+                modernCompleted = true;
+            });
+            if (!modernCompleted) throw new IOException("GitHub 로그인이 취소되었습니다.");
+            return;
+        }
         using var dialog = new Form { Text = "GitHub 로그인", ClientSize = new Size(540, 280), FormBorderStyle = FormBorderStyle.FixedDialog,
             MaximizeBox = false, MinimizeBox = false, StartPosition = FormStartPosition.CenterParent };
         var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(24) };

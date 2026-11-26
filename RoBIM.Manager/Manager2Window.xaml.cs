@@ -80,6 +80,7 @@ public partial class Manager2Window : Window
         catch (Exception) { }
 
         backend.BackendChanged += () => Dispatcher.BeginInvoke(RefreshAllViews);
+        backend.ModernDeviceLoginRequested = ShowModernDeviceLoginAsync;
         backend.OpenModernUiRequested = () => Dispatcher.BeginInvoke(() =>
         {
             if (!IsVisible) Show();
@@ -1397,6 +1398,114 @@ public partial class Manager2Window : Window
             BorderThickness = new Thickness(0)
         };
         win.ShowDialog();
+    }
+
+    private Task ShowModernDeviceLoginAsync(GitHubDeviceCode code, CancellationTokenSource cancellation, Func<Task> completeLogin)
+    {
+        return Dispatcher.InvokeAsync(async () =>
+        {
+            Exception? failure = null;
+            var dialog = new Window
+            {
+                Title = "GitHub 로그인",
+                Width = 520,
+                SizeToContent = SizeToContent.Height,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStartupLocation = IsVisible ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+                Background = WpfBrushes.White,
+                FontFamily = FontFamily
+            };
+            if (IsVisible) dialog.Owner = this;
+
+            var root = new StackPanel { Margin = new Thickness(24) };
+            root.Children.Add(new TextBlock
+            {
+                Text = "브라우저에서 아래 코드를 입력하고\nRoBIM Add-in Manager 로그인을 승인하세요.",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(15, 23, 42)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 14)
+            });
+
+            var codeRow = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+            var copyBtn = new WpfButton
+            {
+                Content = "코드 복사",
+                Style = (Style)FindResource("SecondaryButton"),
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            copyBtn.Click += (_, _) =>
+            {
+                System.Windows.Clipboard.SetText(code.UserCode);
+                copyBtn.Content = "복사됨";
+            };
+            DockPanel.SetDock(copyBtn, Dock.Right);
+            codeRow.Children.Add(copyBtn);
+            codeRow.Children.Add(new System.Windows.Controls.TextBox
+            {
+                Text = code.UserCode,
+                IsReadOnly = true,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Padding = new Thickness(10, 8, 10, 8),
+                Background = new SolidColorBrush(WpfColor.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(203, 213, 225)),
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 64, 175))
+            });
+            root.Children.Add(codeRow);
+
+            var openBtn = new WpfButton
+            {
+                Content = "GitHub 인증 페이지 열기",
+                Style = (Style)FindResource("PrimaryButton"),
+                Padding = new Thickness(14, 9, 14, 9),
+                HorizontalAlignment = WpfHorizontalAlignment.Left
+            };
+            openBtn.Click += (_, _) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(code.VerificationUri.AbsoluteUri) { UseShellExecute = true });
+            root.Children.Add(openBtn);
+
+            root.Children.Add(new TextBlock
+            {
+                Text = "인증이 끝나면 자동으로 계속합니다. 만료·철회되면 다시 로그인하세요.",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 14, 0, 14)
+            });
+
+            var cancelBtn = new WpfButton
+            {
+                Content = "취소",
+                Style = (Style)FindResource("SecondaryButton"),
+                HorizontalAlignment = WpfHorizontalAlignment.Left,
+                IsCancel = true
+            };
+            cancelBtn.Click += (_, _) => dialog.Close();
+            root.Children.Add(cancelBtn);
+
+            dialog.Content = root;
+            dialog.Closing += (_, _) => cancellation.Cancel();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            dialog.Loaded += async (_, _) =>
+            {
+                try
+                {
+                    await completeLogin();
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { failure = ex; }
+                finally
+                {
+                    if (dialog.IsLoaded) dialog.Close();
+                    tcs.TrySetResult();
+                }
+            };
+            dialog.ShowDialog();
+            await tcs.Task;
+            if (failure is not null) throw failure;
+        }).Task.Unwrap();
     }
 
     private void OnSelectHostRevit(object sender, RoutedEventArgs e) { if (!ConfirmDiscardRibbonChanges()) return; currentHost = "revit"; LoadRibbonState(); RefreshAllViews(); }
