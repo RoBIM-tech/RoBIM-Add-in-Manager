@@ -161,17 +161,25 @@
                     <Button x:Name="NavLoadersBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavLoaders">
                         <TextBlock Text="호스트 로더"/>
                     </Button>
-                    <Button x:Name="NavAccountBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavAccount">
-                        <TextBlock Text="계정 · 설정"/>
-                    </Button>
                 </StackPanel>
 
-                <!-- User Footer -->
+                <!-- User Footer with Settings Gear -->
                 <Border DockPanel.Dock="Bottom" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="4,12,4,0">
-                    <StackPanel>
-                        <TextBlock x:Name="RailUserText" Text="로그인 확인 중..." Foreground="White" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock x:Name="RailRoleText" Text="권한 확인 중" Foreground="#94A3B8" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
+                    <DockPanel>
+                        <Button x:Name="RailAccountSettingsBtn" DockPanel.Dock="Right" Width="30" Height="30" ToolTip="계정 · 설정" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center" Click="OnSelectNavAccount">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                        <TextBlock Text="⚙" FontSize="15" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="RailUserText" Text="로그인 확인 중..." Foreground="White" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="RailRoleText" Text="권한 확인 중" Foreground="#94A3B8" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DockPanel>
                 </Border>
             </DockPanel>
         </Border>
@@ -387,22 +395,11 @@
                                 <Button x:Name="AccountSignOutBtn" Content="로그아웃" Style="{StaticResource SecondaryButton}" Click="OnAccountSignOut"/>
                             </StackPanel>
 
-                            <StackPanel x:Name="SavedAccountsRow" Orientation="Horizontal" Margin="0,0,0,12">
+                            <StackPanel x:Name="SavedAccountsRow" Orientation="Horizontal">
                                 <TextBlock Text="저장된 계정:" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <ComboBox x:Name="SavedAccountsBox" Width="220" Margin="0,0,8,0"/>
                                 <Button x:Name="UseSavedAccountBtn" Content="이 계정 사용" Style="{StaticResource SecondaryButton}" Click="OnUseSavedAccount"/>
                             </StackPanel>
-
-                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12">
-                                <StackPanel>
-                                    <TextBlock Text="고급 설정 · 개인 액세스 토큰(PAT)" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <PasswordBox x:Name="AccountPatBox" Width="280" Padding="6,4" Margin="0,0,8,0"/>
-                                        <Button x:Name="AccountSavePatBtn" Content="토큰 확인 및 저장" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnSavePatClicked"/>
-                                        <Button x:Name="AccountDeletePatBtn" Content="현재 토큰 삭제" Style="{StaticResource SecondaryButton}" Click="OnDeletePatClicked"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -416,7 +413,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="CheckManagerUpdateBtn" Content="Manager 업데이트 확인" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnCheckManagerUpdate"/>
@@ -428,21 +425,6 @@
                                 <TextBlock x:Name="ManagerUpdateStatusLabel" Text="" Foreground="#1E5BA6" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </DockPanel>
-                    </Border>
-
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
-                        <StackPanel>
-                            <TextBlock Text="제작자 · 조직 및 저장소 등록" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <Button x:Name="EditPublishersBtn" Content="제작자·조직 설정" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnEditPublishersClicked"/>
-                                <Button x:Name="RefreshCatalogBtn" Content="저장소 새로고침" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnRefreshCatalogClicked"/>
-                                <Button x:Name="ViewLogsBtn" Content="작업 기록 보기" Style="{StaticResource SecondaryButton}" Click="OnShowLogsClicked"/>
-                            </StackPanel>
-                            <DockPanel>
-                                <Button x:Name="RegisterGitUrlBtn" DockPanel.Dock="Right" Content="URL 확인 및 등록" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnRegisterGitUrlClicked"/>
-                                <TextBox x:Name="GitUrlBox" Padding="8,5" BorderBrush="#CBD5E1"/>
-                            </DockPanel>
-                        </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

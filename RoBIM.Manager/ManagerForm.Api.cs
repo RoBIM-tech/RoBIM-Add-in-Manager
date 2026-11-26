@@ -280,14 +280,48 @@ public sealed partial class ManagerForm
     internal void OpenLoaderFolderFromModern(ToolSpec tool) => OpenFolder(paths.Target(tool));
     internal void OpenLoaderRepoFromModern(ToolSpec tool) => OpenUrl("https://github.com/" + tool.Repository);
 
+    private static string? ResolveManagementIcon(string fileName, string? cadRoot = null)
+    {
+        if (!string.IsNullOrWhiteSpace(cadRoot))
+        {
+            var cadIcon = Path.Combine(cadRoot, "Icons", fileName);
+            if (File.Exists(cadIcon)) return cadIcon;
+            var cadRootIcon = Path.Combine(cadRoot, fileName);
+            if (File.Exists(cadRootIcon)) return cadRootIcon;
+        }
+        var addins = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026", "RoBIM.Revit.Host.bundle", "Contents", "2026", "Icons", fileName);
+        if (File.Exists(addins)) return addins;
+        return null;
+    }
+
     internal IReadOnlyList<RibbonTool> GetRibbonToolsForHost(string hostKey)
     {
         if (hostKey == "revit")
+        {
+            var reloadIcon = ResolveManagementIcon("reload.png");
+            var managerIcon = ResolveManagementIcon("manager.png");
             return RibbonLayouts.WithManagementTools(CommandInventory().Where(x => x.Kind == ButtonKind.Native)
-                .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon))).ToArray();
+                .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon)))
+                .Select(t => t.Id == "manager:reload" && t.Icon is null ? t with { Icon = reloadIcon }
+                    : t.Id == "manager:manager" && t.Icon is null ? t with { Icon = managerIcon }
+                    : t)
+                .ToArray();
+        }
         if (hostKey == "autocad")
+        {
+            var cadRoot = productRows.FirstOrDefault(x => x.Status.Tool.Id == Catalog.Cad.Id) is { } cadRow
+                ? new CadReload(paths).Source(cadRow.Status.Path, preferInstalled: true)?.Root
+                : null;
+            var reloadIcon = ResolveManagementIcon("reload.png", cadRoot);
+            var managerIcon = ResolveManagementIcon("manager.png", cadRoot);
             return CommandInventory().Where(x => x.Kind == ButtonKind.Cad)
-                .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon)).ToArray();
+                .Select(x => RibbonLayouts.FromGroup(x.Id, x.Title, x.Group, x.Selected, x.Icon))
+                .Concat([
+                    new RibbonTool("manager:cad-reload", "Reload", "RoBIM 관리", "관리", true, reloadIcon),
+                    new RibbonTool("manager:cad-manager", "Add-in Manager", "RoBIM 관리", "관리", true, managerIcon)
+                ])
+                .ToArray();
+        }
         return [];
     }
 

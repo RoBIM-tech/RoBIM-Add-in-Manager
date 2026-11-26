@@ -37,6 +37,8 @@ public partial class Manager2Window : Window
     private object? selectedRibbonItem;
     private WpfPoint dragStartPoint;
     private object? dragPayload;
+    private object? activeDragPayload;
+    private object? dragHoverTarget;
     private Window? dragGhost;
     private DispatcherTimer? dragGhostTimer;
     private readonly Dictionary<string, string> loaderSelectedChannel = new(StringComparer.OrdinalIgnoreCase);
@@ -150,7 +152,12 @@ public partial class Manager2Window : Window
         StyleNavBtn(NavToolsBtn, currentNav == "tools");
         StyleNavBtn(NavRibbonBtn, currentNav == "ribbon");
         StyleNavBtn(NavLoadersBtn, currentNav == "loaders");
-        StyleNavBtn(NavAccountBtn, currentNav == "account");
+        RailAccountSettingsBtn.Background = currentNav == "account"
+            ? new SolidColorBrush(WpfColor.FromRgb(51, 65, 85))
+            : WpfBrushes.Transparent;
+        RailAccountSettingsBtn.Foreground = currentNav == "account"
+            ? WpfBrushes.White
+            : new SolidColorBrush(WpfColor.FromRgb(148, 163, 184));
 
         NavToolsBtn.IsEnabled = backend.IsAccessAllowed;
         NavRibbonBtn.IsEnabled = backend.IsAccessAllowed;
@@ -514,21 +521,28 @@ public partial class Manager2Window : Window
             var idx = i;
             var tab = ribbonTabs[i];
             var active = i == selectedTabIndex;
+            var isDragHover = ReferenceEquals(dragHoverTarget, tab);
             var btn = new WpfButton
             {
                 Content = tab.Name,
                 Padding = new Thickness(12, 6, 12, 6),
                 Margin = new Thickness(0, 0, 3, 0),
-                Background = active ? WpfBrushes.White : new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
-                Foreground = active ? new SolidColorBrush(WpfColor.FromRgb(30, 91, 166)) : new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
-                FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
-                BorderThickness = new Thickness(1, 1, 1, 0),
-                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(203, 213, 225)),
+                Background = isDragHover ? new SolidColorBrush(WpfColor.FromRgb(219, 234, 254)) : active ? WpfBrushes.White : new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
+                Foreground = active || isDragHover ? new SolidColorBrush(WpfColor.FromRgb(30, 91, 166)) : new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
+                FontWeight = active || isDragHover ? FontWeights.SemiBold : FontWeights.Normal,
+                BorderThickness = new Thickness(isDragHover ? 2 : 1, isDragHover ? 2 : 1, isDragHover ? 2 : 1, 0),
+                BorderBrush = new SolidColorBrush(isDragHover ? WpfColor.FromRgb(37, 99, 235) : WpfColor.FromRgb(203, 213, 225)),
                 AllowDrop = true,
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             btn.Click += (_, _) => { selectedTabIndex = idx; selectedRibbonItem = tab; RenderRibbonView(); };
-            btn.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent("RoBIM.RibbonItem") ? System.Windows.DragDropEffects.Move : System.Windows.DragDropEffects.None; e.Handled = true; };
+            btn.DragOver += (_, e) =>
+            {
+                if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
+                e.Effects = System.Windows.DragDropEffects.Move;
+                SetDragHoverTarget(tab);
+                e.Handled = true;
+            };
             btn.Drop += (_, e) =>
             {
                 if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
@@ -575,11 +589,20 @@ public partial class Manager2Window : Window
             Margin = new Thickness(0, 0, 8, 0),
             AllowDrop = true
         };
+        card.DragOver += (_, e) =>
+        {
+            if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
+            e.Effects = System.Windows.DragDropEffects.Move;
+            SetDragHoverTarget(panel);
+            e.Handled = true;
+        };
         card.Drop += (_, e) =>
         {
             if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
             {
                 MoveRibbonPayloadToPanel(payload, panel);
+                ribbonDirty = true;
+                dragHoverTarget = null;
                 RenderRibbonView();
                 e.Handled = true;
             }
@@ -589,6 +612,9 @@ public partial class Manager2Window : Window
         var itemsRow = new StackPanel { Orientation = WpfOrientation.Horizontal, MinHeight = 76 };
         foreach (var item in panel.Items)
         {
+            if (ReferenceEquals(dragHoverTarget, item) && !ReferenceEquals(activeDragPayload, item))
+                itemsRow.Children.Add(BuildDragPreviewTile(small: false));
+
             if (item is RibbonPlacement rp)
             {
                 if (rp.Kind == "Separator")
@@ -608,12 +634,20 @@ public partial class Manager2Window : Window
                     };
                     sep.Child = new Border { Width = 2, Background = new SolidColorBrush(isSel ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(203, 213, 225)), Margin = new Thickness(4, 4, 4, 4) };
                     WireRibbonDraggable(sep, rp);
+                    sep.DragOver += (_, e) =>
+                    {
+                        if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
+                        e.Effects = System.Windows.DragDropEffects.Move;
+                        if (!ReferenceEquals(activeDragPayload, rp)) SetDragHoverTarget(rp);
+                        e.Handled = true;
+                    };
                     sep.Drop += (_, e) =>
                     {
                         if (e.Data.GetData("RoBIM.RibbonItem") is { } payload && !ReferenceEquals(payload, rp))
                         {
                             MoveRibbonPayloadToPanel(payload, panel, rp);
                             ribbonDirty = true;
+                            dragHoverTarget = null;
                             RenderRibbonView();
                             e.Handled = true;
                         }
@@ -627,19 +661,33 @@ public partial class Manager2Window : Window
             }
             else if (item is RibbonStackModel st)
             {
+                var isStackHover = ReferenceEquals(dragHoverTarget, st);
                 var col = new Border
                 {
                     Width = 144,
                     Height = 76,
-                    Background = new SolidColorBrush(selectedRibbonItem == st ? WpfColor.FromRgb(219, 234, 254) : WpfColor.FromRgb(241, 245, 249)),
-                    BorderBrush = new SolidColorBrush(selectedRibbonItem == st ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(226, 232, 240)),
-                    BorderThickness = new Thickness(1),
+                    Background = new SolidColorBrush(isStackHover || selectedRibbonItem == st ? WpfColor.FromRgb(219, 234, 254) : WpfColor.FromRgb(241, 245, 249)),
+                    BorderBrush = new SolidColorBrush(isStackHover ? WpfColor.FromRgb(37, 99, 235) : selectedRibbonItem == st ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(226, 232, 240)),
+                    BorderThickness = new Thickness(isStackHover ? 2 : 1),
                     CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(4, 5, 4, 3),
                     Margin = new Thickness(2, 0, 2, 0),
                     AllowDrop = true
                 };
                 WireRibbonDraggable(col, st);
+                col.DragOver += (_, e) =>
+                {
+                    if (activeDragPayload is RibbonPlacement cp && cp.Kind != "Separator" && st.Children.Count < st.Rows)
+                    {
+                        e.Effects = System.Windows.DragDropEffects.Move;
+                        SetDragHoverTarget(st);
+                    }
+                    else
+                    {
+                        e.Effects = System.Windows.DragDropEffects.None;
+                    }
+                    e.Handled = true;
+                };
                 col.Drop += (_, e) =>
                 {
                     if (e.Data.GetData("RoBIM.RibbonItem") is RibbonPlacement child && child.Kind != "Separator")
@@ -649,6 +697,7 @@ public partial class Manager2Window : Window
                             RemoveRibbonPayload(child);
                             st.Children.Add(child);
                             ribbonDirty = true;
+                            dragHoverTarget = null;
                             RenderRibbonView();
                         }
                         e.Handled = true;
@@ -670,10 +719,14 @@ public partial class Manager2Window : Window
                     WireRibbonDraggable(rowBtn, child);
                     colStack.Children.Add(rowBtn);
                 }
+                if (isStackHover && activeDragPayload is RibbonPlacement && st.Children.Count < st.Rows)
+                    colStack.Children.Add(BuildDragPreviewTile(small: true, stackRows: st.Rows));
                 col.Child = colStack;
                 itemsRow.Children.Add(col);
             }
         }
+        if (ReferenceEquals(dragHoverTarget, panel) && activeDragPayload is not null)
+            itemsRow.Children.Add(BuildDragPreviewTile(small: false));
         stack.Children.Add(itemsRow);
         var headerLbl = new TextBlock
         {
@@ -716,11 +769,20 @@ public partial class Manager2Window : Window
         btn.Child = sp;
 
         WireRibbonDraggable(btn, rp);
+        btn.DragOver += (_, e) =>
+        {
+            if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
+            e.Effects = System.Windows.DragDropEffects.Move;
+            if (!ReferenceEquals(activeDragPayload, rp)) SetDragHoverTarget(rp);
+            e.Handled = true;
+        };
         btn.Drop += (_, e) =>
         {
             if (e.Data.GetData("RoBIM.RibbonItem") is { } payload && !ReferenceEquals(payload, rp))
             {
                 MoveRibbonPayloadToPanel(payload, panel, rp);
+                ribbonDirty = true;
+                dragHoverTarget = null;
                 RenderRibbonView();
                 e.Handled = true;
             }
@@ -770,8 +832,77 @@ public partial class Manager2Window : Window
         _ => "항목"
     };
 
+    private void SetDragHoverTarget(object? target)
+    {
+        if (ReferenceEquals(dragHoverTarget, target)) return;
+        dragHoverTarget = target;
+        RenderRibbonTabsAndStrip();
+    }
+
+    private Border BuildDragPreviewTile(bool small, int stackRows = 2)
+    {
+        var label = activeDragPayload is null ? "여기에 놓기" : DescribeRibbonPayload(activeDragPayload);
+        if (small)
+        {
+            return new Border
+            {
+                Height = Math.Max(19, 64 / Math.Max(1, stackRows)),
+                Background = new SolidColorBrush(WpfColor.FromArgb(220, 219, 234, 254)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(0, 0, 0, 2),
+                Padding = new Thickness(4, 0, 4, 0),
+                IsHitTestVisible = false,
+                Child = new TextBlock { Text = label, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 64, 175)), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis }
+            };
+        }
+
+        if (activeDragPayload is RibbonPlacement { Kind: "Separator" })
+        {
+            return new Border
+            {
+                Width = 11,
+                Height = 68,
+                Background = new SolidColorBrush(WpfColor.FromArgb(200, 219, 234, 254)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(3),
+                IsHitTestVisible = false,
+                Child = new Border { Width = 2, Background = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)), Margin = new Thickness(4) }
+            };
+        }
+
+        var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        if (activeDragPayload is RibbonPlacement rp)
+        {
+            var tool = ribbonTools.FirstOrDefault(x => x.Id == rp.Id);
+            var bmp = LoadIconBitmap(tool?.Icon);
+            if (bmp is not null)
+                sp.Children.Add(new System.Windows.Controls.Image { Source = bmp, Width = 28, Height = 28, Margin = new Thickness(0, 0, 0, 4), Opacity = 0.85 });
+            else
+                sp.Children.Add(new Border { Width = 28, Height = 28, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(WpfColor.FromRgb(191, 219, 254)), Margin = new Thickness(0, 0, 0, 4), Child = new TextBlock { Text = rp.Title.Length > 0 ? rp.Title[..1] : "R", HorizontalAlignment = WpfHorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 64, 175)) } });
+        }
+        sp.Children.Add(new TextBlock { Text = label, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 64, 175)), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis });
+        return new Border
+        {
+            Width = 86,
+            Height = 76,
+            Margin = new Thickness(2, 0, 2, 0),
+            Padding = new Thickness(4),
+            CornerRadius = new CornerRadius(5),
+            Background = new SolidColorBrush(WpfColor.FromArgb(220, 219, 234, 254)),
+            BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)),
+            BorderThickness = new Thickness(1.5),
+            IsHitTestVisible = false,
+            Child = sp
+        };
+    }
+
     private void StartRibbonDrag(FrameworkElement source, object payload)
     {
+        activeDragPayload = payload;
+        dragHoverTarget = null;
         ShowDragGhost(DescribeRibbonPayload(payload));
         try
         {
@@ -780,7 +911,10 @@ public partial class Manager2Window : Window
         }
         finally
         {
+            activeDragPayload = null;
+            dragHoverTarget = null;
             CloseDragGhost();
+            RenderRibbonTabsAndStrip();
         }
     }
 
@@ -1040,12 +1174,6 @@ public partial class Manager2Window : Window
         if (SavedAccountsBox.Items.Count > 0) SavedAccountsBox.SelectedIndex = 0;
         SavedAccountsRow.Visibility = logins.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         UseSavedAccountBtn.IsEnabled = !busy && logins.Count > 0;
-        AccountSavePatBtn.IsEnabled = !busy;
-        AccountDeletePatBtn.IsEnabled = !busy;
-
-        EditPublishersBtn.IsEnabled = !busy && backend.IsAccessAllowed;
-        RefreshCatalogBtn.IsEnabled = !busy;
-        RegisterGitUrlBtn.IsEnabled = !busy && backend.IsAccessAllowed;
 
         ManagerVersionLabel.Text = $"현재 버전: v{backend.ManagerProductVersion} (테스트 업데이트 수신 시 프리릴리즈 포함 확인)";
         ManagerUpdateStatusLabel.Text = backend.ManagerUpdateStatusText;
@@ -1360,7 +1488,11 @@ public partial class Manager2Window : Window
 
     private void OnRibbonTreeDragOver(object sender, WpfDragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent("RoBIM.RibbonItem") ? System.Windows.DragDropEffects.Move : System.Windows.DragDropEffects.None;
+        if (!e.Data.GetDataPresent("RoBIM.RibbonItem")) { e.Effects = System.Windows.DragDropEffects.None; e.Handled = true; return; }
+        e.Effects = System.Windows.DragDropEffects.Move;
+        var targetItem = FindTreeViewItemUnder(e.OriginalSource as DependencyObject)?.Tag;
+        if (targetItem is not null && !ReferenceEquals(targetItem, activeDragPayload))
+            SetDragHoverTarget(targetItem);
         e.Handled = true;
     }
 
@@ -1674,28 +1806,9 @@ public partial class Manager2Window : Window
         var loginName = SavedAccountsBox.SelectedItem as string ?? "";
         await RunBusyActionAsync(() => backend.UseSavedAccountFromModernAsync(loginName), "계정 전환");
     }
-    private async void OnSavePatClicked(object sender, RoutedEventArgs e)
-    {
-        var pat = AccountPatBox.Password.Trim();
-        AccountPatBox.Clear();
-        await RunBusyActionAsync(() => backend.UseTokenFromModernAsync(pat), "토큰 확인 및 저장");
-    }
-    private async void OnDeletePatClicked(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.RemoveTokenFromModernAsync(), "토큰 삭제");
     private void OnAccountSignOut(object sender, RoutedEventArgs e) { backend.SignOutFromModern(); RefreshAllViews(); }
     private async void OnCheckManagerUpdate(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.CheckManagerUpdateFromModernAsync(), "Manager 업데이트 확인");
     private async void OnInstallManagerUpdate(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.InstallManagerUpdateFromModernAsync(), "Manager 업데이트");
-    private void OnEditPublishersClicked(object sender, RoutedEventArgs e) { backend.EditPublishersFromModern(); RefreshAllViews(); }
-    private async void OnRefreshCatalogClicked(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.RefreshExtensionCatalogFromModernAsync(), "저장소 새로고침");
-    private async void OnRegisterGitUrlClicked(object sender, RoutedEventArgs e)
-    {
-        var url = GitUrlBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(url)) return;
-        await RunBusyActionAsync(async () =>
-        {
-            await backend.RegisterGitUrlFromModernAsync(url);
-            GitUrlBox.Clear();
-        }, "Git URL 등록");
-    }
     private void OnOptionChanged(object sender, RoutedEventArgs e)
     {
         if (syncUi) return;
