@@ -310,7 +310,7 @@
             <!-- View 2: Ribbon Studio -->
             <Grid x:Name="RibbonView" Grid.Row="1" Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="200" MinHeight="140"/>
+                    <RowDefinition Height="Auto" MinHeight="146"/>
                     <RowDefinition Height="6"/>
                     <RowDefinition Height="*" MinHeight="220"/>
                 </Grid.RowDefinitions>
@@ -340,7 +340,7 @@
                         </Border>
 
                         <!-- Horizontal Scrollable Ribbon Strip + Insertion Overlay -->
-                        <ScrollViewer x:Name="RibbonStripScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="#F8FAFC" Padding="12,8" AllowDrop="True" PreviewDragOver="OnRibbonStripDragOver" PreviewMouseWheel="OnRibbonStripMouseWheel">
+                        <ScrollViewer x:Name="RibbonStripScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="#F8FAFC" Padding="12,8,12,6" AllowDrop="True" PreviewDragOver="OnRibbonStripDragOver" PreviewMouseWheel="OnRibbonStripMouseWheel">
                             <Grid>
                                 <StackPanel x:Name="RibbonStripHost" Orientation="Horizontal" VerticalAlignment="Top"/>
                                 <Canvas x:Name="RibbonInsertionOverlay" IsHitTestVisible="False">

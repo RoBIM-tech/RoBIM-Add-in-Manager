@@ -41,8 +41,8 @@ public partial class Manager2Window : Window
     private bool treeInsertAfter;
     private Window? dragGhost;
     private DispatcherTimer? dragGhostTimer;
-    private DispatcherTimer? tabHoverTimer;
-    private int pendingHoverTabIndex = -1;
+    private int hoverTabIndex = -1;
+    private long hoverTabEnteredMs;
     private readonly Dictionary<string, string> loaderSelectedChannel = new(StringComparer.OrdinalIgnoreCase);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -82,6 +82,7 @@ public partial class Manager2Window : Window
         catch (Exception) { }
 
         backend.BackendChanged += () => Dispatcher.BeginInvoke(RefreshAllViews);
+        ToolsCardsPanel.SizeChanged += (_, _) => UpdateToolsCardWidths();
         backend.ManagerUpdateProgressChanged += (pct, text) => Dispatcher.BeginInvoke(() => ApplyManagerUpdateProgress(pct, text));
         backend.ModernDeviceLoginRequested = ShowModernDeviceLoginAsync;
         backend.OpenModernUiRequested = () => Dispatcher.BeginInvoke(() =>
@@ -332,6 +333,18 @@ public partial class Manager2Window : Window
 
         foreach (var card in cards)
             ToolsCardsPanel.Children.Add(BuildToolCard(card));
+        UpdateToolsCardWidths();
+    }
+
+    private void UpdateToolsCardWidths()
+    {
+        var avail = ToolsCardsPanel.ActualWidth;
+        if (avail <= 0) return;
+        const double gap = 14;
+        var cols = Math.Max(1, (int)((avail + gap) / (290 + gap)));
+        var cardWidth = Math.Floor((avail - (cols - 1) * gap) / cols) - 1;
+        foreach (var child in ToolsCardsPanel.Children.OfType<Border>())
+            child.Width = Math.Max(260, cardWidth);
     }
 
     private Border BuildToolCard(ManagerForm.ButtonCard card)
@@ -606,14 +619,19 @@ public partial class Manager2Window : Window
                 e.Effects = System.Windows.DragDropEffects.Move;
                 btn.Background = new SolidColorBrush(WpfColor.FromRgb(219, 234, 254));
                 btn.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
-                if (!active && pendingHoverTabIndex != idx)
+                if (!active)
                 {
-                    pendingHoverTabIndex = idx;
-                    tabHoverTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
-                    tabHoverTimer.Stop();
-                    tabHoverTimer.Tick -= OnTabHoverTimerTick;
-                    tabHoverTimer.Tick += OnTabHoverTimerTick;
-                    tabHoverTimer.Start();
+                    if (hoverTabIndex != idx)
+                    {
+                        hoverTabIndex = idx;
+                        hoverTabEnteredMs = Environment.TickCount64;
+                    }
+                    else if (Environment.TickCount64 - hoverTabEnteredMs >= 400)
+                    {
+                        hoverTabIndex = -1;
+                        selectedTabIndex = idx;
+                        RenderRibbonTabsAndStrip();
+                    }
                 }
                 e.Handled = true;
             };
@@ -621,13 +639,13 @@ public partial class Manager2Window : Window
             {
                 btn.Background = normalBg;
                 btn.BorderBrush = normalBorder;
-                if (pendingHoverTabIndex == idx) StopTabHoverTimer();
+                if (hoverTabIndex == idx) hoverTabIndex = -1;
             };
             btn.Drop += (_, e) =>
             {
                 btn.Background = normalBg;
                 btn.BorderBrush = normalBorder;
-                StopTabHoverTimer();
+                hoverTabIndex = -1;
                 if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
                 {
                     MoveRibbonPayloadToTab(payload, tab);
@@ -858,17 +876,18 @@ public partial class Manager2Window : Window
             }
         }
         stack.Children.Add(itemsRow);
+        var headerHost = new Grid { Margin = new Thickness(0, 4, 0, 0) };
         var headerLbl = new TextBlock
         {
             Text = panel.Name,
             FontSize = 11,
             Foreground = new SolidColorBrush(WpfColor.FromRgb(100, 116, 139)),
             HorizontalAlignment = WpfHorizontalAlignment.Center,
-            Margin = new Thickness(0, 4, 0, 0),
             Cursor = System.Windows.Input.Cursors.Hand
         };
-        WireRibbonDraggable(headerLbl, panel);
-        stack.Children.Add(headerLbl);
+        headerHost.Children.Add(headerLbl);
+        WireRibbonDraggable(headerHost, panel);
+        stack.Children.Add(headerHost);
         card.Child = stack;
         return card;
     }
@@ -932,6 +951,7 @@ public partial class Manager2Window : Window
             dragStartPoint = e.GetPosition(null);
             dragPayload = model;
         };
+        element.PreviewMouseLeftButtonUp += (_, _) => dragPayload = null;
         element.MouseLeftButtonDown += (_, e) =>
         {
             if (e.ClickCount >= 2 && model is RibbonPanelModel or RibbonPlacement { Kind: not "Separator" })
@@ -1007,6 +1027,7 @@ public partial class Manager2Window : Window
 
     private void BeginInlineRename(FrameworkElement anchor, object target)
     {
+        dragPayload = null;
         var current = target switch
         {
             RibbonTabModel t => t.Name,
@@ -1019,30 +1040,60 @@ public partial class Manager2Window : Window
         var box = new System.Windows.Controls.TextBox
         {
             Text = current,
-            FontSize = 12,
-            Padding = new Thickness(6, 3, 6, 3),
+            FontSize = 11.5,
+            Padding = new Thickness(4, 1, 4, 1),
             BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235)),
             BorderThickness = new Thickness(1.5),
             Background = WpfBrushes.White,
-            MinWidth = Math.Max(120, anchor.ActualWidth)
+            Foreground = new SolidColorBrush(WpfColor.FromRgb(15, 23, 42)),
+            MinWidth = 60,
+            VerticalAlignment = VerticalAlignment.Center
         };
-        var popup = new System.Windows.Controls.Primitives.Popup
+
+        Action? restore = null;
+        if (anchor is WpfButton tabBtn && target is RibbonTabModel)
         {
-            PlacementTarget = anchor,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
-            HorizontalOffset = 0,
-            VerticalOffset = 0,
-            StaysOpen = false,
-            AllowsTransparency = true,
-            Child = box
-        };
+            var prev = tabBtn.Content;
+            tabBtn.Content = box;
+            restore = () => tabBtn.Content = prev;
+        }
+        else if (anchor is TreeViewItem tvi)
+        {
+            var prev = tvi.Header;
+            tvi.Header = box;
+            restore = () => tvi.Header = prev;
+        }
+        else if (anchor is Grid headerHost && target is RibbonPanelModel && headerHost.Children.OfType<TextBlock>().FirstOrDefault() is { } hdrLbl)
+        {
+            box.TextAlignment = TextAlignment.Center;
+            hdrLbl.Visibility = Visibility.Collapsed;
+            headerHost.Children.Add(box);
+            restore = () => { headerHost.Children.Remove(box); hdrLbl.Visibility = Visibility.Visible; };
+        }
+        else if (anchor is Border b)
+        {
+            if (b.Child is StackPanel sp && sp.Children.OfType<TextBlock>().LastOrDefault() is { } lgLbl)
+            {
+                box.TextAlignment = TextAlignment.Center;
+                var idx = sp.Children.IndexOf(lgLbl);
+                lgLbl.Visibility = Visibility.Collapsed;
+                sp.Children.Insert(idx, box);
+                restore = () => { sp.Children.Remove(box); lgLbl.Visibility = Visibility.Visible; };
+            }
+            else if (b.Child is TextBlock smLbl)
+            {
+                b.Child = box;
+                restore = () => b.Child = smLbl;
+            }
+        }
+        if (restore is null) return;
 
         var done = false;
         void Finish(bool commit)
         {
             if (done) return;
             done = true;
-            popup.IsOpen = false;
+            restore();
             if (!commit) return;
             var next = box.Text.Trim();
             if (string.IsNullOrWhiteSpace(next) || next == current) return;
@@ -1055,8 +1106,6 @@ public partial class Manager2Window : Window
             else if (e.Key == Key.Escape) { e.Handled = true; Finish(false); }
         };
         box.LostKeyboardFocus += (_, _) => Finish(true);
-        popup.Closed += (_, _) => Finish(false);
-        popup.IsOpen = true;
         box.Focus();
         box.SelectAll();
     }
@@ -1085,26 +1134,10 @@ public partial class Manager2Window : Window
         RenderRibbonView();
     }
 
-    private void StopTabHoverTimer()
-    {
-        tabHoverTimer?.Stop();
-        pendingHoverTabIndex = -1;
-    }
-
-    private void OnTabHoverTimerTick(object? sender, EventArgs e)
-    {
-        var idx = pendingHoverTabIndex;
-        StopTabHoverTimer();
-        if (idx >= 0 && idx < ribbonTabs.Count && idx != selectedTabIndex)
-        {
-            selectedTabIndex = idx;
-            RenderRibbonView();
-        }
-    }
-
     private void StartRibbonDrag(FrameworkElement source, object payload)
     {
         activeDragPayload = payload;
+        hoverTabIndex = -1;
         ShowDragGhost(DescribeRibbonPayload(payload));
         try
         {
@@ -1114,7 +1147,7 @@ public partial class Manager2Window : Window
         finally
         {
             activeDragPayload = null;
-            StopTabHoverTimer();
+            hoverTabIndex = -1;
             ClearTreeDragHighlight();
             HidePreviewInsertionBar();
             CloseDragGhost();
