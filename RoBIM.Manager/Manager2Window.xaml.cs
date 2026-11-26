@@ -1391,15 +1391,10 @@ public partial class Manager2Window : Window
             {
                 Content = actionState.Text,
                 Style = (Style)FindResource(actionState.Enabled ? "PrimaryButton" : "SecondaryButton"),
-                Margin = new Thickness(0, 0, 0, 6),
                 IsEnabled = actionState.Enabled && !backend.IsBusy
             };
             applyBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.ApplyLoaderForHostAsync(hostKey, chosenChannel); RenderLoadersView(); }, "로더 적용");
             rightControls.Children.Add(applyBtn);
-
-            var folderBtn = new WpfButton { Content = "폴더 열기", Style = (Style)FindResource("SecondaryButton") };
-            folderBtn.Click += (_, _) => backend.OpenLoaderFolderFromModern(spec);
-            rightControls.Children.Add(folderBtn);
 
             dock.Children.Add(rightControls);
 
