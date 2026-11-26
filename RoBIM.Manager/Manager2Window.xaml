@@ -493,6 +493,15 @@
             </Border>
         </Grid>
 
+        <!-- Centered Tool Card Detail Lightbox Overlay -->
+        <Grid x:Name="CardDetailOverlay" Grid.ColumnSpan="2" Background="#800F172A" Visibility="Collapsed" MouseLeftButtonDown="OnCardDetailBackdropClick">
+            <Border x:Name="CardDetailContainer" Width="560" MaxHeight="540" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" MouseLeftButtonDown="OnCardDetailCardMouseDown">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.22" Color="#0F172A"/>
+                </Border.Effect>
+            </Border>
+        </Grid>
+
         <!-- Dedicated Login View (shown when unauthenticated / team access locked) -->
         <Grid x:Name="LoginOverlay" Grid.ColumnSpan="2" Background="#F1F5F9" Visibility="Collapsed">
             <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="36" Width="520" HorizontalAlignment="Center" VerticalAlignment="Center">

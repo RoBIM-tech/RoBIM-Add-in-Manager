@@ -115,6 +115,14 @@ public partial class Manager2Window : Window
             }
             backend.CloseBackend();
         };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && CardDetailOverlay.Visibility == Visibility.Visible)
+            {
+                CardDetailOverlay.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+            }
+        };
     }
 
     private void RefreshAllViews()
@@ -381,8 +389,11 @@ public partial class Manager2Window : Window
             Background = new SolidColorBrush(cardBgColor),
             BorderBrush = new SolidColorBrush(cardBorderColor),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8)
+            CornerRadius = new CornerRadius(8),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = "클릭하여 전체 설명 보기"
         };
+        border.MouseLeftButtonUp += (_, _) => OpenCardDetailModal(card);
 
         var root = new DockPanel { LastChildFill = true };
 
@@ -1630,6 +1641,7 @@ public partial class Manager2Window : Window
     private void OpenCardContextMenu(WpfButton anchor, ManagerForm.ButtonCard card, bool permitted)
     {
         var menu = new System.Windows.Controls.ContextMenu();
+        menu.PlacementTarget = anchor;
         var detailsItem = new System.Windows.Controls.MenuItem { Header = "기능 설명 / 상세 정보" };
         detailsItem.Click += (_, _) => backend.ShowCardDetailsFromModern(card);
         menu.Items.Add(detailsItem);
@@ -1685,6 +1697,153 @@ public partial class Manager2Window : Window
 
         menu.PlacementTarget = anchor;
         menu.IsOpen = true;
+    }
+
+    private void OnCardDetailBackdropClick(object sender, MouseButtonEventArgs e) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+    private void OnCardDetailCardMouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
+
+    private void OpenCardDetailModal(ManagerForm.ButtonCard card)
+    {
+        var permitted = backend.IsRepositoryPermitted(card);
+        var appearance = backend.GetCardAppearance(card);
+        var isLegacy = backend.IsLegacyNativeCard(card);
+        var hasNewTest = backend.HasTestOfferForCard(card);
+        var updateOffer = backend.GetUpdateOfferForCard(card);
+        var hasUpdate = appearance.Update || updateOffer is not null;
+
+        var cardBgColor = !cardStatusTint || !card.Selected
+            ? WpfColor.FromRgb(255, 255, 255)
+            : !permitted
+                ? WpfColor.FromRgb(254, 242, 242)
+                : isLegacy || hasUpdate
+                    ? WpfColor.FromRgb(255, 251, 235)
+                    : card.SelectedChannel == "test"
+                        ? WpfColor.FromRgb(245, 243, 255)
+                        : WpfColor.FromRgb(236, 253, 245);
+        var cardBorderColor = !cardStatusTint || !card.Selected
+            ? WpfColor.FromRgb(226, 232, 240)
+            : !permitted
+                ? WpfColor.FromRgb(252, 165, 165)
+                : isLegacy || hasUpdate
+                    ? WpfColor.FromRgb(252, 211, 77)
+                    : card.SelectedChannel == "test"
+                        ? WpfColor.FromRgb(196, 181, 253)
+                        : WpfColor.FromRgb(110, 231, 183);
+
+        CardDetailContainer.Background = new SolidColorBrush(cardBgColor);
+        CardDetailContainer.BorderBrush = new SolidColorBrush(cardBorderColor);
+
+        var root = new DockPanel { LastChildFill = true };
+
+        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+        DockPanel.SetDock(header, Dock.Top);
+        var closeBtn = new WpfButton
+        {
+            Content = "✕",
+            Style = (Style)FindResource("SecondaryButton"),
+            Padding = new Thickness(9, 4, 9, 4),
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        closeBtn.Click += (_, _) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+        DockPanel.SetDock(closeBtn, Dock.Right);
+        header.Children.Add(closeBtn);
+
+        var titleRow = new StackPanel { Orientation = WpfOrientation.Horizontal };
+        var iconBox = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(WpfColor.FromRgb(241, 245, 249)), Margin = new Thickness(0, 0, 12, 0) };
+        var bmp = LoadIconBitmap(card.Icon);
+        if (bmp is not null)
+            iconBox.Child = new System.Windows.Controls.Image { Source = bmp, Width = 30, Height = 30, Stretch = Stretch.Uniform };
+        else
+            iconBox.Child = new TextBlock { Text = card.Title.Length > 0 ? card.Title[..1] : "R", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 91, 166)), HorizontalAlignment = WpfHorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        titleRow.Children.Add(iconBox);
+
+        var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        titleStack.Children.Add(new TextBlock { Text = card.Title, FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(WpfColor.FromRgb(15, 23, 42)), TextWrapping = TextWrapping.Wrap, MaxWidth = 400 });
+        titleStack.Children.Add(new TextBlock { Text = $"{card.Group} · {card.ReleaseLabel}", FontSize = 12, Foreground = new SolidColorBrush(WpfColor.FromRgb(100, 116, 139)), Margin = new Thickness(0, 2, 0, 0) });
+        titleRow.Children.Add(titleStack);
+        header.Children.Add(titleRow);
+        root.Children.Add(header);
+
+        var bottom = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        var statusLabel = card.Selected
+            ? (hasUpdate ? $"▲ {card.SelectedVersion} → {updateOffer?.Version ?? "업데이트"}" : $"● 설치됨 · {card.SelectedVersion}")
+            : (card.Channel == "test" ? "◆ TEST 제공" : "○ 미설치");
+        var statusText = new TextBlock { Text = statusLabel, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(WpfColor.FromRgb(51, 65, 85)), VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(statusText, Dock.Left);
+        bottom.Children.Add(statusText);
+
+        var btnStack = new StackPanel { Orientation = WpfOrientation.Horizontal, HorizontalAlignment = WpfHorizontalAlignment.Right };
+        if (permitted && card.Kind != ManagerForm.ButtonKind.Discover)
+        {
+            if (isLegacy)
+            {
+                var convBtn = new WpfButton { Content = "전환하기", Style = (Style)FindResource("PrimaryButton"), IsEnabled = !backend.IsBusy };
+                convBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true), "Reload 방식 전환"); };
+                btnStack.Children.Add(convBtn);
+            }
+            else
+            {
+                if (hasUpdate)
+                {
+                    var updBtn = new WpfButton { Content = "업데이트", Style = (Style)FindResource("PrimaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
+                    updBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, card.SelectedChannel == "test" ? "test" : "stable"), "도구 업데이트"); };
+                    btnStack.Children.Add(updBtn);
+                }
+                if (!card.Selected)
+                {
+                    var instBtn = new WpfButton { Content = card.Channel == "test" ? "TEST 설치" : "설치하기", Style = (Style)FindResource("PrimaryButton"), IsEnabled = !backend.IsBusy };
+                    instBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, card.Channel == "test" ? "test" : "stable"), "도구 설치"); };
+                    btnStack.Children.Add(instBtn);
+                }
+                else
+                {
+                    if (hasNewTest && card.SelectedChannel != "test")
+                    {
+                        var testBtn = new WpfButton { Content = "TEST 설치", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
+                        testBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, "test"), "TEST 설치"); };
+                        btnStack.Children.Add(testBtn);
+                    }
+                    var remBtn = new WpfButton { Content = "제거", Style = (Style)FindResource("SecondaryButton"), IsEnabled = !backend.IsBusy };
+                    remBtn.Click += async (_, _) => { CardDetailOverlay.Visibility = Visibility.Collapsed; await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, false), "도구 제거"); };
+                    btnStack.Children.Add(remBtn);
+                }
+            }
+        }
+        bottom.Children.Add(btnStack);
+        root.Children.Add(bottom);
+
+        var bodyScroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 290, Padding = new Thickness(0, 0, 6, 0) };
+        var bodyStack = new StackPanel();
+        bodyStack.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(card.Description) ? "등록된 설명이 없습니다." : card.Description,
+            FontSize = 13.5,
+            LineHeight = 21,
+            Foreground = new SolidColorBrush(WpfColor.FromRgb(30, 41, 59)),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 12)
+        });
+        bodyStack.Children.Add(new Border
+        {
+            Background = new SolidColorBrush(WpfColor.FromRgb(248, 250, 252)),
+            BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10),
+            Child = new TextBlock
+            {
+                Text = $"상태: {card.Message}\n버전 안내: {card.ReleaseDetail}",
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
+                TextWrapping = TextWrapping.Wrap
+            }
+        });
+        bodyScroller.Content = bodyStack;
+        root.Children.Add(bodyScroller);
+
+        CardDetailContainer.Child = root;
+        CardDetailOverlay.Visibility = Visibility.Visible;
     }
 
     private void ShowLogsDialog()
