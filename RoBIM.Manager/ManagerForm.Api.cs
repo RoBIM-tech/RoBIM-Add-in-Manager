@@ -303,7 +303,7 @@ public sealed partial class ManagerForm
         }
         var addins = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Autodesk", "Revit", "Addins", "2026", "RoBIM.Revit.Host.bundle", "Contents", "2026", "Icons", fileName);
         if (File.Exists(addins)) return addins;
-        return null;
+        return "res://" + fileName;
     }
 
     internal IReadOnlyList<RibbonTool> GetRibbonToolsForHost(string hostKey)

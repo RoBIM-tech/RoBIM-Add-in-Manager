@@ -354,24 +354,24 @@ public partial class Manager2Window : Window
         var updateOffer = backend.GetUpdateOfferForCard(card);
         var hasUpdate = appearance.Update || updateOffer is not null;
 
-        var cardBgColor = !cardStatusTint
+        var cardBgColor = !cardStatusTint || !card.Selected
             ? WpfColor.FromRgb(255, 255, 255)
             : !permitted
                 ? WpfColor.FromRgb(254, 242, 242)
                 : isLegacy || hasUpdate
                     ? WpfColor.FromRgb(255, 251, 235)
-                    : card.Selected
-                        ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(236, 253, 245))
-                        : (card.Channel == "test" ? WpfColor.FromRgb(245, 243, 255) : WpfColor.FromRgb(255, 255, 255));
-        var cardBorderColor = !cardStatusTint
+                    : card.SelectedChannel == "test"
+                        ? WpfColor.FromRgb(245, 243, 255)
+                        : WpfColor.FromRgb(236, 253, 245);
+        var cardBorderColor = !cardStatusTint || !card.Selected
             ? WpfColor.FromRgb(226, 232, 240)
             : !permitted
                 ? WpfColor.FromRgb(252, 165, 165)
                 : isLegacy || hasUpdate
                     ? WpfColor.FromRgb(252, 211, 77)
-                    : card.Selected
-                        ? (card.SelectedChannel == "test" ? WpfColor.FromRgb(196, 181, 253) : WpfColor.FromRgb(110, 231, 183))
-                        : (card.Channel == "test" ? WpfColor.FromRgb(221, 214, 254) : WpfColor.FromRgb(226, 232, 240));
+                    : card.SelectedChannel == "test"
+                        ? WpfColor.FromRgb(196, 181, 253)
+                        : WpfColor.FromRgb(110, 231, 183);
 
         var border = new Border
         {
@@ -847,17 +847,27 @@ public partial class Manager2Window : Window
                 var colStack = new StackPanel();
                 foreach (var child in st.Children)
                 {
+                    var childTool = ribbonTools.FirstOrDefault(x => x.Id == child.Id);
+                    var childInstalled = childTool?.Installed ?? true;
                     var rowBtn = new Border
                     {
                         Height = Math.Max(19, 64 / Math.Max(1, st.Rows)),
-                        Background = new SolidColorBrush(ReferenceEquals(selectedRibbonItem, child) ? WpfColor.FromRgb(191, 219, 254) : WpfColor.FromRgb(255, 255, 255)),
+                        Background = new SolidColorBrush(ReferenceEquals(selectedRibbonItem, child) ? WpfColor.FromRgb(191, 219, 254) : childInstalled ? WpfColor.FromRgb(255, 255, 255) : WpfColor.FromRgb(226, 232, 240)),
                         CornerRadius = new CornerRadius(3),
                         Margin = new Thickness(0, 0, 0, 2),
                         Padding = new Thickness(4, 0, 4, 0),
+                        Opacity = childInstalled ? 1.0 : 0.72,
                         AllowDrop = true,
                         Cursor = System.Windows.Input.Cursors.Hand
                     };
-                    rowBtn.Child = new TextBlock { Text = child.Title, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                    rowBtn.Child = new TextBlock
+                    {
+                        Text = child.Title,
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(childInstalled ? WpfColor.FromRgb(15, 23, 42) : WpfColor.FromRgb(100, 116, 139)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    };
                     WireRibbonDraggable(rowBtn, child);
                     rowBtn.DragOver += (_, e) =>
                     {
@@ -911,6 +921,8 @@ public partial class Manager2Window : Window
     private Border BuildPreviewLargeButton(RibbonPlacement rp, RibbonPanelModel panel)
     {
         var tool = ribbonTools.FirstOrDefault(x => x.Id == rp.Id);
+        var installed = tool?.Installed ?? true;
+        var isSelected = ReferenceEquals(selectedRibbonItem, rp);
         var btn = new Border
         {
             Width = 86,
@@ -918,9 +930,10 @@ public partial class Manager2Window : Window
             Margin = new Thickness(2, 0, 2, 0),
             Padding = new Thickness(4),
             CornerRadius = new CornerRadius(5),
-            Background = new SolidColorBrush(ReferenceEquals(selectedRibbonItem, rp) ? WpfColor.FromRgb(219, 234, 254) : WpfColor.FromRgb(248, 250, 252)),
-            BorderBrush = new SolidColorBrush(ReferenceEquals(selectedRibbonItem, rp) ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(226, 232, 240)),
+            Background = new SolidColorBrush(isSelected ? WpfColor.FromRgb(219, 234, 254) : installed ? WpfColor.FromRgb(248, 250, 252) : WpfColor.FromRgb(226, 232, 240)),
+            BorderBrush = new SolidColorBrush(isSelected ? WpfColor.FromRgb(30, 91, 166) : WpfColor.FromRgb(226, 232, 240)),
             BorderThickness = new Thickness(1),
+            Opacity = installed ? 1.0 : 0.65,
             Cursor = System.Windows.Input.Cursors.Hand,
             AllowDrop = true
         };
@@ -930,7 +943,16 @@ public partial class Manager2Window : Window
             sp.Children.Add(new System.Windows.Controls.Image { Source = bmp, Width = 28, Height = 28, Margin = new Thickness(0, 0, 0, 4) });
         else
             sp.Children.Add(new Border { Width = 28, Height = 28, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)), Margin = new Thickness(0, 0, 0, 4), Child = new TextBlock { Text = rp.Title.Length > 0 ? rp.Title[..1] : "R", HorizontalAlignment = WpfHorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold } });
-        sp.Children.Add(new TextBlock { Text = rp.Title, FontSize = 11, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis });
+        sp.Children.Add(new TextBlock
+        {
+            Text = rp.Title,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(installed ? WpfColor.FromRgb(15, 23, 42) : WpfColor.FromRgb(100, 116, 139)),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            MaxHeight = 30,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
         btn.Child = sp;
 
         WireRibbonDraggable(btn, rp);
@@ -1331,24 +1353,16 @@ public partial class Manager2Window : Window
             if (chosenChannel == "test" && !backend.IsTestAllowed) chosenChannel = "stable";
             var actionState = LoaderActions.Evaluate(status, offers, chosenChannel, backend.IsTestAllowed);
 
-            var rightControls = new StackPanel { Orientation = WpfOrientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var rightControls = new StackPanel { Orientation = WpfOrientation.Vertical, Width = 176, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
             DockPanel.SetDock(rightControls, Dock.Right);
 
-            var checkBtn = new WpfButton { Content = "저장소 확인", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !backend.IsBusy };
+            var checkBtn = new WpfButton { Content = "저장소 확인", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 0, 6), IsEnabled = !backend.IsBusy };
             checkBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.CheckLoaderForHostAsync(hostKey); RenderLoadersView(); }, "저장소 확인");
             rightControls.Children.Add(checkBtn);
 
-            var folderBtn = new WpfButton { Content = "폴더 열기", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 6, 0) };
-            folderBtn.Click += (_, _) => backend.OpenLoaderFolderFromModern(spec);
-            rightControls.Children.Add(folderBtn);
-
-            var repoBtn = new WpfButton { Content = "GitHub", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 6, 0) };
-            repoBtn.Click += (_, _) => backend.OpenLoaderRepoFromModern(spec);
-            rightControls.Children.Add(repoBtn);
-
             if (backend.IsTestAllowed)
             {
-                var channelBox = new System.Windows.Controls.ComboBox { Width = 84, Margin = new Thickness(0, 0, 6, 0) };
+                var channelBox = new System.Windows.Controls.ComboBox { Margin = new Thickness(0, 0, 0, 6) };
                 channelBox.Items.Add("정식");
                 channelBox.Items.Add("TEST");
                 channelBox.SelectedIndex = chosenChannel == "test" ? 1 : 0;
@@ -1364,10 +1378,20 @@ public partial class Manager2Window : Window
             {
                 Content = actionState.Text,
                 Style = (Style)FindResource(actionState.Enabled ? "PrimaryButton" : "SecondaryButton"),
+                Margin = new Thickness(0, 0, 0, 6),
                 IsEnabled = actionState.Enabled && !backend.IsBusy
             };
             applyBtn.Click += async (_, _) => await RunBusyActionAsync(async () => { await backend.ApplyLoaderForHostAsync(hostKey, chosenChannel); RenderLoadersView(); }, "로더 적용");
             rightControls.Children.Add(applyBtn);
+
+            var folderBtn = new WpfButton { Content = "폴더 열기", Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(0, 0, 0, 6) };
+            folderBtn.Click += (_, _) => backend.OpenLoaderFolderFromModern(spec);
+            rightControls.Children.Add(folderBtn);
+
+            var repoBtn = new WpfButton { Content = "GitHub", Style = (Style)FindResource("SecondaryButton") };
+            repoBtn.Click += (_, _) => backend.OpenLoaderRepoFromModern(spec);
+            rightControls.Children.Add(repoBtn);
+
             dock.Children.Add(rightControls);
 
             var leftInfo = new StackPanel();
@@ -1434,9 +1458,23 @@ public partial class Manager2Window : Window
 
     private static BitmapImage? LoadIconBitmap(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+        if (string.IsNullOrWhiteSpace(path)) return null;
         try
         {
+            if (path.StartsWith("res://", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = path["res://".Length..];
+                using var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.Assets." + name);
+                if (stream is null) return null;
+                var resBmp = new BitmapImage();
+                resBmp.BeginInit();
+                resBmp.CacheOption = BitmapCacheOption.OnLoad;
+                resBmp.StreamSource = stream;
+                resBmp.EndInit();
+                resBmp.Freeze();
+                return resBmp;
+            }
+            if (!File.Exists(path)) return null;
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;

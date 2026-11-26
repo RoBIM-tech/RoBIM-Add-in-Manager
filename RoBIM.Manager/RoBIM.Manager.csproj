@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RoBIM.Manager</AssemblyName>
     <ApplicationIcon>..\assets\RoBIM.Manager.ico</ApplicationIcon>
-    <Version>2.0.0-test.16</Version>
+    <Version>2.0.0-test.17</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Product>RoBIM Add-in Manager</Product>
     <Description>AutoCAD 및 Revit 도구 설치 관리자</Description>
@@ -21,6 +21,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\assets\RoBIM.Manager.ico" LogicalName="RoBIM.Manager.AppIcon.ico" />
+    <EmbeddedResource Include="Assets\reload.png" LogicalName="RoBIM.Manager.Assets.reload.png" />
+    <EmbeddedResource Include="Assets\manager.png" LogicalName="RoBIM.Manager.Assets.manager.png" />
     <Content Include="..\assets\RoBIM.Manager.ico" Link="RoBIM.Manager.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
