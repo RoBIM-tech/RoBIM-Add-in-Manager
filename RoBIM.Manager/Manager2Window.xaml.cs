@@ -41,6 +41,8 @@ public partial class Manager2Window : Window
     private bool treeInsertAfter;
     private Window? dragGhost;
     private DispatcherTimer? dragGhostTimer;
+    private DispatcherTimer? tabHoverTimer;
+    private int pendingHoverTabIndex = -1;
     private readonly Dictionary<string, string> loaderSelectedChannel = new(StringComparer.OrdinalIgnoreCase);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -80,6 +82,7 @@ public partial class Manager2Window : Window
         catch (Exception) { }
 
         backend.BackendChanged += () => Dispatcher.BeginInvoke(RefreshAllViews);
+        backend.ManagerUpdateProgressChanged += (pct, text) => Dispatcher.BeginInvoke(() => ApplyManagerUpdateProgress(pct, text));
         backend.ModernDeviceLoginRequested = ShowModernDeviceLoginAsync;
         backend.OpenModernUiRequested = () => Dispatcher.BeginInvoke(() =>
         {
@@ -143,9 +146,43 @@ public partial class Manager2Window : Window
         LoginMessageText.Text = busy ? "GitHub 로그인과 팀 권한을 확인하고 있습니다…" : backend.AccountSummaryText;
         LoginVersionText.Text = $"Add-in Manager · v{backend.ManagerProductVersion}";
         LoginUpdateStatusText.Text = backend.ManagerUpdateStatusText;
-        LoginUpdateCheckBtn.IsEnabled = !busy;
-        LoginUpdateNowBtn.Visibility = backend.HasPendingManagerUpdate ? Visibility.Visible : Visibility.Collapsed;
-        LoginUpdateNowBtn.IsEnabled = !busy;
+        LoginUpdateCheckBtn.IsEnabled = !busy && !backend.IsCheckingManagerUpdate;
+        SyncManagerUpdateControls(LoginUpdateNowBtn, LoginUpdateProgress, LoginUpdateStatusText);
+    }
+
+    private void ApplyManagerUpdateProgress(double? pct, string text)
+    {
+        LoginUpdateStatusText.Text = text;
+        ManagerUpdateStatusLabel.Text = text;
+        foreach (var bar in new[] { LoginUpdateProgress, AccountUpdateProgress })
+        {
+            bar.Visibility = Visibility.Visible;
+            bar.IsIndeterminate = pct is null;
+            if (pct is not null) bar.Value = pct.Value;
+        }
+        SyncManagerUpdateControls(LoginUpdateNowBtn, LoginUpdateProgress, LoginUpdateStatusText);
+        SyncManagerUpdateControls(InstallManagerUpdateBtn, AccountUpdateProgress, ManagerUpdateStatusLabel);
+    }
+
+    private void SyncManagerUpdateControls(WpfButton actionBtn, System.Windows.Controls.ProgressBar bar, TextBlock statusLbl)
+    {
+        var ready = backend.IsManagerUpdateReadyToRestart;
+        var downloading = backend.IsCheckingManagerUpdate;
+        var hasOffer = backend.HasPendingManagerUpdate;
+        actionBtn.Visibility = (hasOffer || ready) ? Visibility.Visible : Visibility.Collapsed;
+        actionBtn.IsEnabled = !backend.IsBusy && !downloading;
+        actionBtn.Content = ready ? "지금 재시작" : downloading ? "다운로드 중…" : "Manager 업데이트";
+        if (ready)
+        {
+            bar.Visibility = Visibility.Visible;
+            bar.IsIndeterminate = false;
+            bar.Value = 100;
+        }
+        else if (!downloading)
+        {
+            bar.Visibility = Visibility.Collapsed;
+        }
+        statusLbl.Text = backend.ManagerUpdateStatusText;
     }
 
     private void UpdateRail()
@@ -569,13 +606,28 @@ public partial class Manager2Window : Window
                 e.Effects = System.Windows.DragDropEffects.Move;
                 btn.Background = new SolidColorBrush(WpfColor.FromRgb(219, 234, 254));
                 btn.BorderBrush = new SolidColorBrush(WpfColor.FromRgb(37, 99, 235));
+                if (!active && pendingHoverTabIndex != idx)
+                {
+                    pendingHoverTabIndex = idx;
+                    tabHoverTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+                    tabHoverTimer.Stop();
+                    tabHoverTimer.Tick -= OnTabHoverTimerTick;
+                    tabHoverTimer.Tick += OnTabHoverTimerTick;
+                    tabHoverTimer.Start();
+                }
                 e.Handled = true;
             };
-            btn.DragLeave += (_, _) => { btn.Background = normalBg; btn.BorderBrush = normalBorder; };
+            btn.DragLeave += (_, _) =>
+            {
+                btn.Background = normalBg;
+                btn.BorderBrush = normalBorder;
+                if (pendingHoverTabIndex == idx) StopTabHoverTimer();
+            };
             btn.Drop += (_, e) =>
             {
                 btn.Background = normalBg;
                 btn.BorderBrush = normalBorder;
+                StopTabHoverTimer();
                 if (e.Data.GetData("RoBIM.RibbonItem") is { } payload)
                 {
                     MoveRibbonPayloadToTab(payload, tab);
@@ -1033,6 +1085,23 @@ public partial class Manager2Window : Window
         RenderRibbonView();
     }
 
+    private void StopTabHoverTimer()
+    {
+        tabHoverTimer?.Stop();
+        pendingHoverTabIndex = -1;
+    }
+
+    private void OnTabHoverTimerTick(object? sender, EventArgs e)
+    {
+        var idx = pendingHoverTabIndex;
+        StopTabHoverTimer();
+        if (idx >= 0 && idx < ribbonTabs.Count && idx != selectedTabIndex)
+        {
+            selectedTabIndex = idx;
+            RenderRibbonView();
+        }
+    }
+
     private void StartRibbonDrag(FrameworkElement source, object payload)
     {
         activeDragPayload = payload;
@@ -1045,6 +1114,7 @@ public partial class Manager2Window : Window
         finally
         {
             activeDragPayload = null;
+            StopTabHoverTimer();
             ClearTreeDragHighlight();
             HidePreviewInsertionBar();
             CloseDragGhost();
@@ -1296,9 +1366,8 @@ public partial class Manager2Window : Window
         var busy = backend.IsBusy;
         AccountOtherLoginBtn.IsEnabled = !busy;
         AccountSignOutBtn.IsEnabled = !busy && backend.IsSignedIn;
-        CheckManagerUpdateBtn.IsEnabled = !busy;
-        InstallManagerUpdateBtn.Visibility = backend.HasPendingManagerUpdate ? Visibility.Visible : Visibility.Collapsed;
-        InstallManagerUpdateBtn.IsEnabled = !busy;
+        CheckManagerUpdateBtn.IsEnabled = !busy && !backend.IsCheckingManagerUpdate;
+        SyncManagerUpdateControls(InstallManagerUpdateBtn, AccountUpdateProgress, ManagerUpdateStatusLabel);
 
         var logins = backend.SavedAccountLogins;
         SavedAccountsBox.Items.Clear();
@@ -1308,7 +1377,6 @@ public partial class Manager2Window : Window
         UseSavedAccountBtn.IsEnabled = !busy && logins.Count > 0;
 
         ManagerVersionLabel.Text = $"현재 버전: v{backend.ManagerProductVersion} (테스트 업데이트 수신 시 프리릴리즈 포함 확인)";
-        ManagerUpdateStatusLabel.Text = backend.ManagerUpdateStatusText;
     }
 
     private static string FormatLoaderStatus(ToolStatus status) =>
@@ -1409,11 +1477,28 @@ public partial class Manager2Window : Window
         {
             var destTab = FindParentTab(targetPanel);
             if (destTab is null || pm == targetPanel) return;
+            var oldPanelIdx = destTab.Panels.IndexOf(pm);
+            var anchorPanelIdx = destTab.Panels.IndexOf(targetPanel);
+            if (oldPanelIdx >= 0 && anchorPanelIdx >= 0)
+            {
+                var slot = after ? anchorPanelIdx + 1 : anchorPanelIdx;
+                if (slot == oldPanelIdx || slot == oldPanelIdx + 1) return;
+            }
             RemoveRibbonPayload(pm);
             var idx = destTab.Panels.IndexOf(targetPanel);
             if (idx >= 0 && after) idx++;
             destTab.Panels.Insert(Math.Clamp(idx, 0, destTab.Panels.Count), pm);
             return;
+        }
+        if (anchor is not null)
+        {
+            var oldIdx = targetPanel.Items.IndexOf(payload);
+            var anchorIdx = targetPanel.Items.IndexOf(anchor);
+            if (oldIdx >= 0 && anchorIdx >= 0)
+            {
+                var slot = after ? anchorIdx + 1 : anchorIdx;
+                if (slot == oldIdx || slot == oldIdx + 1) return;
+            }
         }
         RemoveRibbonPayload(payload);
         var insertAt = anchor is not null ? targetPanel.Items.IndexOf(anchor) : -1;
@@ -2103,7 +2188,16 @@ public partial class Manager2Window : Window
     }
     private void OnAccountSignOut(object sender, RoutedEventArgs e) { backend.SignOutFromModern(); RefreshAllViews(); }
     private async void OnCheckManagerUpdate(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.CheckManagerUpdateFromModernAsync(), "Manager 업데이트 확인");
-    private async void OnInstallManagerUpdate(object sender, RoutedEventArgs e) => await RunBusyActionAsync(() => backend.InstallManagerUpdateFromModernAsync(), "Manager 업데이트");
+    private async void OnInstallManagerUpdate(object sender, RoutedEventArgs e)
+    {
+        if (backend.IsManagerUpdateReadyToRestart)
+        {
+            try { backend.ApplyReadyManagerUpdateNow(); }
+            catch (Exception ex) { WpfMessageBox.Show(this, ex.Message, "Manager 업데이트"); }
+            return;
+        }
+        await RunBusyActionAsync(() => backend.InstallManagerUpdateFromModernAsync(), "Manager 업데이트");
+    }
     private void OnLoginAutoCheckChanged(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded || syncUi) return;

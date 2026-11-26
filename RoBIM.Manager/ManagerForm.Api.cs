@@ -7,6 +7,7 @@ public sealed partial class ManagerForm
 {
     internal event Action? BackendChanged;
     internal event Action? BackendClosed;
+    internal event Action<double?, string>? ManagerUpdateProgressChanged;
     internal Action? OpenModernUiRequested;
     internal Func<GitHubDeviceCode, CancellationTokenSource, Func<Task>, Task>? ModernDeviceLoginRequested;
     private bool hiddenBackendStarted;
@@ -53,6 +54,8 @@ public sealed partial class ManagerForm
     internal bool CanRunRevitSession => NativeRevitCommands.Sessions().Count > 0;
     internal int RevitSessionCount => NativeRevitCommands.Sessions().Count;
     internal bool HasPendingManagerUpdate => manuallyCheckedManagerUpdate is not null;
+    internal bool IsCheckingManagerUpdate => checkingManagerUpdate;
+    internal bool IsManagerUpdateReadyToRestart => pendingManagerUpdate is not null && !checkingManagerUpdate;
     internal string ManagerUpdateStatusText => managerUpdateStatus.Text;
     internal string LogsText => log.Text;
     internal IReadOnlyList<string> SavedAccountLogins => savedAccounts.Items.Cast<string>().ToArray();
@@ -66,6 +69,14 @@ public sealed partial class ManagerForm
     {
         await InstallManagerUpdateManually();
         BackendChanged?.Invoke();
+    }
+
+    internal void ApplyReadyManagerUpdateNow()
+    {
+        if (pendingManagerUpdate is not { } pending || busy || IsDisposed) return;
+        ManagerUpdates.Launch(paths, pending.Installer, pending.Offer.Digest);
+        exitRequested = true;
+        Close();
     }
 
     internal IReadOnlyList<ButtonCard> GetCardsForHost(string hostKey)

@@ -46,13 +46,25 @@ public static class ManagerUpdates
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return Select(json.RootElement, current, allowPrerelease);
     }
-    public static async Task<string> Download(ManagerPaths paths, ManagerUpdate update)
+    public static async Task<string> Download(ManagerPaths paths, ManagerUpdate update, IProgress<(long Downloaded, long? Total)>? progress = null)
     {
         var directory = SafeFiles.Child(paths.Data, "ManagerUpdates/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory); var file = SafeFiles.Child(directory, "RoBIM-Manager-Setup.exe");
         using var response = await PublicRequest(Repository + "/releases/assets/" + update.AssetId, "application/octet-stream");
+        var total = response.Content.Headers.ContentLength;
+        await using (var input = await response.Content.ReadAsStreamAsync())
         await using (var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            await response.Content.CopyToAsync(output);
+        {
+            var buffer = new byte[65536];
+            long downloaded = 0;
+            int read;
+            while ((read = await input.ReadAsync(buffer)) > 0)
+            {
+                await output.WriteAsync(buffer.AsMemory(0, read));
+                downloaded += read;
+                progress?.Report((downloaded, total));
+            }
+        }
         if (!string.Equals(SafeFiles.Hash(file), update.Digest, StringComparison.OrdinalIgnoreCase)) throw new IOException("Manager 업데이트 파일 검증에 실패했습니다. 기존 버전을 유지합니다.");
         return file;
     }

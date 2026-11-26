@@ -45,12 +45,34 @@ public sealed partial class ManagerForm
             checkingManagerUpdate=true;
             try
             {
-                var installer=await ManagerUpdates.Download(paths,update);
+                managerUpdateStatus.Text = $"Manager {update.Version} 다운로드 준비 중…";
+                ManagerUpdateProgressChanged?.Invoke(0, managerUpdateStatus.Text);
+                var progress = new Progress<(long Downloaded, long? Total)>(p =>
+                {
+                    if (p.Total is > 0)
+                    {
+                        var pct = Math.Clamp(p.Downloaded * 100.0 / p.Total.Value, 0, 100);
+                        var text = $"다운로드 중… {pct:0}% ({p.Downloaded / 1048576.0:0.0} / {p.Total.Value / 1048576.0:0.0} MB)";
+                        managerUpdateStatus.Text = text;
+                        ManagerUpdateProgressChanged?.Invoke(pct, text);
+                    }
+                    else
+                    {
+                        var text = $"다운로드 중… ({p.Downloaded / 1048576.0:0.0} MB)";
+                        managerUpdateStatus.Text = text;
+                        ManagerUpdateProgressChanged?.Invoke(null, text);
+                    }
+                });
+                var installer=await ManagerUpdates.Download(paths,update,progress);
                 pendingManagerUpdate=(update,installer);
-                checkingManagerUpdate=false;
-                await CheckManagerUpdate(force:true);
+                managerUpdateStatus.Text = $"Manager {update.Version} 다운로드 완료 · '지금 재시작'을 누르면 업데이트를 적용합니다.";
+                ManagerUpdateProgressChanged?.Invoke(100, managerUpdateStatus.Text);
             }
-            catch (Exception error) { managerUpdateStatus.Text="Manager 업데이트 준비 실패 · "+error.Message; }
+            catch (Exception error)
+            {
+                managerUpdateStatus.Text="Manager 업데이트 준비 실패 · "+error.Message;
+                ManagerUpdateProgressChanged?.Invoke(null, managerUpdateStatus.Text);
+            }
             finally { checkingManagerUpdate=false; if (!IsDisposed) managerUpdateNow.Enabled=true; }
     }
     private async Task CheckManagerUpdate(bool force = false)
