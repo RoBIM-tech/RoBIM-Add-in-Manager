@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RoBIM.Manager</AssemblyName>
     <ApplicationIcon>..\assets\RoBIM.Manager.ico</ApplicationIcon>
-    <Version>2.0.1-test.4</Version>
+    <Version>2.0.1-test.5</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Product>RoBIM Add-in Manager</Product>
     <Description>AutoCAD 및 Revit 도구 설치 관리자</Description>
@@ -17,7 +17,6 @@
   <ItemGroup><ProjectReference Include="..\Manager.Core\Manager.Core.csproj" /></ItemGroup>
   <ItemGroup>
     <Using Include="System.IO" />
-    <Using Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\assets\RoBIM.Manager.ico" LogicalName="RoBIM.Manager.AppIcon.ico" />

@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     private static string NavisworksStatus()
     {

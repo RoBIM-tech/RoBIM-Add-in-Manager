@@ -23,7 +23,7 @@ namespace RoBIM.Manager;
 
 public partial class Manager2Window : Window
 {
-    private readonly ManagerForm backend;
+    private readonly ManagerBackend backend;
     private string currentHost = "revit";
     private string currentNav = "tools";
     private string toolFilter = "all";
@@ -71,13 +71,14 @@ public partial class Manager2Window : Window
         public List<RibbonPlacement> Children { get; } = [];
     }
 
-    internal Manager2Window(ManagerForm backend)
+    internal Manager2Window(ManagerBackend backend)
     {
         this.backend = backend;
+        this.backend.OwnerWindow = this;
         InitializeComponent();
         try
         {
-            using var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico");
+            using var stream = typeof(ManagerBackend).Assembly.GetManifestResourceStream("RoBIM.Manager.AppIcon.ico");
             if (stream is not null) Icon = BitmapFrame.Create(stream);
         }
         catch (Exception) { }
@@ -359,7 +360,7 @@ public partial class Manager2Window : Window
         ToolsCardsPanel.Columns = Math.Max(1, (int)((avail + 14) / 290));
     }
 
-    private Border BuildToolCard(ManagerForm.ButtonCard card)
+    private Border BuildToolCard(ManagerBackend.ButtonCard card)
     {
         var permitted = backend.IsRepositoryPermitted(card);
         var appearance = backend.GetCardAppearance(card);
@@ -454,7 +455,7 @@ public partial class Manager2Window : Window
             convBtn.Click += async (_, _) => await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true), "Reload 방식 전환");
             btnStack.Children.Add(convBtn);
         }
-        else if (card.Kind == ManagerForm.ButtonKind.Discover)
+        else if (card.Kind == ManagerBackend.ButtonKind.Discover)
         {
             var loadBtn = new WpfButton { Content = "목록 확인", Style = (Style)FindResource("SecondaryButton"), Padding = new Thickness(10, 4, 10, 4), FontSize = 12, IsEnabled = !backend.IsBusy };
             loadBtn.Click += async (_, _) => await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card), "목록 확인");
@@ -1486,7 +1487,7 @@ public partial class Manager2Window : Window
             if (path.StartsWith("res://", StringComparison.OrdinalIgnoreCase))
             {
                 var name = path["res://".Length..];
-                using var stream = typeof(ManagerForm).Assembly.GetManifestResourceStream("RoBIM.Manager.Assets." + name);
+                using var stream = typeof(ManagerBackend).Assembly.GetManifestResourceStream("RoBIM.Manager.Assets." + name);
                 if (stream is null) return null;
                 var resBmp = new BitmapImage();
                 resBmp.BeginInit();
@@ -1645,7 +1646,7 @@ public partial class Manager2Window : Window
         return true;
     }
 
-    private void OpenCardContextMenu(WpfButton anchor, ManagerForm.ButtonCard card, bool permitted)
+    private void OpenCardContextMenu(WpfButton anchor, ManagerBackend.ButtonCard card, bool permitted)
     {
         var menu = new System.Windows.Controls.ContextMenu();
         menu.PlacementTarget = anchor;
@@ -1657,7 +1658,7 @@ public partial class Manager2Window : Window
         checkItem.Click += async (_, _) => await RunBusyActionAsync(() => backend.RefreshCardCatalogFromModernAsync(card), "업데이트 확인");
         menu.Items.Add(checkItem);
 
-        if (permitted && card.Kind == ManagerForm.ButtonKind.Native && card.Owner.Package is not null)
+        if (permitted && card.Kind == ManagerBackend.ButtonKind.Native && card.Owner.Package is not null)
         {
             var stableItem = new System.Windows.Controls.MenuItem { Header = "저장소 정식 버전 설치…" };
             stableItem.Click += async (_, _) => await RunBusyActionAsync(() => backend.ToggleCardFromModernAsync(card, true, "stable"), "정식 설치");
@@ -1671,14 +1672,14 @@ public partial class Manager2Window : Window
             }
         }
 
-        if (permitted && card.Kind == ManagerForm.ButtonKind.Native)
+        if (permitted && card.Kind == ManagerBackend.ButtonKind.Native)
         {
             var zipItem = new System.Windows.Controls.MenuItem { Header = "새 버전 ZIP 가져오기" };
             zipItem.Click += async (_, _) => await RunBusyActionAsync(() => backend.ImportNativeZipFromModernAsync(), "ZIP 가져오기");
             menu.Items.Add(zipItem);
         }
 
-        if (permitted && card.Kind == ManagerForm.ButtonKind.Cad)
+        if (permitted && card.Kind == ManagerBackend.ButtonKind.Cad)
         {
             var cadCfgItem = new System.Windows.Controls.MenuItem { Header = "CAD 버튼 이름·패널·순서 구성" };
             cadCfgItem.Click += async (_, _) => await RunBusyActionAsync(() => backend.ConfigureCadButtonsFromModernAsync(card), "CAD 버튼 구성");
@@ -1687,7 +1688,7 @@ public partial class Manager2Window : Window
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        if (permitted && card.Kind != ManagerForm.ButtonKind.Native)
+        if (permitted && card.Kind != ManagerBackend.ButtonKind.Native)
         {
             var restoreItem = new System.Windows.Controls.MenuItem { Header = "이전 버전 복원" };
             restoreItem.Click += async (_, _) => await RunBusyActionAsync(() => backend.RestoreBackupFromModernAsync(card), "이전 버전 복원");
@@ -1747,7 +1748,7 @@ public partial class Manager2Window : Window
         translate.BeginAnimation(TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(0, _cardDetailOriginDy, dur) { EasingFunction = ease });
     }
 
-    private void OpenCardDetailModal(ManagerForm.ButtonCard card, FrameworkElement? sourceCard = null)
+    private void OpenCardDetailModal(ManagerBackend.ButtonCard card, FrameworkElement? sourceCard = null)
     {
         var permitted = backend.IsRepositoryPermitted(card);
         var appearance = backend.GetCardAppearance(card);
@@ -1819,7 +1820,7 @@ public partial class Manager2Window : Window
         bottom.Children.Add(statusText);
 
         var btnStack = new StackPanel { Orientation = WpfOrientation.Horizontal, HorizontalAlignment = WpfHorizontalAlignment.Right };
-        if (permitted && card.Kind != ManagerForm.ButtonKind.Discover)
+        if (permitted && card.Kind != ManagerBackend.ButtonKind.Discover)
         {
             if (isLegacy)
             {

@@ -3,9 +3,8 @@ using RoBIM.Revit.Reload;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
-    private bool? renderedTestAccess;
     private bool CanUseTest => preview || teamAccess?.TestAllowed == true;
     private bool RepositoryPermitted(ButtonCard card)
     {

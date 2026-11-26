@@ -2,7 +2,7 @@ using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     private string hostTestCard = "";
     private Dictionary<string, ReleaseOffer> testOffers = [];
@@ -113,10 +113,5 @@ public sealed partial class ManagerForm
         if (!CanUseTest && IndependentRelease(card) && !card.Selected && card.Channel == "stable") { await ToggleButton(card, true, "stable"); return; }
         if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test");
         else await ToggleButton(card);
-    }
-    private void ShowTestOffer(ButtonCard card)
-    {
-        if (!CanUseTest) return;
-        hostTestCard = card.Id; SwitchPage(card.Kind == ButtonKind.Cad ? "Cad" : "Revit"); productSearch.Text = card.Title; RenderProductCards();
     }
 }

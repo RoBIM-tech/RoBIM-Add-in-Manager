@@ -1,9 +1,10 @@
+using System.Reflection;
 using RoBIM.Cad.Configuration;
 using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     internal event Action? BackendChanged;
     internal event Action? BackendClosed;
@@ -14,10 +15,8 @@ public sealed partial class ManagerForm
 
     internal async Task StartHiddenBackendAsync()
     {
-        if (hiddenBackendStarted) return;
+        if (hiddenBackendStarted || preview) return;
         hiddenBackendStarted = true;
-        _ = Handle;
-        FormClosed += (_, _) => BackendClosed?.Invoke();
         var display = StartLocalDisplay();
         _ = CheckManagerUpdate();
         await RestoreAccountAccess();
@@ -30,7 +29,7 @@ public sealed partial class ManagerForm
     internal void CloseBackend()
     {
         exitRequested = true;
-        Close();
+        Dispose();
     }
 
     internal ManagerPaths CorePaths => paths;
@@ -38,32 +37,77 @@ public sealed partial class ManagerForm
     internal bool IsSignedIn => authenticated && connectedLogin.Length > 0;
     internal bool IsTestAllowed => CanUseTest;
     internal bool IsAccessAllowed => Allowed;
-    internal string AccountSummaryText => accountStatus.Text;
-    internal string FooterSummaryText => footer.Text;
+    internal string AccountSummaryText => accountStatusText;
+    internal string FooterSummaryText => footerText;
     internal string ConnectedLogin => connectedLogin;
-    internal string ManagerProductVersion => Application.ProductVersion.Split('+')[0];
+    internal string ManagerProductVersion => (typeof(ManagerBackend).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(ManagerBackend).Assembly.GetName().Version?.ToString()
+        ?? "2.0.0").Split('+')[0];
+
     internal async Task CheckManagerUpdateFromModernAsync()
     {
         await CheckManagerUpdateManually();
         BackendChanged?.Invoke();
     }
-    internal bool AllowPrereleaseChecked => allowPrerelease.Checked;
-    internal bool AutoLoginChecked => automaticLogin.Checked;
-    internal bool ManagerAutoUpdateChecked => managerAutoUpdate.Checked;
-    internal bool StartWithWindowsChecked => startWithWindows.Checked;
+
+    internal bool AllowPrereleaseChecked => allowPrereleaseChecked;
+    internal bool AutoLoginChecked => automaticLoginChecked;
+    internal bool ManagerAutoUpdateChecked => managerAutoUpdateChecked;
+    internal bool StartWithWindowsChecked => startWithWindowsChecked;
     internal bool CanRunRevitSession => NativeRevitCommands.Sessions().Count > 0;
     internal int RevitSessionCount => NativeRevitCommands.Sessions().Count;
     internal bool HasPendingManagerUpdate => manuallyCheckedManagerUpdate is not null;
     internal bool IsCheckingManagerUpdate => checkingManagerUpdate;
     internal bool IsManagerUpdateReadyToRestart => pendingManagerUpdate is not null && !checkingManagerUpdate;
-    internal string ManagerUpdateStatusText => managerUpdateStatus.Text;
-    internal string LogsText => log.Text;
-    internal IReadOnlyList<string> SavedAccountLogins => savedAccounts.Items.Cast<string>().ToArray();
+    internal string ManagerUpdateStatusText => managerUpdateStatusText;
+    internal string LogsText
+    {
+        get { lock (logBuffer) return logBuffer.ToString(); }
+    }
+    internal IReadOnlyList<string> SavedAccountLogins
+    {
+        get { lock (savedAccountLogins) return savedAccountLogins.ToArray(); }
+    }
 
-    internal void SetAllowPrereleaseOption(bool value) { if (allowPrerelease.Checked != value) allowPrerelease.Checked = value; }
-    internal void SetAutoLoginOption(bool value) { if (automaticLogin.Checked != value) automaticLogin.Checked = value; }
-    internal void SetManagerAutoUpdateOption(bool value) { if (managerAutoUpdate.Checked != value) managerAutoUpdate.Checked = value; }
-    internal void SetStartWithWindowsOption(bool value) { if (startWithWindows.Checked != value) startWithWindows.Checked = value; }
+    internal void SetAllowPrereleaseOption(bool value)
+    {
+        if (allowPrereleaseChecked == value) return;
+        allowPrereleaseChecked = value;
+        if (preview) return;
+        new AccountPreferences(automaticLoginChecked, managerAutoUpdateChecked, allowPrereleaseChecked).Save(paths);
+        manuallyCheckedManagerUpdate = null;
+        pendingManagerUpdate = null;
+        managerUpdateChecked = default;
+        _ = CheckManagerUpdateFromModernAsync();
+    }
+
+    internal void SetAutoLoginOption(bool value)
+    {
+        if (automaticLoginChecked == value) return;
+        automaticLoginChecked = value;
+        if (!preview) new AccountPreferences(automaticLoginChecked, managerAutoUpdateChecked, allowPrereleaseChecked).Save(paths);
+    }
+
+    internal void SetManagerAutoUpdateOption(bool value)
+    {
+        if (managerAutoUpdateChecked == value) return;
+        managerAutoUpdateChecked = value;
+        if (!preview) new AccountPreferences(automaticLoginChecked, managerAutoUpdateChecked, allowPrereleaseChecked).Save(paths);
+    }
+
+    internal void SetStartWithWindowsOption(bool value)
+    {
+        if (startWithWindowsChecked == value) return;
+        startWithWindowsChecked = value;
+        if (preview) return;
+        try { StartupRegistration.Set(Environment.ProcessPath!, startWithWindowsChecked); }
+        catch (Exception error)
+        {
+            startWithWindowsChecked = !value;
+            ShowInfo(error.Message, "Windows 자동 시작");
+        }
+    }
 
     internal async Task InstallManagerUpdateFromModernAsync()
     {
@@ -73,10 +117,9 @@ public sealed partial class ManagerForm
 
     internal void ApplyReadyManagerUpdateNow()
     {
-        if (pendingManagerUpdate is not { } pending || busy || IsDisposed) return;
+        if (pendingManagerUpdate is not { } pending || busy || disposed) return;
         ManagerUpdates.Launch(paths, pending.Installer, pending.Offer.Digest);
-        exitRequested = true;
-        Close();
+        CloseBackend();
     }
 
     internal IReadOnlyList<ButtonCard> GetCardsForHost(string hostKey)
@@ -162,7 +205,15 @@ public sealed partial class ManagerForm
             $"설치 버전: {(string.IsNullOrWhiteSpace(status.Version) ? "없음" : status.Version)}",
             $"설치 경로: {status.Path}",
             $"원본/저장소: {card.Source ?? status.Tool.Repository}");
-        MessageBox.Show(this, text, card.Title);
+        ShowInfo(text, card.Title);
+    }
+
+    private void RequireInstalledRevitLoader()
+    {
+        var host = installer.Status(Catalog.RevitHost);
+        var dll = Path.Combine(host.Path, "Contents", "2026", "RoBIM.Revit.Host.dll");
+        if (!host.Managed || host.Modified || host.External || !File.Exists(dll))
+            throw new IOException("프로그램 로더 화면에서 Revit 로더 설치 상태를 확인하고 적용하십시오.");
     }
 
     internal void EditPublishersFromModern() => EditRepositoryPublishers();
@@ -199,18 +250,15 @@ public sealed partial class ManagerForm
             RequireInstalledRevitLoader();
             var manager = NativeCommands();
             manager.ReprepareForCurrentSessions();
-            recoveryRequestId = manager.Desired()?.Id;
             new RibbonLayouts(paths).RequestRevit(false);
             await RefreshStatuses();
         });
-        RefreshRecoveryStatus();
         BackendChanged?.Invoke();
     }
 
     internal async Task RunBatchUpdateForHostAsync(string hostKey)
     {
-        currentPage = hostKey == "autocad" ? "Cad" : "Revit";
-        await UpdateProgramTools();
+        await UpdateProgramTools(hostKey);
         BackendChanged?.Invoke();
     }
 
@@ -220,7 +268,7 @@ public sealed partial class ManagerForm
     internal async Task CheckLoaderForHostAsync(string hostKey)
     {
         var tool = hostKey == "autocad" ? Catalog.Cad : Catalog.RevitHost;
-        await CheckLoaderRepository(tool, hostKey == "autocad" ? cadLoaderStatus : revitLoaderStatus, "stable");
+        await CheckLoaderRepository(tool);
         BackendChanged?.Invoke();
     }
 
@@ -277,7 +325,6 @@ public sealed partial class ManagerForm
         {
             teamAccess?.Lock();
             GitHubSession.RemoveToken();
-            extensionGrid.Rows.Clear();
             await RefreshAccount();
         }, requiresAccess: false);
         BackendChanged?.Invoke();
@@ -377,5 +424,23 @@ public sealed partial class ManagerForm
         await Task.Yield();
         BackendChanged?.Invoke();
         return hostName + " 리본 배치를 저장했습니다.";
+    }
+
+    private void EditRepositoryPublishers()
+    {
+        if (busy || preview) return;
+        try
+        {
+            var discovery = new RepositoryDiscovery(paths);
+            var dialog = new RepositoryPublishersWindow(discovery.Settings());
+            if (OwnerWindow is not null && OwnerWindow.IsVisible) dialog.Owner = OwnerWindow;
+            if (dialog.ShowDialog() != true || dialog.Result is null) return;
+            discovery.SaveSettings(dialog.Result);
+            footerText = "검색 대상 저장 완료 · 새로고침으로 새 도구를 확인하세요. 기존 설치와 리본은 유지됩니다.";
+        }
+        catch (Exception error)
+        {
+            ShowInfo(error.Message, "검색 대상 설정");
+        }
     }
 }

@@ -21,15 +21,6 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        ApplicationConfiguration.Initialize();
-        // Keep a local stack trace for UI exceptions that otherwise terminate
-        // the Manager when switching to AutoCAD panels.
-        Application.ThreadException += (_, e) =>
-        {
-            RecordUiFailure("winforms", e.Exception);
-            try { MessageBox.Show("RoBIM Manager 화면 오류가 발생했습니다. Manager 데이터 폴더의 cad-panel-errors.log를 확인하세요.\n\n" + e.Exception.Message, "RoBIM Manager"); }
-            catch (Exception) { }
-        };
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             RecordUiFailure("unhandled", e.ExceptionObject as Exception ?? new Exception(Convert.ToString(e.ExceptionObject)));
@@ -64,10 +55,10 @@ internal static class Program
                 if (args.Length == 2 && args[1] != "--keep-settings") return 1;
                 if (!silentCleanup && !keepSettings)
                 {
-                    var delete = new TaskDialogButton("개인 설정 삭제");
-                    var keep = new TaskDialogButton("개인 설정 유지");
-                    var cancel = TaskDialogButton.Cancel;
-                    var choice = TaskDialog.ShowDialog(new TaskDialogPage
+                    var delete = new System.Windows.Forms.TaskDialogButton("개인 설정 삭제");
+                    var keep = new System.Windows.Forms.TaskDialogButton("개인 설정 유지");
+                    var cancel = System.Windows.Forms.TaskDialogButton.Cancel;
+                    var choice = System.Windows.Forms.TaskDialog.ShowDialog(new System.Windows.Forms.TaskDialogPage
                     {
                         Caption = "RoBIM 제거", Heading = "개인 설정을 어떻게 할까요?",
                         Text = "설치한 도구·연결 모듈·검색 기록·다운로드 캐시·복구 백업은 제거합니다.\n\n유지를 선택하면 계정 연결·검색 대상·리본 배치·설치 위치 설정을 남겨 재설치할 때 사용합니다.",
@@ -98,8 +89,8 @@ internal static class Program
                         catch (InvalidOperationException error)
                         {
                             if (silentCleanup) throw;
-                            if (MessageBox.Show(error.Message + "\n\n종료한 뒤 재시도를 누르면 제거를 계속합니다.",
-                                "RoBIM 제거 — 실행 중인 프로그램", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning) != DialogResult.Retry)
+                            if (System.Windows.MessageBox.Show(error.Message + "\n\n종료한 뒤 재시도를 누르면 제거를 계속합니다.",
+                                "RoBIM 제거 — 실행 중인 프로그램", System.Windows.MessageBoxButton.OKCancel, System.Windows.MessageBoxImage.Warning) != System.Windows.MessageBoxResult.OK)
                                 throw new OperationCanceledException();
                         }
                     }
@@ -113,8 +104,8 @@ internal static class Program
             catch (OperationCanceledException) { return 1; }
             catch (Exception error)
             {
-                if (!silentCleanup) MessageBox.Show("RoBIM 전체 제거를 완료하지 못했습니다. Manager는 유지합니다.\n\n" + error.Message,
-                    "RoBIM 제거", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (!silentCleanup) System.Windows.MessageBox.Show("RoBIM 전체 제거를 완료하지 못했습니다. Manager는 유지합니다.\n\n" + error.Message,
+                    "RoBIM 제거", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return 1;
             }
         }
@@ -124,59 +115,9 @@ internal static class Program
             try { Core.WindowsDataPath.EnsureDirectory(Core.ManagerPaths.CurrentUser().Data); }
             catch (Exception error)
             {
-                if (args.Length == 0) MessageBox.Show(error.Message, "RoBIM Manager 실행 위치 확인", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (args.Length == 0) System.Windows.MessageBox.Show(error.Message, "RoBIM Manager 실행 위치 확인", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return 1;
             }
-        }
-        if (args.Length == 2 && args[0] == "--inspect-performance")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectPerformance(args[1]); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-release-offers")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Revit", refreshOffers: true); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-my-tools")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Mine", refreshOffers: true); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-test-card-ui")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Test"); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-cad-ribbon-ui")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "CadRibbon"); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-ribbon-ui")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null, "Ribbon"); Application.Run(check); return 0;
-        }
-        if (args.Length is 2 or 3 && args[0] == "--inspect-installed-card-ui")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.InspectInstalledCards(args[1], args.Length == 3 ? args[2] : null); Application.Run(check); return 0;
-        }
-        if (args.Length == 2 && args[0] == "--verify-card-ui")
-        {
-            try { using var check = new ManagerForm(true); check.VerifyCardUi(args[1]); return 0; }
-            catch (Exception error) { File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(new { Passed = false, Error = error.ToString() })); return 1; }
-        }
-        if (args.Length == 2 && args[0] == "--verify-account-ui")
-        {
-            using var check = new ManagerForm(preview: true);
-            check.VerifyAccountSettingsUi(args[1]); Application.Run(check); return 0;
-        }
-        if (args.Length == 2 && args[0] == "--verify-team-ui")
-        {
-            using var check = new ManagerForm(inspect: true);
-            check.VerifyTeamAccessUi(args[1]); Application.Run(check); return 0;
         }
         if (args.Length == 3 && args[0] == "--inspect-buttons")
         {
@@ -189,7 +130,7 @@ internal static class Program
         }
         if (args.Contains("--install-native-reload-host"))
         {
-            MessageBox.Show("프로그램 로더 화면에서 저장소의 Revit 로더를 선택하여 적용하십시오.", "RoBIM Manager"); return 1;
+            System.Windows.MessageBox.Show("프로그램 로더 화면에서 저장소의 Revit 로더를 선택하여 적용하십시오.", "RoBIM Manager"); return 1;
         }
         if (args.Length == 5 && args[0] == "--native-toggle")
         {
@@ -206,16 +147,6 @@ internal static class Program
             var manager = new Core.NativeRevitCommands(Core.ManagerPaths.CurrentUser()); manager.RequestReload(includeCachedUpdates: false);
             File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(manager.Desired())); return 0;
         }
-        if (args.Length == 2 && args[0] == "--render-cad-buttons")
-        {
-            var catalog = new RoBIM.Cad.Configuration.CadCatalog { Modules = [
-                new() { Id = "delhidden", Name = "레이어 정리", Actions = [
-                    new() { Id = "cleanup", Title = "숨김 레이어 정리", Panel = "정리", Order = 10 },
-                    new() { Id = "preview", Title = "정리 후보 조회", Panel = "정리", Order = 20 }] },
-                new() { Id = "ezsplit", Name = "도면 분할", Actions = [new() { Id = "split", Title = "도면 분할", Panel = "도면", Order = 10 }] }] };
-            using var dialog = new CadButtonsDialog(catalog, ["delhidden:cleanup", "ezsplit:split"], [new(1234, 1, "AutoCAD 2026 — 예시 도면")]);
-            dialog.RenderPreview(args[1]); return 0;
-        }
         if (args.Contains("--close-existing")) { DesktopInstance.RestoreLegacy(true); return 0; }
         if (args.Contains("--show-existing")) { return DesktopInstance.SignalExisting() ? 0 : 1; }
         // Historical bridge commands are deliberately disabled: pyRevit
@@ -224,37 +155,52 @@ internal static class Program
             return 1;
         if (args.Contains("--render-preview"))
         {
-            using var preview = new ManagerForm(true);
-
-            if (args.Contains("--account")) preview.PreviewPage("Account");
-            if (args.Contains("--extensions")) preview.PreviewPage("Extensions");
-            if (args.Contains("--cad")) preview.PreviewPage("Cad");
-            if (args.Contains("--cad-ribbon")) preview.PreviewPage("CadRibbon");
-
-            if (args.Contains("--all")) preview.PreviewPage("All");
-            if (args.Contains("--test")) preview.PreviewPage("Test");
-            if (args.Contains("--mine")) preview.PreviewPage("Mine");
-            if (args.Contains("--ribbon")) preview.PreviewPage("Ribbon");
-
-            if (args.Contains("--minimum")) preview.Size = preview.MinimumSize;
-            if (args.Contains("--wide")) preview.Size = new System.Drawing.Size(1760, 900);
-            preview.RenderPreview(args.Last());
+            var destination = args.Last();
+            using var previewBackend = new ManagerBackend(preview: true);
+            var previewApp = System.Windows.Application.Current ?? new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+            var previewWin = new Manager2Window(previewBackend)
+            {
+                ShowInTaskbar = false,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+                Left = -20000,
+                Top = -20000
+            };
+            previewWin.Loaded += (_, _) =>
+            {
+                previewWin.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
+                {
+                    previewWin.UpdateLayout();
+                    var width = Math.Max(1, (int)Math.Ceiling(previewWin.ActualWidth));
+                    var height = Math.Max(1, (int)Math.Ceiling(previewWin.ActualHeight));
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    rtb.Render(previewWin);
+                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);
+                    using (var fs = File.Create(destination)) encoder.Save(fs);
+                    previewApp.Shutdown();
+                });
+            };
+            previewWin.Show();
+            previewApp.Run();
             return 0;
         }
         using var instance = new Mutex(true, "Local\\RoBIM.Manager.Desktop", out var created);
         if (!created)
         {
             if (!DesktopInstance.SignalExisting())
-                MessageBox.Show("기존 RoBIM Manager가 시작 중입니다. 잠시 후 다시 실행하십시오.", "RoBIM Manager");
+                System.Windows.MessageBox.Show("기존 RoBIM Manager가 시작 중입니다. 잠시 후 다시 실행하십시오.", "RoBIM Manager");
             return 0;
         }
-        if (args.Contains("--legacy-ui"))
-        {
-            DesktopInstance.Run(new ManagerForm(), args.Contains("--background"));
-            return 0;
-        }
-        using var backend = new ManagerForm();
+        using var backend = new ManagerBackend();
         var wpfApp = System.Windows.Application.Current ?? new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+        wpfApp.DispatcherUnhandledException += (_, e) =>
+        {
+            RecordUiFailure("wpf", e.Exception);
+            try { System.Windows.MessageBox.Show("RoBIM Manager 화면 오류가 발생했습니다. Manager 데이터 폴더의 cad-panel-errors.log를 확인하세요.\n\n" + e.Exception.Message, "RoBIM Manager"); }
+            catch (Exception) { }
+            e.Handled = true;
+        };
         var modern = new Manager2Window(backend);
         using var activateSignal = new EventWaitHandle(false, EventResetMode.AutoReset, DesktopInstance.ActivationEventName);
         var waitRegistration = ThreadPool.RegisterWaitForSingleObject(

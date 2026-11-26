@@ -1,29 +1,32 @@
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Text.Json;
+using System.Windows.Threading;
 using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
-    private readonly Panel productsPage = new() { Dock = DockStyle.Fill };
     private readonly List<ProductRow> productRows = [];
     private string? selectedProductId;
     private readonly List<PackageRow> availablePackages = [];
     private bool authenticated;
     private string connectedLogin = "";
+    private readonly DispatcherTimer localPollTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
     internal sealed record ProductRow(ToolStatus Status, PackageRow? Package);
 
     private void InitializeProductSelection()
     {
-        var timer = new System.Windows.Forms.Timer { Interval = 1500 };
-        timer.Tick += async (_, _) => { if (currentPage == "Locations") UpdateLocationActions(); else if (IsProductPage || currentPage == "Ribbon") await PollLocalChanges(); };
-        if (!preview) timer.Start();
-        FormClosed += (_, _) => timer.Dispose();
+        localPollTimer.Tick += async (_, _) => await PollLocalChanges();
+        if (!preview) localPollTimer.Start();
     }
+
+    private void DisposeProductPolling() => localPollTimer.Stop();
+
+    private void SelectProduct(string id) => selectedProductId = id;
     private ProductRow? SelectedProduct() => productRows.FirstOrDefault(x => x.Status.Tool.Id == selectedProductId) ?? productRows.FirstOrDefault();
+
     private static bool HostRunning(ToolKind kind)
     {
         foreach (var name in kind == ToolKind.AutoCAD ? new[] { "acad", "accoreconsole" } : new[] { "Revit" })
@@ -33,6 +36,7 @@ public sealed partial class ManagerForm
         }
         return false;
     }
+
     private bool PendingFor(string id)
     {
         try
@@ -42,6 +46,7 @@ public sealed partial class ManagerForm
         }
         catch (Exception) { return false; }
     }
+
     private ProductRow[] BuildProductRows(ToolStatus[] statusRows, PackageRow[] packages)
     {
         var result = new List<ProductRow>();
@@ -70,43 +75,13 @@ public sealed partial class ManagerForm
         }
         return result.ToArray();
     }
-    private void RefreshProductList()
-    {
-        // Fixture rendering only. Real I/O is awaited on a worker in RefreshProductListAsync.
-        if (preview) { productRows.Clear(); productRows.AddRange(BuildProductRows(statuses.Values.ToArray(), availablePackages.ToArray())); }
-        RenderProductCards();
-    }    private void RefreshProductAction() => RefreshCardActions();
-    private void SelectLegacy(string id)
-    {
-        foreach (DataGridViewRow row in grid.Rows) if ((row.Tag as ToolStatus)?.Tool.Id == id) { grid.CurrentCell = row.Cells[0]; return; }
-        throw new IOException("설치 상태를 새로 고친 뒤 다시 시도하십시오.");
-    }
-    private async Task InstallProduct()
-    {
-        if (SelectedProduct() is not { } row) return;
-        if (CadConfigurable(row)) { await ConfigureCadButtons(false); return; }
-        if (CadNeedsConnection(row)) { SelectLegacy(Catalog.Cad.Id); await InstallSelected(true); return; }
-        var step = InstallFlow.Decide(row.Status, HostRunning(row.Status.Tool.Kind), authenticated, PendingFor(row.Status.Tool.Id));
-        switch (step.Action)
-        {
-            case InstallAction.Connect: SwitchPage("Account"); return;
-            case InstallAction.WaitForHost: case InstallAction.Blocked: return;
-            case InstallAction.ApplyInRevit: ShowReloadReady(); return;
-        }
-        if (row.Package is not null) await InstallExtension(row.Package);
-        else
-        {
-            SelectLegacy(row.Status.Tool.Id);
-            if (step.Action == InstallAction.PrepareRevit) await PrepareUserReload();
-            else await InstallSelected(step.Action == InstallAction.BundledCad);
-        }
-        await RefreshProductListAsync();
-    }
+
     private async Task ManageProduct(bool restoreBackup)
     {
         if (SelectedProduct() is not { } row) return;
         if (row.Package is not null) await ManageExtension(restoreBackup, row.Package);
-        else { SelectLegacy(row.Status.Tool.Id); if (restoreBackup) await RestoreSelected(); else await RemoveSelected(); }
+        else if (restoreBackup) await RestoreSelected(row.Status.Tool.Id);
+        else await RemoveSelected(row.Status.Tool.Id);
         await RefreshProductListAsync();
     }
 }

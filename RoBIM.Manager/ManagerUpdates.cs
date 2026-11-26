@@ -2,7 +2,7 @@ using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     private Dictionary<string, ReleaseOffer> updateOffers = [];
     private readonly Dictionary<string, string> updateErrors = [];
@@ -116,7 +116,7 @@ public sealed partial class ManagerForm
                 (discoveryWarnings + updateErrors.Count + testOfferErrors.Count + stableOfferErrors.Count == 0 ? "" : " · 일부 조회 실패 · 기존 상태 유지");
             WriteLog(refreshSummary);
         });
-        if (refreshSummary is not null) { footer.Text = refreshSummary; refreshSummary = null; }
+        if (refreshSummary is not null) { footerText = refreshSummary; refreshSummary = null; }
     }
     private string? refreshSummary;
 }

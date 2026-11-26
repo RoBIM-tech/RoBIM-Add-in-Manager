@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.IO;
 using RoBIM.Cad.Configuration;
 using RoBIM.Manager.Core;
@@ -6,7 +5,7 @@ using RoBIM.Revit.Reload;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     internal enum ButtonKind { Cad, PyRevit, Native, Discover }
     internal sealed record ButtonCard(string Id, string Title, string Description, string Group, string? Icon, ProductRow Owner,
@@ -18,7 +17,6 @@ public sealed partial class ManagerForm
     private readonly Dictionary<string, RevitButton[]> revitButtonCache = new(StringComparer.OrdinalIgnoreCase);
     private SourcePackage? cadButtonPackage;
     private SourcePackage? revitButtonPackage;
-    private readonly Button nativeReload = MakeButton("Revit Reload");
 
     private CadButtonSource? CadButtons(ProductRow owner, bool preferInstalled = false)
     {
@@ -185,10 +183,9 @@ public sealed partial class ManagerForm
     private async Task ImportNativePackage()
     {
         if (busy || preview) return;
-        using var picker = new OpenFileDialog { Title = "Revit 모듈 ZIP 선택 (.sha256 필요)", Filter = "Revit 모듈 ZIP|*.zip", CheckFileExists = true };
-        if (picker.ShowDialog(this) != DialogResult.OK) return;
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "Revit 모듈 ZIP 선택 (.sha256 필요)", Filter = "Revit 모듈 ZIP|*.zip", CheckFileExists = true };
+        if (picker.ShowDialog(OwnerWindow) != true) return;
         await Run("Revit 기능 확인", async () => { await Task.Run(() => NativeCommands().Import(picker.FileName)); });
-        SwitchPage("Revit");
     }
     private async Task ToggleButton(ButtonCard card, bool? installChoice = null, string? releaseChannel = null, bool confirm = true, ProgramUpdateTarget? expected = null)
     {
@@ -340,33 +337,6 @@ public sealed partial class ManagerForm
             await RefreshStatuses();
         });
     }
-    private ContextMenuStrip BuildButtonMenu(ButtonCard card)
-    {
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("기능 설명 / 설치 위치", null, (_, _) => MessageBox.Show(this, card.Description + "\n\n분류: " + card.Group + "\n상태: " + card.Message + "\n배포 구분: " + card.ReleaseLabel + "\n" + card.ReleaseDetail + "\n원본: " + (card.Source ?? "목록 확인 필요"), card.Title));
-        var legacy = !preview && appearanceSnapshot.GetValueOrDefault(card.Id)?.Legacy == true;
-        menu.Items.Add(legacy ? "기존 설치를 Reload 방식으로 전환" : SelectedInView(card) ? "이 버튼 제거" : card.TestView ? "TEST 버전 설치" : "이 버튼 설치", null,
-            async (_, _) => { if (card.TestView && !SelectedInView(card)) await ToggleButton(card, true, "test"); else await ToggleButton(card, legacy || !card.Selected); });
-        if (card.Kind == ButtonKind.Native && card.Selected) menu.Items.Add("기능 업데이트 준비", null, async (_, _) => await ToggleButton(card, true));
-        if (card.Kind == ButtonKind.Native && card.Owner.Package is not null) menu.Items.Add("업데이트 확인", null, async (_, _) => await LoadButtonCatalog(card.Owner));
-        else if (card.Kind != ButtonKind.Native) menu.Items.Add("기능 목록 업데이트", null, async (_, _) => await LoadButtonCatalog(card.Owner));
-        if (card.Kind == ButtonKind.Native && card.Owner.Package is not null)
-        {
-            if (CanUseTest) menu.Items.Add("저장소 TEST 버전 설치…", null, async (_, _) => await ToggleButton(card, true, "test"));
-            menu.Items.Add("저장소 정식 버전 설치…", null, async (_, _) => await ToggleButton(card, true, "stable"));
-        }
-        if (card.Kind == ButtonKind.Native) menu.Items.Add("새 버전 ZIP 가져오기", null, async (_, _) => await ImportNativePackage());
-        if (card.Kind == ButtonKind.Cad) menu.Items.Add("CAD 버튼 이름·패널·순서 구성", null, async (_, _) => { if (busy || preview) return; SelectProduct(card.Owner.Status.Tool.Id); await ConfigureCadButtons(false); await RefreshProductListAsync(); });
-        menu.Items.Add(new ToolStripSeparator());
-        if (card.Kind != ButtonKind.Native && (card.Owner.Package is not null || !card.Owner.Status.Tool.CustomPackage))
-        {
-            var packageItem = new ToolStripMenuItem("공용 패키지 관리") { DropDown = BuildCardMenu(card.Owner) };
-            packageItem.DropDownOpening += (_, _) => SelectProduct(card.Owner.Status.Tool.Id);
-            menu.Items.Add(packageItem);
-        }
-        return menu;
-    }
-
     private IEnumerable<ButtonCard> PreviewCommands()
     {
         if (productRows.Count == 0) yield break;

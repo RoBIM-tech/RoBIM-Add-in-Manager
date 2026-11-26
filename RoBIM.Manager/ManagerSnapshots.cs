@@ -4,7 +4,7 @@ using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     private ButtonCard[] commandSnapshot = [];
     private Dictionary<string, CardAppearance> appearanceSnapshot = [];
@@ -44,7 +44,7 @@ public sealed partial class ManagerForm
         try
         {
             refreshingSnapshot = true;
-            UpdateLoginPage();
+            BackendChanged?.Invoke();
             var cached = await Task.Run(() =>
             {
                 try
@@ -57,14 +57,14 @@ public sealed partial class ManagerForm
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
             });
-            if (IsDisposed) return;
+            if (disposed) return;
             if (cached is not null)
             {
                 try
                 {
                     productRows.AddRange(cached.Products); commandSnapshot = cached.Commands;
                     appearanceSnapshot = cached.Appearance; availablePackages.AddRange(cached.Available); updateOffers = cached.Offers ?? []; testOffers = cached.Tests ?? []; testOfferErrors = cached.TestErrors ?? []; stableOffers = cached.Stables ?? []; stableOfferErrors = cached.StableErrors ?? [];
-                    RenderProductCards();
+                    BackendChanged?.Invoke();
                     firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds; usedDisplayCache = true;
                 }
                 catch (Exception ex)
@@ -73,47 +73,14 @@ public sealed partial class ManagerForm
                     WriteLog("화면 캐시를 다시 구성합니다: " + ex.Message);
                 }
             }
-            footer.Text = cached is null ? "로컬 설치 목록을 확인하고 있습니다…" : "저장된 목록 표시 · 설치 상태를 백그라운드에서 확인하고 있습니다…";
+            footerText = cached is null ? "로컬 설치 목록을 확인하고 있습니다…" : "저장된 목록 표시 · 설치 상태를 백그라운드에서 확인하고 있습니다…";
             await LoadRegisteredPackages(force: true);
             await RefreshStatuses();
             if (!usedDisplayCache) firstDisplayMs = firstDisplay.Elapsed.TotalMilliseconds;
-            if (!IsDisposed) { await RefreshProfileLabel(); footer.Text = "로컬 설치 상태 확인 완료 · 새로 고침에서 최신 업데이트도 확인합니다."; }
+            if (!disposed) { footerText = "로컬 설치 상태 확인 완료 · 새로 고침에서 최신 업데이트도 확인합니다."; }
         }
-        catch (Exception ex) { if (!IsDisposed) { WriteLog("로컬 목록 확인 실패: " + ex.Message); footer.Text = "설치 상태 확인 실패 · 새로 고침으로 다시 확인하세요."; } }
-        finally { refreshingSnapshot = false; if (!IsDisposed) { RefreshCardActions(); UpdateLoginPage(); } }
-    }
-
-    internal void InspectPerformance(string destination)
-    {
-        ShowInTaskbar = false; Opacity = 0; StartPosition = FormStartPosition.Manual; Location = new(-20000, -20000);
-        Shown += async (_, _) =>
-        {
-            var ticks = 0;
-            using var heartbeat = new System.Windows.Forms.Timer { Interval = 50 };
-            heartbeat.Tick += (_, _) => ticks++; heartbeat.Start();
-            try
-            {
-                var startup = Stopwatch.StartNew(); await StartLocalDisplay();
-                if (!snapshotVerified) throw new IOException("Local snapshot verification failed");
-                var startupMs = startup.Elapsed.TotalMilliseconds;
-                var before = inventoryScanCount; var timings = new List<object>();
-                foreach (var page in new[] { "Revit", "Cad", "CadRibbon", "All", "Mine", "Revit" })
-                {
-                    var watch = Stopwatch.StartNew(); SwitchPage(page); PerformLayout();
-                    timings.Add(new { Page = page, Milliseconds = watch.Elapsed.TotalMilliseconds, Cards = cardBindings.Count });
-                }
-                for (var i = 0; i < 3; i++) await PollLocalChanges();
-                var cached = JsonSerializer.Deserialize<DisplaySnapshot>(File.ReadAllText(DisplayCachePath))!;
-                if (inventoryScanCount != before || repositoryLookupCount != 0 || cached.Commands.Length != commandSnapshot.Length)
-                    throw new IOException("Navigation/polling performed unexpected discovery or cache roundtrip failed");
-                File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = true, StartupMs = startupMs, FirstDisplayMs = firstDisplayMs,
-                    UsedDisplayCache = usedDisplayCache, InventoryRefreshMs = lastLocalRefreshMs, UiHeartbeatTicks = ticks,
-                    Commands = commandSnapshot.Length, Navigation = timings, WarmInventoryScans = inventoryScanCount - before,
-                    RepositoryLookups = repositoryLookupCount, CacheRoundtripVerified = true }, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            catch (Exception ex) { File.WriteAllText(destination, JsonSerializer.Serialize(new { Passed = false, Error = ex.ToString() })); }
-            finally { Close(); }
-        };
+        catch (Exception ex) { if (!disposed) { WriteLog("로컬 목록 확인 실패: " + ex.Message); footerText = "설치 상태 확인 실패 · 새로 고침으로 다시 확인하세요."; } }
+        finally { refreshingSnapshot = false; if (!disposed) BackendChanged?.Invoke(); }
     }
 
     private async Task RefreshProductListAsync()
@@ -129,11 +96,10 @@ public sealed partial class ManagerForm
             var appearance = BuildAppearances(commands);
             return new DisplaySnapshot(7, owners, commands, appearance, packages, DateTimeOffset.UtcNow, new(updateOffers), new(testOffers), new(testOfferErrors), new(stableOffers), new(stableOfferErrors));
         });
-        if (IsDisposed) return;
+        if (disposed) return;
         productRows.Clear(); productRows.AddRange(value.Products); selectedProductId = selected;
         commandSnapshot = value.Commands; appearanceSnapshot = value.Appearance; snapshotVerified = true;
-        ShowCachedExtensionRows();
-        RenderProductCards(); if (currentPage == "Ribbon") RefreshRibbonEditor();
+        BackendChanged?.Invoke();
         lastLocalRefreshMs = watch.Elapsed.TotalMilliseconds;
         stateStamp = stampBefore;
         await Task.Run(() =>
@@ -156,12 +122,12 @@ public sealed partial class ManagerForm
         try
         {
             var stamp = await Task.Run(ReadStateStamp);
-            if (IsDisposed || stamp == stateStamp) return;
-            RefreshCardActions();
+            if (disposed || stamp == stateStamp) return;
+            BackendChanged?.Invoke();
             await RefreshStatuses();
         }
-        catch (Exception ex) { if (!IsDisposed) WriteLog("로컬 상태 갱신 보류: " + ex.Message); }
-        finally { refreshingSnapshot = false; if (!IsDisposed) RefreshCardActions(); }
+        catch (Exception ex) { if (!disposed) WriteLog("로컬 상태 갱신 보류: " + ex.Message); }
+        finally { refreshingSnapshot = false; if (!disposed) BackendChanged?.Invoke(); }
     }
 
     private string ReadStateStamp()

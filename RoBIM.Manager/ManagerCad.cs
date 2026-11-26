@@ -4,7 +4,7 @@ using RoBIM.Manager.Core;
 
 namespace RoBIM.Manager;
 
-public sealed partial class ManagerForm
+public sealed partial class ManagerBackend
 {
     private static bool CadConfigurable(ProductRow row) => row.Status.Tool.Kind == ToolKind.AutoCAD && row.Status.Managed &&
         !row.Status.Modified && CadReload.Compatible(row.Status.Path);
@@ -13,7 +13,7 @@ public sealed partial class ManagerForm
 
     private async Task ConfigureCadButtons(bool latestPackage, string? archivePath = null)
     {
-        if (!Allowed) { SwitchPage("Account"); return; }
+        if (!Allowed) { ApplyAccessState(); return; }
         if (SelectedProduct() is not { } row || !CadConfigurable(row)) return;
         SourcePackage? downloaded = null;
         if (latestPackage || archivePath is not null)
@@ -40,9 +40,12 @@ public sealed partial class ManagerForm
                 WriteLog("이전 준비 파일을 사용할 수 없어 설치된 CAD 패키지에서 버튼 목록을 읽었습니다.");
             }
             var catalog = CadFiles.Catalog(root);
-            using var dialog = new CadButtonsDialog(catalog, previous?.SelectedActions ?? [], CadReload.Sessions());
-            if (dialog.ShowDialog(this) != DialogResult.OK) return;
-            var configured = dialog.Configuration; var selected = dialog.Selection; var session = dialog.Session;
+            var dialog = new CadButtonsWindow(catalog, previous?.SelectedActions ?? [], CadReload.Sessions());
+            if (OwnerWindow is not null && OwnerWindow.IsVisible) dialog.Owner = OwnerWindow;
+            if (dialog.ShowDialog() != true) return;
+            var configured = dialog.Configuration;
+            var selected = dialog.Selection;
+            var session = dialog.Session;
             await Run("CAD 선택 적용 준비", async () =>
             {
                 foreach (var module in configured.Modules.Where(m => m.Actions.Any(a => selected.Contains(CadFiles.Key(m, a)) &&
@@ -50,15 +53,15 @@ public sealed partial class ManagerForm
                     RequireChannelAccess(ModuleReleases.Cad(root, module.Id, module.Version).Channel);
                 await Task.Run(() => bridge.Prepare(row.Status.Tool, sourceBundle, configured, selected, session, sourceRequest));
                 WriteLog("CAD 준비 완료 — AutoCAD의 RoBIM → 관리 → Reload에서 적용하십시오.");
-                MessageBox.Show(this, "선택한 버튼과 기능을 준비했습니다.\n\nAutoCAD → RoBIM → 관리 → Reload\n\nCAD 적용 결과는 이 화면에서 확인할 수 있습니다.", Text);
+                ShowInfo("선택한 버튼과 기능을 준비했습니다.\n\nAutoCAD → RoBIM → 관리 → Reload\n\nCAD 적용 결과는 이 화면에서 확인할 수 있습니다.");
             });
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Information); }
+        catch (Exception ex) { ShowInfo(ex.Message); }
     }
 
     private async Task PrepareCadArchive()
     {
-        using var picker = new OpenFileDialog { Title = "CAD 기능 패키지 ZIP 선택 (.sha256 파일 필요)", Filter = "CAD 패키지 ZIP|*.zip", CheckFileExists = true };
-        if (picker.ShowDialog(this) == DialogResult.OK) await ConfigureCadButtons(false, picker.FileName);
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "CAD 기능 패키지 ZIP 선택 (.sha256 파일 필요)", Filter = "CAD 패키지 ZIP|*.zip", CheckFileExists = true };
+        if (picker.ShowDialog(OwnerWindow) == true) await ConfigureCadButtons(false, picker.FileName);
     }
 }
