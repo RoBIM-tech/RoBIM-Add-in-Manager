@@ -1700,16 +1700,45 @@ public partial class Manager2Window : Window
         menu.IsOpen = true;
     }
 
-    private void OnCardDetailBackdropClick(object sender, MouseButtonEventArgs e) => CloseCardDetailModal();
+    private bool _isCardDetailClosing;
+    private double _cardDetailOriginDx;
+    private double _cardDetailOriginDy = 24;
+
+    private void OnCardDetailBackdropClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        CloseCardDetailModal();
+    }
+
     private void OnCardDetailCardMouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
 
     private void CloseCardDetailModal()
     {
-        if (CardDetailOverlay.Visibility != Visibility.Visible) return;
+        if (CardDetailOverlay.Visibility != Visibility.Visible || _isCardDetailClosing) return;
+        _isCardDetailClosing = true;
+        CardDetailOverlay.IsHitTestVisible = false;
+
         var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn };
-        var fade = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(130)) { EasingFunction = ease };
-        fade.Completed += (_, _) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+        var dur = TimeSpan.FromMilliseconds(150);
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(1, 0, dur) { EasingFunction = ease };
+        fade.Completed += (_, _) =>
+        {
+            if (_isCardDetailClosing)
+            {
+                CardDetailOverlay.Visibility = Visibility.Collapsed;
+                _isCardDetailClosing = false;
+            }
+        };
         CardDetailOverlay.BeginAnimation(OpacityProperty, fade);
+
+        var scale = new ScaleTransform(1.0, 1.0);
+        var translate = new TranslateTransform(0, 0);
+        CardDetailContainer.RenderTransformOrigin = new WpfPoint(0.5, 0.5);
+        CardDetailContainer.RenderTransform = new TransformGroup { Children = { scale, translate } };
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new System.Windows.Media.Animation.DoubleAnimation(1.0, 0.56, dur) { EasingFunction = ease });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new System.Windows.Media.Animation.DoubleAnimation(1.0, 0.56, dur) { EasingFunction = ease });
+        translate.BeginAnimation(TranslateTransform.XProperty, new System.Windows.Media.Animation.DoubleAnimation(0, _cardDetailOriginDx, dur) { EasingFunction = ease });
+        translate.BeginAnimation(TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(0, _cardDetailOriginDy, dur) { EasingFunction = ease });
     }
 
     private void OpenCardDetailModal(ManagerForm.ButtonCard card, FrameworkElement? sourceCard = null)
@@ -1856,6 +1885,9 @@ public partial class Manager2Window : Window
         root.Children.Add(bodyScroller);
 
         CardDetailContainer.Child = root;
+        _isCardDetailClosing = false;
+        CardDetailOverlay.BeginAnimation(OpacityProperty, null);
+        CardDetailOverlay.IsHitTestVisible = true;
         CardDetailOverlay.Opacity = 0;
         CardDetailOverlay.Visibility = Visibility.Visible;
 
@@ -1866,6 +1898,8 @@ public partial class Manager2Window : Window
             dx = pt.X - ActualWidth / 2;
             dy = pt.Y - ActualHeight / 2;
         }
+        _cardDetailOriginDx = dx;
+        _cardDetailOriginDy = dy;
 
         var scale = new ScaleTransform(0.56, 0.56);
         var translate = new TranslateTransform(dx, dy);
