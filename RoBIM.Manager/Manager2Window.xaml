@@ -325,16 +325,19 @@
                         <!-- Sticky Tab Bar -->
                         <Border Grid.Row="0" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,0">
                             <DockPanel>
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button x:Name="RibbonReloadBtn" Content="새로 읽기" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonReloadFromDisk"/>
-                                    <Button x:Name="RibbonDefaultsBtn" Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonDefaults"/>
-                                    <Button x:Name="RibbonRecoverBtn" Content="Revit 다시 준비" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonRecoverSessions"/>
-                                    <Button x:Name="RibbonCheckResultBtn" Content="결과 확인" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonCheckResult"/>
-                                    <Button x:Name="RibbonSaveBtn" Content="저장" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,6,0" Click="OnRibbonSave"/>
-                                    <Button x:Name="RibbonApplyBtn" Content="Revit 적용" Style="{StaticResource PrimaryButton}" Padding="12,4" Click="OnRibbonApply"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <Button x:Name="RibbonReloadBtn" Content="새로 읽기" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonReloadFromDisk"/>
+                                    <Button x:Name="RibbonDefaultsBtn" Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonDefaults"/>
+                                    <Button x:Name="RibbonImportBtn" Content="불러오기" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonImportSettings"/>
+                                    <Button x:Name="RibbonExportBtn" Content="내보내기" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonExportSettings"/>
+                                    <Button x:Name="RibbonRecoverBtn" Content="Revit 다시 준비" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonRecoverSessions"/>
+                                    <Button x:Name="RibbonCheckResultBtn" Content="결과 확인" Style="{StaticResource SecondaryButton}" Padding="8,4" Margin="0,0,5,0" Click="OnRibbonCheckResult"/>
+                                    <Button x:Name="RibbonApplyBtn" Content="Revit 적용" Style="{StaticResource PrimaryButton}" Padding="11,4" Click="OnRibbonApply"/>
                                 </StackPanel>
 
-                                <StackPanel x:Name="RibbonTabsHost" Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <StackPanel x:Name="RibbonTabsHost" Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                                </ScrollViewer>
                             </DockPanel>
                         </Border>
 

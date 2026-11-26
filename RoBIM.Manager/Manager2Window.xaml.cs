@@ -591,9 +591,10 @@ public partial class Manager2Window : Window
         var canAct = !backend.IsBusy && editableHost;
         RibbonApplyBtn.Content = currentHost == "autocad" ? "AutoCAD 적용" : currentHost == "navisworks" ? "Navisworks 저장" : "Revit 적용";
         RibbonApplyBtn.IsEnabled = !backend.IsBusy;
-        RibbonSaveBtn.IsEnabled = !backend.IsBusy;
         RibbonReloadBtn.IsEnabled = !backend.IsBusy;
         RibbonDefaultsBtn.IsEnabled = !backend.IsBusy;
+        RibbonImportBtn.IsEnabled = !backend.IsBusy;
+        RibbonExportBtn.IsEnabled = !backend.IsBusy;
         RibbonRecoverBtn.Visibility = currentHost == "revit" ? Visibility.Visible : Visibility.Collapsed;
         RibbonRecoverBtn.IsEnabled = canAct;
         RibbonCheckResultBtn.Visibility = currentHost == "revit" ? Visibility.Visible : Visibility.Collapsed;
@@ -2407,17 +2408,63 @@ public partial class Manager2Window : Window
         WpfMessageBox.Show(this, result, "리본 적용 결과 확인");
     }
 
-    private async void OnRibbonSave(object sender, RoutedEventArgs e)
+    private void OnRibbonExportSettings(object sender, RoutedEventArgs e)
     {
         try
         {
             var layout = SnapshotRibbonLayout();
-            new RibbonLayouts(backend.CorePaths).Save(layout);
-            ribbonDirty = false;
-            BottomStatusText.Text = "리본 배치를 저장했습니다.";
-            await Task.CompletedTask;
+            var hostName = currentHost == "autocad" ? "AutoCAD" : currentHost == "navisworks" ? "Navisworks" : "Revit";
+            var picker = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "리본 세팅 저장",
+                Filter = "RoBIM 리본 세팅 (*.json)|*.json",
+                FileName = $"robim-ribbon-{hostName.ToLowerInvariant()}.json"
+            };
+            if (picker.ShowDialog(this) != true) return;
+            var json = System.Text.Json.JsonSerializer.Serialize(layout, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(picker.FileName, json);
+            BottomStatusText.Text = "리본 세팅을 파일로 저장했습니다.";
         }
-        catch (Exception ex) { WpfMessageBox.Show(this, ex.Message, "리본 저장"); }
+        catch (Exception ex) { WpfMessageBox.Show(this, ex.Message, "리본 세팅 저장"); }
+    }
+
+    private void OnRibbonImportSettings(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!ConfirmDiscardRibbonChanges()) return;
+            var picker = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "리본 세팅 불러오기",
+                Filter = "RoBIM 리본 세팅 (*.json)|*.json"
+            };
+            if (picker.ShowDialog(this) != true) return;
+            var loaded = System.Text.Json.JsonSerializer.Deserialize<RibbonLayout>(File.ReadAllText(picker.FileName))
+                ?? throw new IOException("리본 세팅 파일을 읽을 수 없습니다.");
+            var hostName = currentHost == "autocad" ? "AutoCAD" : currentHost == "navisworks" ? "Navisworks" : "Revit";
+            var normalized = loaded with { Host = hostName };
+            RibbonLayouts.Validate(normalized);
+
+            ribbonTabs.Clear();
+            foreach (var tab in normalized.Tabs)
+            {
+                var tm = new RibbonTabModel(tab.Name);
+                foreach (var panel in tab.Panels)
+                {
+                    var pm = new RibbonPanelModel(panel.Name);
+                    PopulatePanelFromLayout(pm, panel);
+                    tm.Panels.Add(pm);
+                }
+                ribbonTabs.Add(tm);
+            }
+            if (ribbonTabs.Count == 0) ribbonTabs.Add(new RibbonTabModel("RoBIM 도구"));
+            selectedTabIndex = 0;
+            selectedRibbonItem = ribbonTabs[0];
+            ribbonDirty = true;
+            RenderRibbonView();
+            BottomStatusText.Text = "리본 세팅을 불러왔습니다. '적용'을 누르면 반영됩니다.";
+        }
+        catch (Exception ex) { WpfMessageBox.Show(this, ex.Message, "리본 세팅 불러오기"); }
     }
 
     private async void OnRibbonApply(object sender, RoutedEventArgs e)
