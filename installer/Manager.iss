@@ -77,6 +77,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\RoBIMMa
 Type: files; Name: "{app}\.robim-manager-native.ini"
 Type: files; Name: "{app}\.robim-manager-install.json"
 
+[Run]
+#ifndef TestBuild
+Filename: "{app}\RoBIM.Manager.exe"; Description: "{cm:LaunchProgram,RoBIM Add-in Manager}"; Flags: nowait postinstall skipifsilent
+#endif
+
 [Code]
 function LegacyRegistrationOwned: Boolean;
 var Location: String;
