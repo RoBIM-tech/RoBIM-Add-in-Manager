@@ -119,8 +119,19 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Target Program Switcher -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                <!-- Program-Scoped Navigation Menu -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <TextBlock Text="프로그램별 관리" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
+                    <Button x:Name="NavToolsBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavTools">
+                        <TextBlock Text="도구 카탈로그"/>
+                    </Button>
+                    <Button x:Name="NavRibbonBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavRibbon">
+                        <TextBlock Text="리본 편집기"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Target Program Switcher (Only visible in Tools / Ribbon) -->
+                <StackPanel x:Name="RailHostSection" DockPanel.Dock="Top" Margin="0,0,0,16">
                     <TextBlock Text="대상 프로그램" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
                     <Button x:Name="HostRevitBtn" Style="{StaticResource RailHostButton}" Click="OnSelectHostRevit">
                         <DockPanel>
@@ -144,15 +155,9 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Navigation Menu -->
+                <!-- Global Navigation Menu -->
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="메뉴" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
-                    <Button x:Name="NavToolsBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavTools">
-                        <TextBlock Text="도구 카탈로그"/>
-                    </Button>
-                    <Button x:Name="NavRibbonBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavRibbon">
-                        <TextBlock Text="리본 편집기"/>
-                    </Button>
+                    <TextBlock Text="공통 관리" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"/>
                     <Button x:Name="NavLoadersBtn" Style="{StaticResource RailNavButton}" Click="OnSelectNavLoaders">
                         <TextBlock Text="호스트 로더"/>
                     </Button>
@@ -189,6 +194,8 @@
                         </Border>
                     </StackPanel>
                     <StackPanel x:Name="HeaderActions" DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="HeaderLogsBtn" Content="작업 기록" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnShowLogsClicked"/>
+                        <Button x:Name="HeaderManualReloadBtn" Content="Reload" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnManualReloadClicked"/>
                         <Button x:Name="HeaderRefreshBtn" Content="새로고침" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnRefreshClicked"/>
                         <Button x:Name="HeaderBatchUpdateBtn" Content="일괄 업데이트" Style="{StaticResource PrimaryButton}" Click="OnBatchUpdateClicked"/>
                     </StackPanel>
@@ -213,6 +220,17 @@
                             </TextBox.Resources>
                         </TextBox>
                         <TextBlock x:Name="ToolSearchHint" Text="도구 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="-248,0,0,0"/>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ComboBox x:Name="ToolSortBox" Width="125" Margin="0,0,8,0" SelectionChanged="OnToolSortChanged">
+                                <ComboBoxItem Content="기본순" IsSelected="True"/>
+                                <ComboBoxItem Content="이름순"/>
+                                <ComboBoxItem Content="설치됨 먼저"/>
+                                <ComboBoxItem Content="업데이트 먼저"/>
+                            </ComboBox>
+                            <Button x:Name="ToolsCadConfigBtn" Content="CAD 버튼 구성" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnConfigureCadButtonsClicked"/>
+                            <Button x:Name="ToolsImportZipBtn" Content="ZIP 가져오기" Style="{StaticResource SecondaryButton}" Click="OnImportZipClicked"/>
+                        </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                             <Button x:Name="FilterAllBtn" Content="전체" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnFilterAll"/>
@@ -256,7 +274,10 @@
                                     <TextBlock Text="크기:" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <Button x:Name="RibbonZoomCompactBtn" Content="작게" Style="{StaticResource PrimaryButton}" Padding="9,4" Margin="0,0,4,0" Click="OnZoomCompact"/>
                                     <Button x:Name="RibbonZoomNormalBtn" Content="보통" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,10,0" Click="OnZoomNormal"/>
-                                    <Button Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,6,0" Click="OnRibbonDefaults"/>
+                                    <Button x:Name="RibbonReloadBtn" Content="새로 읽기" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonReloadFromDisk"/>
+                                    <Button x:Name="RibbonDefaultsBtn" Content="기본 배치" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonDefaults"/>
+                                    <Button x:Name="RibbonRecoverBtn" Content="Revit 다시 준비" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonRecoverSessions"/>
+                                    <Button x:Name="RibbonCheckResultBtn" Content="결과 확인" Style="{StaticResource SecondaryButton}" Padding="9,4" Margin="0,0,6,0" Click="OnRibbonCheckResult"/>
                                     <Button x:Name="RibbonSaveBtn" Content="저장" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,6,0" Click="OnRibbonSave"/>
                                     <Button x:Name="RibbonApplyBtn" Content="Revit 적용" Style="{StaticResource PrimaryButton}" Padding="12,4" Click="OnRibbonApply"/>
                                 </StackPanel>
@@ -290,7 +311,10 @@
                     <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="배치 가능한 버튼" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <TextBox x:Name="RibbonBankSearchBox" DockPanel.Dock="Top" Padding="8,5" Margin="0,0,0,8" BorderBrush="#CBD5E1" TextChanged="OnRibbonBankSearchChanged"/>
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <TextBox x:Name="RibbonBankSearchBox" Padding="8,5" BorderBrush="#CBD5E1" TextChanged="OnRibbonBankSearchChanged"/>
+                                <TextBlock x:Name="RibbonBankSearchHint" Text="버튼 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </Grid>
                             <ListBox x:Name="RibbonBankList" BorderBrush="#E2E8F0" MouseDoubleClick="OnRibbonBankDoubleClick" PreviewMouseLeftButtonDown="OnRibbonBankMouseDown" PreviewMouseMove="OnRibbonBankMouseMove"/>
                         </DockPanel>
                     </Border>
@@ -299,7 +323,7 @@
                     <Border Grid.Column="1" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="12">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="탭 / 패널 / 버튼 계층 구조 (상단 고정 탭으로 드래그 이동 가능)" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <TreeView x:Name="RibbonTree" BorderBrush="#E2E8F0" AllowDrop="True" SelectedItemChanged="OnRibbonTreeSelected" PreviewMouseLeftButtonDown="OnRibbonTreeMouseDown" PreviewMouseMove="OnRibbonTreeMouseMove" DragOver="OnRibbonTreeDragOver" Drop="OnRibbonTreeDrop"/>
+                            <TreeView x:Name="RibbonTree" BorderBrush="#E2E8F0" AllowDrop="True" SelectedItemChanged="OnRibbonTreeSelected" MouseDoubleClick="OnRibbonTreeDoubleClick" PreviewMouseLeftButtonDown="OnRibbonTreeMouseDown" PreviewMouseMove="OnRibbonTreeMouseMove" DragOver="OnRibbonTreeDragOver" Drop="OnRibbonTreeDrop"/>
                         </DockPanel>
                     </Border>
 
@@ -352,15 +376,33 @@
 
             <!-- View 4: Account & Settings -->
             <ScrollViewer x:Name="AccountView" Grid.Row="1" Visibility="Collapsed" Padding="24">
-                <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+                <StackPanel MaxWidth="740" HorizontalAlignment="Left">
                     <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="GitHub 계정 및 팀 권한" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <TextBlock x:Name="AccountSummaryLabel" Text="상태 확인 중..." Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,14"/>
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                 <Button x:Name="AccountSignInBtn" Content="GitHub 연결 확인 / 로그인" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="OnAccountSignIn"/>
+                                <Button x:Name="AccountOtherLoginBtn" Content="다른 계정으로 로그인" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnAccountOtherLogin"/>
                                 <Button x:Name="AccountSignOutBtn" Content="로그아웃" Style="{StaticResource SecondaryButton}" Click="OnAccountSignOut"/>
                             </StackPanel>
+
+                            <StackPanel x:Name="SavedAccountsRow" Orientation="Horizontal" Margin="0,0,0,12">
+                                <TextBlock Text="저장된 계정:" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="SavedAccountsBox" Width="220" Margin="0,0,8,0"/>
+                                <Button x:Name="UseSavedAccountBtn" Content="이 계정 사용" Style="{StaticResource SecondaryButton}" Click="OnUseSavedAccount"/>
+                            </StackPanel>
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="고급 설정 · 개인 액세스 토큰(PAT)" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <PasswordBox x:Name="AccountPatBox" Width="280" Padding="6,4" Margin="0,0,8,0"/>
+                                        <Button x:Name="AccountSavePatBtn" Content="토큰 확인 및 저장" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0" Click="OnSavePatClicked"/>
+                                        <Button x:Name="AccountDeletePatBtn" Content="현재 토큰 삭제" Style="{StaticResource SecondaryButton}" Click="OnDeletePatClicked"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -369,18 +411,38 @@
                             <TextBlock Text="업데이트 및 실행 설정" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
                             <CheckBox x:Name="AccountTestCheck" Content="테스트(Pre-release) 업데이트 수신" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountAutoLoginCheck" Content="자동 로그인" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
+                            <CheckBox x:Name="AccountAutoUpdateCheck" Content="Manager 자동 업데이트" Margin="0,0,0,10" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                             <CheckBox x:Name="AccountStartupCheck" Content="Windows 로그인 시 알림 영역에서 자동 시작" Checked="OnOptionChanged" Unchecked="OnOptionChanged"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                         <DockPanel>
-                            <Button x:Name="CheckManagerUpdateBtn" DockPanel.Dock="Right" Content="Manager 업데이트 확인" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center" Click="OnCheckManagerUpdate"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="CheckManagerUpdateBtn" Content="Manager 업데이트 확인" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnCheckManagerUpdate"/>
+                                <Button x:Name="InstallManagerUpdateBtn" Content="Manager 업데이트" Style="{StaticResource PrimaryButton}" Visibility="Collapsed" Click="OnInstallManagerUpdate"/>
+                            </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="RoBIM Add-in Manager 버전" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                 <TextBlock x:Name="ManagerVersionLabel" Text="현재 버전 확인 중..." Foreground="#475569" FontSize="12"/>
+                                <TextBlock x:Name="ManagerUpdateStatusLabel" Text="" Foreground="#1E5BA6" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </DockPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="제작자 · 조직 및 저장소 등록" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <Button x:Name="EditPublishersBtn" Content="제작자·조직 설정" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnEditPublishersClicked"/>
+                                <Button x:Name="RefreshCatalogBtn" Content="저장소 새로고침" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnRefreshCatalogClicked"/>
+                                <Button x:Name="ViewLogsBtn" Content="작업 기록 보기" Style="{StaticResource SecondaryButton}" Click="OnShowLogsClicked"/>
+                            </StackPanel>
+                            <DockPanel>
+                                <Button x:Name="RegisterGitUrlBtn" DockPanel.Dock="Right" Content="URL 확인 및 등록" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnRegisterGitUrlClicked"/>
+                                <TextBox x:Name="GitUrlBox" Padding="8,5" BorderBrush="#CBD5E1"/>
+                            </DockPanel>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

@@ -50,7 +50,11 @@ public sealed partial class ManagerForm
                 var key = package.ModuleId + ":" + package.CommandId;
                 var state = CadButtonState(owner, key);
                 var release = selectedModule is null || current is null ? null : ModuleReleases.Cad(current.Root, selectedModule.Id, selectedModule.Version);
-                yield return new("cad:" + key, package.Name, package.Description, "AutoCAD", null, owner, ButtonKind.Cad,
+                var iconPath = current is not null && selectedModule?.Actions.FirstOrDefault()?.Icon is { } relIcon
+                    ? CadFiles.Child(current.Root, relIcon)
+                    : null;
+                if (iconPath is not null && !File.Exists(iconPath)) iconPath = null;
+                yield return new("cad:" + key, package.Name, package.Description, "AutoCAD", iconPath, owner, ButtonKind.Cad,
                     state.Selected, state.Pending, state.Message, null, key, package.ModuleId, package.Channel,
                     release?.Label ?? "설치 시 버전 확인", SelectedChannel: release?.Channel ?? "", SelectedVersion: selectedModule?.Version ?? "");
                 continue;
