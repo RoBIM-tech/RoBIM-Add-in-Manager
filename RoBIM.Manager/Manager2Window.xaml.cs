@@ -98,6 +98,12 @@ public partial class Manager2Window : Window
                 WpfMessageBox.Show(this, "작업이 끝난 뒤 닫아 주십시오.", Title);
                 return;
             }
+            if (!backend.IsExitRequested)
+            {
+                e.Cancel = true;
+                Hide();
+                return;
+            }
             backend.CloseBackend();
         };
     }
@@ -1298,8 +1304,8 @@ public partial class Manager2Window : Window
         await RunBusyActionAsync(() => currentHost == "autocad" ? backend.ImportCadZipFromModernAsync() : backend.ImportNativeZipFromModernAsync(), "ZIP 가져오기");
     }
 
-    private void OnToolFilterChanged(object sender, TextChangedEventArgs e) { if (!syncUi) RenderToolsView(); }
-    private void OnToolSortChanged(object sender, SelectionChangedEventArgs e) { if (!syncUi) RenderToolsView(); }
+    private void OnToolFilterChanged(object sender, TextChangedEventArgs e) { if (IsLoaded && !syncUi) RenderToolsView(); }
+    private void OnToolSortChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded && !syncUi) RenderToolsView(); }
     private void OnFilterAll(object sender, RoutedEventArgs e) { toolFilter = "all"; RenderToolsView(); }
     private void OnFilterInstalled(object sender, RoutedEventArgs e) { toolFilter = "installed"; RenderToolsView(); }
     private void OnFilterUninstalled(object sender, RoutedEventArgs e) { toolFilter = "uninstalled"; RenderToolsView(); }
@@ -1314,7 +1320,7 @@ public partial class Manager2Window : Window
         e.Handled = true;
     }
 
-    private void OnRibbonBankSearchChanged(object sender, TextChangedEventArgs e) { if (!syncUi) RefreshRibbonBank(); }
+    private void OnRibbonBankSearchChanged(object sender, TextChangedEventArgs e) { if (IsLoaded && !syncUi) RefreshRibbonBank(); }
     private void OnRibbonBankMouseDown(object sender, MouseButtonEventArgs e) => dragStartPoint = e.GetPosition(null);
     private void OnRibbonBankMouseMove(object sender, WpfMouseEventArgs e)
     {

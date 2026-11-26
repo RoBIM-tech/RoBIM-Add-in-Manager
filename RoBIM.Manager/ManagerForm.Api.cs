@@ -6,17 +6,24 @@ namespace RoBIM.Manager;
 public sealed partial class ManagerForm
 {
     internal event Action? BackendChanged;
+    internal event Action? BackendClosed;
     internal Action? OpenModernUiRequested;
+    private bool hiddenBackendStarted;
 
     internal async Task StartHiddenBackendAsync()
     {
+        if (hiddenBackendStarted) return;
+        hiddenBackendStarted = true;
         _ = Handle;
+        FormClosed += (_, _) => BackendClosed?.Invoke();
         var display = StartLocalDisplay();
         _ = CheckManagerUpdate();
         await RestoreAccountAccess();
         await display;
         BackendChanged?.Invoke();
     }
+
+    internal bool IsExitRequested => exitRequested;
 
     internal void CloseBackend()
     {

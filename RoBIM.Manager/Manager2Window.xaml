@@ -222,8 +222,8 @@
                         <TextBlock x:Name="ToolSearchHint" Text="도구 검색 (초성 지원)..." Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="-248,0,0,0"/>
 
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <ComboBox x:Name="ToolSortBox" Width="125" Margin="0,0,8,0" SelectionChanged="OnToolSortChanged">
-                                <ComboBoxItem Content="기본순" IsSelected="True"/>
+                            <ComboBox x:Name="ToolSortBox" Width="125" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="OnToolSortChanged">
+                                <ComboBoxItem Content="기본순"/>
                                 <ComboBoxItem Content="이름순"/>
                                 <ComboBoxItem Content="설치됨 먼저"/>
                                 <ComboBoxItem Content="업데이트 먼저"/>
