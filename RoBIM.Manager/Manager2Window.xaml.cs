@@ -119,7 +119,7 @@ public partial class Manager2Window : Window
         {
             if (e.Key == Key.Escape && CardDetailOverlay.Visibility == Visibility.Visible)
             {
-                CardDetailOverlay.Visibility = Visibility.Collapsed;
+                CloseCardDetailModal();
                 e.Handled = true;
             }
         };
@@ -393,7 +393,7 @@ public partial class Manager2Window : Window
             Cursor = System.Windows.Input.Cursors.Hand,
             ToolTip = "클릭하여 전체 설명 보기"
         };
-        border.MouseLeftButtonUp += (_, _) => OpenCardDetailModal(card);
+        border.MouseLeftButtonUp += (_, _) => OpenCardDetailModal(card, border);
 
         var root = new DockPanel { LastChildFill = true };
 
@@ -1700,10 +1700,19 @@ public partial class Manager2Window : Window
         menu.IsOpen = true;
     }
 
-    private void OnCardDetailBackdropClick(object sender, MouseButtonEventArgs e) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+    private void OnCardDetailBackdropClick(object sender, MouseButtonEventArgs e) => CloseCardDetailModal();
     private void OnCardDetailCardMouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
 
-    private void OpenCardDetailModal(ManagerForm.ButtonCard card)
+    private void CloseCardDetailModal()
+    {
+        if (CardDetailOverlay.Visibility != Visibility.Visible) return;
+        var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn };
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(130)) { EasingFunction = ease };
+        fade.Completed += (_, _) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+        CardDetailOverlay.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void OpenCardDetailModal(ManagerForm.ButtonCard card, FrameworkElement? sourceCard = null)
     {
         var permitted = backend.IsRepositoryPermitted(card);
         var appearance = backend.GetCardAppearance(card);
@@ -1745,7 +1754,7 @@ public partial class Manager2Window : Window
             Padding = new Thickness(9, 4, 9, 4),
             VerticalAlignment = VerticalAlignment.Top
         };
-        closeBtn.Click += (_, _) => CardDetailOverlay.Visibility = Visibility.Collapsed;
+        closeBtn.Click += (_, _) => CloseCardDetailModal();
         DockPanel.SetDock(closeBtn, Dock.Right);
         header.Children.Add(closeBtn);
 
@@ -1825,26 +1834,51 @@ public partial class Manager2Window : Window
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 12)
         });
-        bodyStack.Children.Add(new Border
+        if (backend.IsTestAllowed)
         {
-            Background = new SolidColorBrush(WpfColor.FromRgb(248, 250, 252)),
-            BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10),
-            Child = new TextBlock
+            bodyStack.Children.Add(new Border
             {
-                Text = $"상태: {card.Message}\n버전 안내: {card.ReleaseDetail}",
-                FontSize = 11.5,
-                Foreground = new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
-                TextWrapping = TextWrapping.Wrap
-            }
-        });
+                Background = new SolidColorBrush(WpfColor.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10),
+                Child = new TextBlock
+                {
+                    Text = $"상태: {card.Message}\n버전 안내: {card.ReleaseDetail}",
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(WpfColor.FromRgb(71, 85, 105)),
+                    TextWrapping = TextWrapping.Wrap
+                }
+            });
+        }
         bodyScroller.Content = bodyStack;
         root.Children.Add(bodyScroller);
 
         CardDetailContainer.Child = root;
+        CardDetailOverlay.Opacity = 0;
         CardDetailOverlay.Visibility = Visibility.Visible;
+
+        double dx = 0, dy = 24;
+        if (sourceCard is not null && sourceCard.IsLoaded && ActualWidth > 0 && ActualHeight > 0)
+        {
+            var pt = sourceCard.TransformToVisual(this).Transform(new WpfPoint(sourceCard.ActualWidth / 2, sourceCard.ActualHeight / 2));
+            dx = pt.X - ActualWidth / 2;
+            dy = pt.Y - ActualHeight / 2;
+        }
+
+        var scale = new ScaleTransform(0.56, 0.56);
+        var translate = new TranslateTransform(dx, dy);
+        CardDetailContainer.RenderTransformOrigin = new WpfPoint(0.5, 0.5);
+        CardDetailContainer.RenderTransform = new TransformGroup { Children = { scale, translate } };
+
+        var easeOut = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+        var dur = TimeSpan.FromMilliseconds(220);
+        CardDetailOverlay.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160)) { EasingFunction = easeOut });
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new System.Windows.Media.Animation.DoubleAnimation(0.56, 1.0, dur) { EasingFunction = easeOut });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new System.Windows.Media.Animation.DoubleAnimation(0.56, 1.0, dur) { EasingFunction = easeOut });
+        translate.BeginAnimation(TranslateTransform.XProperty, new System.Windows.Media.Animation.DoubleAnimation(dx, 0, dur) { EasingFunction = easeOut });
+        translate.BeginAnimation(TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(dy, 0, dur) { EasingFunction = easeOut });
     }
 
     private void ShowLogsDialog()
